@@ -169,6 +169,56 @@ export async function checkSession() {
   });
 }
 
+// ─── Change Password ──────────────────────────────────────
+export function openChangePwdModal() {
+  ['cpwd-new','cpwd-confirm'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  const errEl = document.getElementById('cpwd-error');
+  if (errEl) errEl.style.display = 'none';
+  document.getElementById('change-pwd-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('cpwd-new')?.focus(), 80);
+}
+
+export function closeChangePwdModal() {
+  document.getElementById('change-pwd-modal').style.display = 'none';
+}
+
+export async function doChangePassword() {
+  const newPwd     = document.getElementById('cpwd-new').value;
+  const confirmPwd = document.getElementById('cpwd-confirm').value;
+  const errEl      = document.getElementById('cpwd-error');
+  const btn        = document.getElementById('cpwd-btn');
+
+  errEl.style.display = 'none';
+
+  if (!newPwd || newPwd.length < 4) {
+    errEl.textContent   = 'รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (newPwd !== confirmPwd) {
+    errEl.textContent   = 'รหัสผ่านทั้งสองช่องไม่ตรงกัน';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled  = true;
+  btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin .8s linear infinite"></i> กำลังบันทึก...';
+
+  const { error } = await _sb.auth.updateUser({ password: newPwd });
+
+  btn.disabled  = false;
+  btn.innerHTML = '<i class="ti ti-check"></i> บันทึก';
+
+  if (error) {
+    errEl.textContent   = 'เกิดข้อผิดพลาด: ' + error.message;
+    errEl.style.display = 'block';
+    return;
+  }
+
+  closeChangePwdModal();
+  toast('เปลี่ยนรหัสผ่านสำเร็จ', 'success');
+}
+
 // ─── Loading Overlay ─────────────────────────────────────────
 export function _showLoadingOverlay(msg) {
   const el  = document.getElementById('loading-overlay');

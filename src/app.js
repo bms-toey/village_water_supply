@@ -11,7 +11,7 @@
 import { appState } from './state/app.state.js';
 
 // ─── Services ────────────────────────────────────────────────
-import { doSignIn, doSignOut, checkSession, registerRenderCallbacks } from './services/auth.service.js';
+import { doSignIn, doSignOut, checkSession, registerRenderCallbacks, openChangePwdModal, closeChangePwdModal, doChangePassword } from './services/auth.service.js';
 
 // ─── Navigation ───────────────────────────────────────────────
 import { goPage, setTab, initNavigation, closeMobileSidebar } from './components/navigation/navigation.js';
@@ -179,7 +179,7 @@ function _toggleVillageField(role) {
 // Escape key — close all modals
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
-  ['member-modal','cash-modal','confirm-modal','rate-modal','add-tier-modal','receipt-modal','mnt-modal','member-qv-modal','user-modal','cancel-bill-modal','md-modal','village-modal','bnav-more-sheet']
+  ['member-modal','cash-modal','confirm-modal','rate-modal','add-tier-modal','receipt-modal','mnt-modal','member-qv-modal','user-modal','cancel-bill-modal','md-modal','village-modal','bnav-more-sheet','change-pwd-modal']
     .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
 });
 
@@ -189,7 +189,7 @@ initNavigation();
 // ─── Expose to window (for onclick="" handlers in HTML) ──────
 Object.assign(window, {
   // auth
-  doSignIn, doSignOut,
+  doSignIn, doSignOut, openChangePwdModal, closeChangePwdModal, doChangePassword,
   // navigation
   goPage: _goPageWithRender, setTab,
   // dashboard (called from links)
