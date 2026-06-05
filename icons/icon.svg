@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#00236f"/>
+  <g transform="translate(256,256)">
+    <!-- Water drop shape -->
+    <path d="M0,-140 C0,-140 -90,-40 -90,40 C-90,99 -50,140 0,140 C50,140 90,99 90,40 C90,-40 0,-140 0,-140 Z" fill="#2170e4" opacity="0.9"/>
+    <path d="M0,-140 C0,-140 -90,-40 -90,40 C-90,99 -50,140 0,140 C50,140 90,99 90,40 C90,-40 0,-140 0,-140 Z" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="4"/>
+    <!-- Shine -->
+    <ellipse cx="-28" cy="-20" rx="18" ry="30" fill="rgba(255,255,255,0.35)" transform="rotate(-30,-28,-20)"/>
+  </g>
+</svg>

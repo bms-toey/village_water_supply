@@ -1,0 +1,65 @@
+﻿/* layout.css - App shell, sidebar, topbar, content-area, grid helpers
+   Depends on: variables.css
+---------------------------------------------------- */
+/* โ”€โ”€โ”€ APP SHELL โ”€โ”€โ”€ */
+.app{display:flex;height:100vh;overflow:hidden}
+
+/* โ”€โ”€โ”€ SIDEBAR โ”€โ”€โ”€ */
+.sidebar{width:var(--sidebar-w);min-width:var(--sidebar-w);height:100%;background:var(--blue-900);display:flex;flex-direction:column;overflow:hidden;position:relative;z-index:10}
+.sidebar::after{content:'';position:absolute;bottom:0;left:0;right:0;height:120px;background:linear-gradient(to top,rgba(0,0,0,.25),transparent);pointer-events:none}
+.sidebar-logo{padding:22px 20px 18px;border-bottom:1px solid rgba(255,255,255,.1);flex-shrink:0}
+.logo-row{display:flex;align-items:center;gap:10px}
+.logo-icon{width:38px;height:38px;background:rgba(255,255,255,.15);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff;backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.2)}
+.logo-text{color:#fff;font-size:17px;font-weight:800;letter-spacing:-.3px;line-height:1.1}
+.logo-sub{color:rgba(255,255,255,.5);font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.08em;margin-top:1px}
+.nav-section{padding:16px 12px 0;flex:1;overflow-y:auto;overflow-x:hidden}
+.nav-section::-webkit-scrollbar{display:none}
+.nav-label{font-size:10px;font-weight:700;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.1em;padding:0 8px;margin-bottom:6px;margin-top:16px}
+.nav-label:first-child{margin-top:0}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--radius-md);cursor:pointer;font-size:13.5px;font-weight:500;color:rgba(255,255,255,.65);transition:var(--transition);user-select:none;position:relative;margin-bottom:2px}
+.nav-item:hover{background:rgba(255,255,255,.1);color:rgba(255,255,255,.9)}
+.nav-item.active{background:rgba(255,255,255,.18);color:#fff;font-weight:600}
+.nav-item.active::before{content:'';position:absolute;left:-12px;top:50%;transform:translateY(-50%);width:3px;height:60%;background:#fff;border-radius:0 3px 3px 0}
+.nav-item i{font-size:18px;width:22px;text-align:center;flex-shrink:0}
+.nav-badge{margin-left:auto;background:rgba(186,26,26,.9);color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;min-width:18px;text-align:center}
+.sidebar-footer{padding:14px 16px;border-top:1px solid rgba(255,255,255,.1);flex-shrink:0;position:relative;z-index:1}
+.user-row{display:flex;align-items:center;gap:10px;cursor:pointer}
+.user-avatar{width:34px;height:34px;border-radius:50%;background:var(--blue-500);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;flex-shrink:0;border:2px solid rgba(255,255,255,.3)}
+.user-name{color:#fff;font-size:13px;font-weight:600;line-height:1.2}
+.user-role{color:rgba(255,255,255,.45);font-size:11px}
+
+/* โ”€โ”€โ”€ MAIN โ”€โ”€โ”€ */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+
+/* โ”€โ”€โ”€ TOPBAR โ”€โ”€โ”€ */
+.topbar{height:58px;background:var(--white);border-bottom:1px solid var(--gray-200);display:flex;align-items:center;padding:0 28px;gap:14px;flex-shrink:0;box-shadow:var(--shadow-sm)}
+.topbar-breadcrumb{display:flex;align-items:center;gap:8px;flex:1}
+.breadcrumb-app{font-size:12px;color:var(--gray-500);font-weight:500}
+.breadcrumb-sep{color:var(--gray-300);font-size:14px}
+.breadcrumb-page{font-size:14px;font-weight:700;color:var(--blue-900)}
+.topbar-search{display:flex;align-items:center;gap:8px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:24px;padding:7px 14px;cursor:text;transition:var(--transition);min-width:220px}
+.topbar-search:hover{border-color:var(--blue-200);background:#fff}
+.topbar-search input{border:none;background:transparent;outline:none;font-size:12.5px;font-family:'Sarabun',sans-serif;color:var(--gray-900);width:100%}
+.topbar-search input::placeholder{color:var(--gray-500)}
+.topbar-search i{font-size:16px;color:var(--gray-500);flex-shrink:0}
+.topbar-icon{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:19px;color:var(--gray-500);transition:var(--transition);position:relative;flex-shrink:0}
+.topbar-icon:hover{background:var(--gray-100);color:var(--blue-900)}
+.topbar-notif-dot{position:absolute;top:6px;right:6px;width:8px;height:8px;background:var(--red-700);border-radius:50%;border:2px solid #fff}
+.topbar-avatar{width:34px;height:34px;border-radius:50%;background:var(--blue-800);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;border:2px solid var(--gray-200)}
+
+/* โ”€โ”€โ”€ CONTENT AREA โ”€โ”€โ”€ */
+.content-area{flex:1;overflow-y:auto;overflow-x:hidden;background:var(--surface);padding:28px 32px 40px;max-width:100%}
+.content-area::-webkit-scrollbar{width:6px}
+.content-area::-webkit-scrollbar-track{background:transparent}
+.content-area::-webkit-scrollbar-thumb{background:var(--gray-300);border-radius:3px}
+
+/* โ”€โ”€โ”€ PAGES โ”€โ”€โ”€ */
+.page{display:none;animation:fadeSlideIn .2s ease}
+.page.active{display:block}
+
+/* โ”€โ”€โ”€ GRID HELPERS โ”€โ”€โ”€ */
+.grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-bottom:18px}
+.grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:18px}
+.grid-2-3{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:18px}
+.grid-3-2{display:grid;grid-template-columns:3fr 2fr;gap:16px;margin-bottom:18px}
+

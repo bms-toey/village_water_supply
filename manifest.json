@@ -1,0 +1,56 @@
+{
+  "name": "AquaFlow Pro — ระบบประปาหมู่บ้าน",
+  "short_name": "AquaFlow",
+  "description": "ระบบบริหารจัดการประปาหมู่บ้านครบวงจร",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#00236f",
+  "theme_color": "#00236f",
+  "lang": "th",
+  "dir": "ltr",
+  "orientation": "portrait-primary",
+  "categories": ["utilities", "productivity"],
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "จดมิเตอร์",
+      "short_name": "มิเตอร์",
+      "description": "บันทึกการอ่านมิเตอร์",
+      "url": "/?page=meter",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "ออกบิล",
+      "short_name": "บิล",
+      "description": "ระบบออกบิลค่าน้ำ",
+      "url": "/?page=billing",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

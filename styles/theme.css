@@ -1,0 +1,50 @@
+/* ─── THEME ──────────────────────────────────────────────────────
+   Light / dark mode variable overrides.
+   Currently provides light theme defaults. Dark mode can be activated
+   by adding class="dark" to <html> or via @media prefers-color-scheme.
+────────────────────────────────────────────────────────────── */
+
+/* Light theme (default — no override needed, matches variables.css) */
+[data-theme="light"],
+:root {
+  color-scheme: light;
+}
+
+/* Dark theme prototype — activate with <html data-theme="dark"> */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --surface:    #0f1117;
+  --white:      #1a1d27;
+  --gray-50:    #1e2130;
+  --gray-100:   #252836;
+  --gray-200:   #2e3347;
+  --gray-300:   #3d4358;
+  --gray-500:   #8b90a8;
+  --gray-700:   #c0c4d6;
+  --gray-900:   #e8eaf0;
+
+  --blue-900:   #4d8ef0;
+  --blue-800:   #6ba3f5;
+  --blue-50:    #1a2540;
+  --blue-100:   #1e2e55;
+  --blue-200:   #253a6e;
+
+  --shadow-sm:  0 1px 3px rgba(0,0,0,.3);
+  --shadow-md:  0 4px 12px rgba(0,0,0,.4);
+  --shadow-lg:  0 10px 30px rgba(0,0,0,.5);
+}
+
+/* Print styles */
+@media print {
+  .sidebar, .topbar, .bottom-nav, .bnav-more-sheet,
+  .filter-bar, .page-hd-actions, .btn-menu,
+  #toast-container, .modal-overlay, #loading-overlay,
+  #auth-overlay { display: none !important; }
+
+  .app   { display: block; }
+  .main  { overflow: visible; }
+  .content-area { overflow: visible; padding: 0 !important; }
+  .page  { display: block !important; }
+  .card  { box-shadow: none; border: 1px solid #ccc; break-inside: avoid; }
+}

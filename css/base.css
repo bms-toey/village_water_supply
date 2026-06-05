@@ -1,0 +1,30 @@
+/* ─── RESET & BOX MODEL ─── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+/* ─── DESIGN TOKENS ─── */
+:root{
+  --blue-950:#00164e;--blue-900:#00236f;--blue-800:#1e3a8a;--blue-700:#264191;
+  --blue-500:#2170e4;--blue-400:#4d8ef0;--blue-200:#adc6ff;--blue-100:#dce1ff;--blue-50:#eef2ff;
+  --cyan-800:#004754;--cyan-400:#1dbcda;--cyan-100:#acedff;--cyan-50:#ecfeff;
+  --red-900:#93000a;--red-700:#ba1a1a;--red-100:#ffdad6;--red-50:#fff0ee;
+  --green-700:#15803d;--green-100:#dcfce7;--green-50:#f0fdf4;
+  --amber-700:#b45309;--amber-100:#fef3c7;
+  --gray-900:#191c1e;--gray-700:#444651;--gray-500:#757682;--gray-300:#c5c5d3;
+  --gray-200:#e0e3e5;--gray-100:#eceef0;--gray-50:#f7f9fb;--white:#ffffff;
+  --surface:var(--gray-50);--sidebar-w:240px;
+  --radius-sm:6px;--radius-md:10px;--radius-lg:14px;--radius-xl:20px;
+  --shadow-sm:0 1px 3px rgba(0,35,111,.08),0 1px 2px rgba(0,35,111,.05);
+  --shadow-md:0 4px 12px rgba(0,35,111,.1),0 2px 4px rgba(0,35,111,.06);
+  --shadow-lg:0 10px 30px rgba(0,35,111,.12),0 4px 8px rgba(0,35,111,.08);
+  --transition:.18s cubic-bezier(.4,0,.2,1);
+}
+
+/* ─── BASE ─── */
+html,body{height:100%;overflow:hidden;font-family:'Sarabun',sans-serif;font-size:14px;color:var(--gray-900);background:var(--surface);-webkit-font-smoothing:antialiased}
+
+/* ─── GLOBAL KEYFRAMES ─── */
+@keyframes fadeSlideIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes modalIn{from{opacity:0;transform:scale(.97) translateY(8px)}to{opacity:1;transform:scale(1) translateY(0)}}
+@keyframes toastIn{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
+@keyframes toastOut{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(40px)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}

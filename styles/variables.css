@@ -1,0 +1,74 @@
+/* ─── DESIGN TOKENS ─────────────────────────────────────────────
+   Centralised CSS custom-properties used across all stylesheets.
+   Import this file FIRST in index.html before all other CSS.
+────────────────────────────────────────────────────────────── */
+:root {
+  /* Blue palette */
+  --blue-950: #00164e;
+  --blue-900: #00236f;
+  --blue-800: #1e3a8a;
+  --blue-700: #264191;
+  --blue-500: #2170e4;
+  --blue-400: #4d8ef0;
+  --blue-300: #7eb1f7;
+  --blue-200: #adc6ff;
+  --blue-100: #dce1ff;
+  --blue-50:  #eef2ff;
+
+  /* Cyan palette */
+  --cyan-800: #004754;
+  --cyan-400: #1dbcda;
+  --cyan-100: #acedff;
+  --cyan-50:  #ecfeff;
+
+  /* Red palette */
+  --red-900: #93000a;
+  --red-700: #ba1a1a;
+  --red-100: #ffdad6;
+  --red-50:  #fff0ee;
+
+  /* Green palette */
+  --green-700: #15803d;
+  --green-600: #16a34a;
+  --green-400: #4ade80;
+  --green-100: #dcfce7;
+  --green-50:  #f0fdf4;
+
+  /* Amber palette */
+  --amber-700: #b45309;
+  --amber-100: #fef3c7;
+  --amber-50:  #fffbeb;
+
+  /* Gray palette */
+  --gray-900: #191c1e;
+  --gray-700: #444651;
+  --gray-500: #757682;
+  --gray-300: #c5c5d3;
+  --gray-200: #e0e3e5;
+  --gray-100: #eceef0;
+  --gray-50:  #f7f9fb;
+  --white:    #ffffff;
+
+  /* Semantic */
+  --surface:    var(--gray-50);
+  --sidebar-w:  240px;
+  --sidebar-w-collapsed: 0px;
+
+  /* Border-radius scale */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+
+  /* Elevation */
+  --shadow-sm: 0 1px 3px rgba(0,35,111,.08), 0 1px 2px rgba(0,35,111,.05);
+  --shadow-md: 0 4px 12px rgba(0,35,111,.10), 0 2px 4px rgba(0,35,111,.06);
+  --shadow-lg: 0 10px 30px rgba(0,35,111,.12), 0 4px 8px rgba(0,35,111,.08);
+
+  /* Motion */
+  --transition: .18s cubic-bezier(.4,0,.2,1);
+
+  /* Typography */
+  --font-sans: 'Sarabun', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+}

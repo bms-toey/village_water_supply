@@ -1,0 +1,29 @@
+# Claude Code (local IDE settings)
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Sensitive (never commit these)
+.env
+.env.local
+*.pem
+*.key
+
+# Build output (none currently — vanilla project)
+dist/
+build/
+
+# Node (if added later)
+node_modules/

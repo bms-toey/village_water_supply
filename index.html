@@ -1,0 +1,1320 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<title>AquaFlow Pro — ระบบประปาหมู่บ้าน</title>
+<!-- PWA -->
+<link rel="manifest" href="manifest.json"/>
+<meta name="theme-color" content="#00236f"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="AquaFlow"/>
+<link rel="apple-touch-icon" href="icons/icon.svg"/>
+<meta name="description" content="ระบบบริหารจัดการประปาหมู่บ้านครบวงจร"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.0.0/dist/tabler-icons.min.css"/>
+<link rel="stylesheet" href="styles/variables.css"/>
+<link rel="stylesheet" href="styles/base.css"/>
+<link rel="stylesheet" href="styles/layout.css"/>
+<link rel="stylesheet" href="styles/components.css"/>
+<link rel="stylesheet" href="styles/responsive.css"/>
+<link rel="stylesheet" href="styles/theme.css"/>
+<link rel="stylesheet" href="styles/login.css"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css"/>
+</head>
+<body>
+<div class="app">
+
+<!-- ══════════ SIDEBAR ══════════ -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-row">
+      <div class="logo-icon"><i class="ti ti-droplet-filled"></i></div>
+      <div>
+        <div class="logo-text">AquaFlow</div>
+        <div class="logo-sub">Village Utility Pro</div>
+      </div>
+    </div>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">ภาพรวม</div>
+    <div class="nav-item active" data-page="dashboard"><i class="ti ti-layout-dashboard"></i> Dashboard</div>
+    <div class="nav-label">จัดการข้อมูล</div>
+    <div class="nav-item" data-page="members"><i class="ti ti-users"></i> สมาชิก</div>
+    <div class="nav-item" data-page="meter"><i class="ti ti-gauge"></i> จดมิเตอร์</div>
+    <div class="nav-item" data-page="maintenance"><i class="ti ti-tool"></i> ซ่อมบำรุง<span class="nav-badge" id="mnt-badge"></span></div>
+    <div class="nav-label">การเงิน</div>
+    <div class="nav-item" data-page="billing"><i class="ti ti-receipt-2"></i> ระบบออกบิล<span class="nav-badge" id="billing-badge"></span></div>
+    <div class="nav-item" data-page="payments"><i class="ti ti-credit-card"></i> รับชำระเงิน</div>
+    <div class="nav-item" data-page="debtors"><i class="ti ti-alert-triangle"></i> ลูกหนี้<span class="nav-badge" id="debtors-badge"></span></div>
+    <div class="nav-label">วิเคราะห์</div>
+    <div class="nav-item" data-page="reports"><i class="ti ti-chart-bar"></i> รายงาน</div>
+    <div class="nav-item" data-page="map"><i class="ti ti-map-2"></i> แผนที่</div>
+    <div class="nav-label">ระบบ</div>
+    <div class="nav-item" data-page="settings"><i class="ti ti-settings-2"></i> ตั้งค่าระบบ</div>
+    <div class="nav-item" data-page="users" id="nav-users" style="display:none"><i class="ti ti-users-group"></i> จัดการผู้ใช้</div>
+  </div>
+  <div class="sidebar-footer">
+    <div class="user-row">
+      <div class="user-avatar">AD</div>
+      <div>
+        <div class="user-name">ผู้ดูแลระบบ</div>
+        <div class="user-role">Super Admin</div>
+      </div>
+      <i class="ti ti-logout" title="ออกจากระบบ" onclick="doSignOut()" style="color:rgba(255,255,255,.4);margin-left:auto;font-size:16px;cursor:pointer" onmouseenter="this.style.color='#fff'" onmouseleave="this.style.color='rgba(255,255,255,.4)'"></i>
+    </div>
+  </div>
+</aside>
+
+<!-- ══════════ MAIN ══════════ -->
+<div class="main">
+  <!-- Mobile sidebar backdrop -->
+  <div class="sidebar-backdrop"></div>
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <button class="btn-menu" aria-label="เมนู"><i class="ti ti-menu-2"></i></button>
+    <div class="topbar-breadcrumb">
+      <span class="breadcrumb-app">AquaFlow Pro</span>
+      <span class="breadcrumb-sep"><i class="ti ti-chevron-right" style="font-size:13px"></i></span>
+      <span class="breadcrumb-page" id="topbar-page">Dashboard</span>
+    </div>
+    <div class="topbar-search">
+      <i class="ti ti-search"></i>
+      <input type="text" placeholder="ค้นหาสมาชิก, มิเตอร์, บิล..."/>
+    </div>
+    <div class="topbar-icon"><i class="ti ti-bell"></i><div class="topbar-notif-dot"></div></div>
+    <div class="topbar-icon"><i class="ti ti-building-community"></i></div>
+    <div class="topbar-avatar">AD</div>
+  </div>
+
+  <!-- CONTENT AREA -->
+  <div class="content-area">
+
+    <!-- ══════════ DASHBOARD ══════════ -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-hd">
+        <div class="page-hd-left">
+          <div class="page-title">Dashboard ผู้บริหาร</div>
+          <div class="page-sub">สรุปภาพรวมระบบประปาหมู่บ้าน • ตุลาคม 2566</div>
+        </div>
+        <div class="page-hd-actions">
+          <button class="btn btn-secondary" onclick="goPage('reports')"><i class="ti ti-download"></i>ส่งออกรายงาน</button>
+          <button class="btn btn-primary"   onclick="goPage('meter')"><i class="ti ti-plus"></i>จดมิเตอร์</button>
+        </div>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi-card" onclick="goPage('members')">
+          <div class="kpi-icon" style="background:var(--blue-50);color:var(--blue-700)"><i class="ti ti-users"></i></div>
+          <div class="kpi-label">จำนวนผู้ใช้น้ำ</div>
+          <div class="kpi-val text-primary">—</div>
+          <div class="kpi-footer"><span class="kpi-badge kb-green"><i class="ti ti-trending-up" style="font-size:10px"></i>+2.5%</span><span class="text-muted" style="font-size:11px">จากเดือนที่แล้ว</span></div>
+        </div>
+        <div class="kpi-card" onclick="goPage('billing')">
+          <div class="kpi-icon" style="background:#f0fdf4;color:var(--green-700)"><i class="ti ti-circle-percentage"></i></div>
+          <div class="kpi-label">อัตราการจัดเก็บ</div>
+          <div class="kpi-val" style="color:var(--green-700)">—</div>
+          <div class="kpi-footer"><span class="kpi-badge kb-green">ปกติ</span></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon" style="background:var(--cyan-50);color:var(--cyan-800)"><i class="ti ti-droplet"></i></div>
+          <div class="kpi-label">ปริมาณน้ำใช้รวม</div>
+          <div class="kpi-val" style="color:var(--cyan-800)">—</div>
+          <div class="kpi-footer"><span class="kpi-badge kb-amber">↑ สูงขึ้น</span></div>
+        </div>
+        <div class="kpi-card" onclick="goPage('debtors')">
+          <div class="kpi-icon" style="background:var(--red-50);color:var(--red-700)"><i class="ti ti-alert-circle"></i></div>
+          <div class="kpi-label">ค้างชำระ</div>
+          <div class="kpi-val text-error">—</div>
+          <div class="kpi-footer"><span class="kpi-badge kb-red"><i class="ti ti-arrow-up" style="font-size:10px"></i>ต้องติดตาม</span></div>
+        </div>
+      </div>
+
+      <div class="grid-2-3" style="align-items:start">
+        <div>
+          <div class="card">
+            <div class="card-hd">
+              <div class="card-title"><i class="ti ti-chart-bar" style="color:var(--blue-500)"></i>รายรับรายเดือน 2566</div>
+              <span class="card-link" onclick="goPage('reports')">ดูรายงาน <i class="ti ti-arrow-right"></i></span>
+            </div>
+            <div class="bar-chart-wrap" style="padding-top:18px">
+              <div class="bar-chart" id="dash-bar-chart"></div>
+              <div class="bar-chart-axis">
+                <span></span>
+                <span></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-hd">
+              <div class="card-title"><i class="ti ti-map-2" style="color:var(--blue-500)"></i>เปรียบเทียบรายหมู่บ้าน</div>
+              <span class="card-link" onclick="goPage('reports')">ดูรายละเอียด <i class="ti ti-arrow-right"></i></span>
+            </div>
+            <div class="card-body" style="padding-bottom:8px" id="dash-vbar-body"></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card">
+            <div class="card-hd">
+              <div class="card-title"><i class="ti ti-chart-donut" style="color:var(--blue-500)"></i>สถานะการชำระ</div>
+              <span class="card-link" onclick="goPage('billing')">บิลทั้งหมด <i class="ti ti-arrow-right"></i></span>
+            </div>
+            <div class="card-body" style="padding:16px 20px">
+              <div style="display:flex;justify-content:center;margin-bottom:14px">
+                <svg width="110" height="110" viewBox="0 0 110 110">
+                  <circle cx="55" cy="55" r="44" fill="none" stroke="#eceef0" stroke-width="14"/>
+                  <circle cx="55" cy="55" r="44" fill="none" stroke="#0058be" stroke-width="14" stroke-dasharray="0 276.46" stroke-linecap="round" transform="rotate(-90 55 55)"/>
+                  <circle cx="55" cy="55" r="44" fill="none" stroke="#f59e0b" stroke-width="14" stroke-dasharray="0 276.46" stroke-dashoffset="0" stroke-linecap="round" transform="rotate(-90 55 55)"/>
+                  <circle cx="55" cy="55" r="44" fill="none" stroke="#ba1a1a" stroke-width="14" stroke-dasharray="0 276.46" stroke-dashoffset="0" stroke-linecap="round" transform="rotate(-90 55 55)"/>
+                  <text x="55" y="52" text-anchor="middle" font-size="11" fill="#444651" font-family="Sarabun">รวม</text>
+                  <text x="55" y="66" text-anchor="middle" font-size="14" fill="#00236f" font-family="Sarabun" font-weight="800">0</text>
+                </svg>
+              </div>
+              <div class="donut-legend-item"><span style="display:flex;align-items:center"><span class="dl-dot" style="background:#0058be"></span>ชำระแล้ว</span><strong>0% — 0 ราย</strong></div>
+              <div class="donut-legend-item"><span style="display:flex;align-items:center"><span class="dl-dot" style="background:#f59e0b"></span>รอยืนยัน</span><strong>0% — 0 ราย</strong></div>
+              <div class="donut-legend-item"><span style="display:flex;align-items:center"><span class="dl-dot" style="background:#ba1a1a"></span>ค้างชำระ</span><strong style="color:var(--red-700)">0% — 0 ราย</strong></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-hd">
+              <div class="card-title" style="color:var(--red-700)"><i class="ti ti-alert-triangle"></i>ใช้น้ำผิดปกติ</div>
+              <span id="anomaly-count" style="background:var(--red-100);color:var(--red-700);font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px">0 เคส</span>
+            </div>
+            <div id="anomaly-list" style="padding:12px 14px">
+              <div style="text-align:center;color:var(--gray-500);padding:16px;font-size:12px">กำลังโหลด...</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-hd">
+              <div class="card-title"><i class="ti ti-clock-exclamation" style="color:var(--red-700)"></i>ลูกหนี้ค้างสูงสุด</div>
+              <span class="card-link" onclick="goPage('debtors')">ดูทั้งหมด <i class="ti ti-arrow-right"></i></span>
+            </div>
+            <div class="tbl-wrap">
+              <table>
+                <thead><tr><th>ชื่อ</th><th>ระยะ</th><th>ยอด</th><th></th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ MEMBERS ══════════ -->
+    <div class="page" id="page-members">
+      <div class="page-hd">
+        <div>
+          <div class="page-title">การจัดการสมาชิก</div>
+          <div class="page-sub">จัดการฐานข้อมูลผู้ใช้น้ำ ใน 4 หมู่บ้าน</div>
+        </div>
+        <div class="page-hd-actions">
+          <button class="btn btn-primary" onclick="openAddMember()"><i class="ti ti-user-plus"></i>เพิ่มสมาชิกใหม่</button>
+        </div>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-icon" style="background:var(--blue-50);color:var(--blue-700)"><i class="ti ti-users"></i></div><div class="kpi-label">สมาชิกทั้งหมด</div><div class="kpi-val text-primary">—</div><div class="kpi-footer"><span class="kpi-badge kb-blue">4 หมู่บ้าน</span></div></div>
+        <div class="kpi-card"><div class="kpi-icon" style="background:var(--green-50);color:var(--green-700)"><i class="ti ti-circle-check"></i></div><div class="kpi-label">สถานะปกติ</div><div class="kpi-val" style="color:var(--green-700)">—</div><div class="kpi-footer"><span class="kpi-badge kb-green">89.7%</span></div></div>
+        <div class="kpi-card" onclick="goPage('debtors')"><div class="kpi-icon" style="background:var(--red-50);color:var(--red-700)"><i class="ti ti-receipt-off"></i></div><div class="kpi-label">ค้างชำระ</div><div class="kpi-val text-error">—</div><div class="kpi-footer"><span class="kpi-badge kb-red">ไปดูลูกหนี้ →</span></div></div>
+        <div class="kpi-card"><div class="kpi-icon" style="background:var(--cyan-50);color:var(--cyan-800)"><i class="ti ti-droplet"></i></div><div class="kpi-label">การใช้รวมเดือนนี้</div><div class="kpi-val" style="color:var(--cyan-800)">12.4K <span style="font-size:14px">m³</span></div></div>
+      </div>
+      <div class="filter-bar">
+        <input class="fsearch" type="text" placeholder="🔍 ค้นหาชื่อ หรือ เลขมิเตอร์..."/>
+        <select class="fselect"><option>หมู่บ้านทั้งหมด</option></select>
+        <select class="fselect"><option>สถานะทั้งหมด</option><option>ปกติ</option><option>ค้างชำระ</option><option>ปิดมิเตอร์</option></select>
+        <button class="btn btn-secondary btn-sm" onclick="exportMembersCSV()"><i class="ti ti-download"></i>Export CSV</button>
+      </div>
+      <div class="card">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>สมาชิก</th><th>หมู่บ้าน</th><th>มิเตอร์</th><th>อ่านล่าสุด</th><th>สถานะ</th><th style="text-align:right">จัดการ</th></tr></thead>
+            <tbody id="members-tbody"></tbody>
+          </table>
+        </div>
+        <div class="tbl-footer">
+          <span id="members-count-footer">แสดง...</span>
+          <div class="tbl-pagination">
+            <div class="pg-btn"><i class="ti ti-chevron-left" style="font-size:13px"></i></div>
+            <div class="pg-btn active">1</div>
+            <div class="pg-btn"><i class="ti ti-chevron-right" style="font-size:13px"></i></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ METER ══════════ -->
+    <div class="page" id="page-meter">
+      <div class="page-hd">
+        <div><div class="page-title" id="meter-hd-name">จดมิเตอร์</div><div class="page-sub" id="meter-hd-id">เลือกสมาชิกด้านล่างเพื่อเริ่มจดมิเตอร์</div></div>
+        <div class="page-hd-actions" id="meter-hd-actions" style="display:none">
+          <button class="btn btn-secondary" onclick="resetMeterSelection()"><i class="ti ti-list"></i>รายการสมาชิก</button>
+        </div>
+      </div>
+
+      <!-- ── Member selection list (shown when no member selected) ── -->
+      <!-- member list panel — visible when no member selected -->
+      <div id="meter-member-list" class="card" style="padding:0"></div>
+
+      <!-- meter form area — hidden until member selected -->
+      <div id="meter-form-area" style="display:none">
+        <div class="kpi-grid-3" style="margin-bottom:20px">
+          <div class="kpi-card" style="cursor:default"><div class="kpi-label">เลขอ่านครั้งก่อน</div><div class="kpi-val text-primary" id="m-prev">—</div><div class="kpi-footer"><span class="text-muted" style="font-size:11px">หน่วย</span></div></div>
+          <div class="kpi-card" style="cursor:default"><div class="kpi-label">หน่วยที่ใช้เดือนนี้</div><div class="kpi-val" id="m-usage" style="color:var(--blue-500)">—</div><div class="kpi-footer"><span id="m-pct" class="text-muted" style="font-size:11px">รอกรอกข้อมูล</span></div></div>
+          <div class="kpi-card" style="cursor:default"><div class="kpi-label">ค่าน้ำประมาณการ</div><div class="kpi-val" id="m-est" style="color:var(--green-700)">—</div><div class="kpi-footer"><span class="text-muted" style="font-size:11px">บาท (ยังไม่ยืนยัน)</span></div></div>
+        </div>
+        <div id="m-charge-breakdown" style="display:none;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:10px;padding:10px 14px;margin-bottom:16px"></div>
+        <div class="grid-2-3" style="align-items:start">
+          <div class="card">
+            <div class="card-hd"><div class="card-title"><i class="ti ti-pencil-check" style="color:var(--blue-500)"></i>บันทึกเลขอ่านปัจจุบัน</div></div>
+            <div class="card-body">
+              <div style="margin-bottom:16px">
+                <div style="font-size:12px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">เลขมิเตอร์ปัจจุบัน</div>
+                <div style="display:flex;gap:10px;align-items:center">
+                  <input class="meter-big-input" type="number" id="meter-new-val" placeholder="0 0 0 0 0" oninput="calcMeter(this.value)"/>
+                  <button class="btn btn-secondary" style="white-space:nowrap;padding:14px 16px"><i class="ti ti-camera"></i>AI Scan</button>
+                </div>
+              </div>
+              <div id="meter-warn" style="display:none;margin-bottom:16px">
+                <div class="warning-box">
+                  <i class="ti ti-alert-octagon"></i>
+                  <div><div class="text-bold text-error" style="font-size:13px">ใช้น้ำสูงผิดปกติ!</div><div class="text-error" style="font-size:12px">โปรดตรวจสอบการรั่วไหลหรือยืนยันความถูกต้องของตัวเลข</div></div>
+                </div>
+              </div>
+              <div style="margin-bottom:20px">
+                <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px">
+                  <span class="text-muted">เทียบกับค่าเฉลี่ย (15 m³/เดือน)</span><strong id="m-pct2">—</strong>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="m-prog" style="width:0%"></div></div>
+              </div>
+              <button class="btn btn-primary" style="width:100%;justify-content:center;padding:13px;font-size:14px" onclick="saveMeter()">
+                <i class="ti ti-file-invoice"></i>บันทึกและออกใบแจ้งหนี้
+              </button>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div class="card">
+              <div class="card-hd"><div class="card-title"><i class="ti ti-photo" style="color:var(--blue-500)"></i>รูปถ่ายมิเตอร์</div></div>
+              <div class="card-body">
+                <div style="background:var(--gray-50);border:2px dashed var(--gray-300);border-radius:var(--radius-md);aspect-ratio:16/9;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:var(--transition)" onmouseenter="this.style.borderColor='var(--blue-300)'" onmouseleave="this.style.borderColor='var(--gray-300)'">
+                  <i class="ti ti-camera-plus" style="font-size:32px;color:var(--gray-400)"></i>
+                  <div style="font-size:13px;color:var(--gray-500);font-weight:500">ถ่ายรูปหน้าปัดมิเตอร์</div>
+                  <div style="font-size:11px;color:var(--gray-400)">หรือลาก &amp; วางไฟล์ที่นี่</div>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-hd"><div class="card-title"><i class="ti ti-info-circle" style="color:var(--blue-500)"></i>อัตราค่าน้ำ</div></div>
+              <div class="card-body" style="padding:14px 18px">
+                <div class="rate-row"><div class="rate-col text-muted">0–10 หน่วย</div><div class="rate-val">5.00 ฿/หน่วย</div></div>
+                <div class="rate-row"><div class="rate-col text-muted">11–30 หน่วย</div><div class="rate-val">8.50 ฿/หน่วย</div></div>
+                <div class="rate-row"><div class="rate-col text-muted">31–60 หน่วย</div><div class="rate-val">12.00 ฿/หน่วย</div></div>
+                <div class="rate-row"><div class="rate-col text-muted">61+ หน่วย</div><div class="rate-val">15.00 ฿/หน่วย</div></div>
+                <div class="info-box" style="margin-top:12px"><i class="ti ti-calculator"></i><span>คำนวณแบบก้าวหน้าอัตโนมัติ + ค่าบำรุง 20–30 ฿</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-hd"><div class="card-title"><i class="ti ti-history" style="color:var(--blue-500)"></i>ประวัติการอ่านมิเตอร์ (6 รอบล่าสุด)</div></div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>วันที่อ่าน</th><th>เลขก่อนหน้า</th><th>เลขปัจจุบัน</th><th>หน่วยใช้</th><th>ยอดเรียกเก็บ</th><th>สถานะ</th><th>ผู้จด / วิธีจด</th></tr></thead>
+              <tbody id="meter-history-tbody">
+                <tr><td colspan="7" style="text-align:center;color:var(--gray-500);padding:20px">เลือกสมาชิกเพื่อดูประวัติ</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div><!-- end #meter-form-area -->
+    </div>
+
+    <!-- ══════════ BILLING ══════════ -->
+    <div class="page" id="page-billing">
+      <div class="page-hd">
+        <div><div class="page-title">ระบบออกบิลค่าน้ำ</div><div class="page-sub">จัดการการเรียกเก็บค่าน้ำรายเดือนและสถานะการชำระ</div></div>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-icon" style="background:var(--blue-50);color:var(--blue-700)"><i class="ti ti-coin"></i></div><div class="kpi-label">ยอดเรียกเก็บเดือนนี้</div><div class="kpi-val text-primary">—</div><div class="kpi-footer"><span class="kpi-badge kb-green">+12.5%</span></div></div>
+        <div class="kpi-card"><div class="kpi-icon" style="background:var(--green-50);color:var(--green-700)"><i class="ti ti-check"></i></div><div class="kpi-label">ชำระแล้ว</div><div class="kpi-val" style="color:var(--green-700)">—</div><div class="kpi-footer"><div class="progress-bar" style="width:100%"><div class="progress-fill" style="width:68%;background:var(--green-700)"></div></div></div></div>
+        <div class="kpi-card" onclick="goPage('debtors')"><div class="kpi-icon" style="background:var(--red-50);color:var(--red-700)"><i class="ti ti-clock-exclamation"></i></div><div class="kpi-label">ค้างชำระ</div><div class="kpi-val text-error">—</div><div class="kpi-footer"><span class="kpi-badge kb-red">— รายการ →</span></div></div>
+        <div class="kpi-card"><div class="kpi-icon" style="background:var(--cyan-50);color:var(--cyan-800)"><i class="ti ti-qrcode"></i></div><div class="kpi-label">ชำระผ่าน QR Code</div><div class="kpi-val" style="color:var(--cyan-800)">85%</div><div class="kpi-footer"><span class="kpi-badge kb-blue">ช่องทางหลัก</span></div></div>
+      </div>
+      <div class="tabs">
+        <div class="tab active" onclick="setTab(this)">บิลทั้งหมด</div>
+        <div class="tab" onclick="setTab(this)">ค้างชำระ</div>
+        <div class="tab" onclick="setTab(this)">รอยืนยัน</div>
+        <div class="tab" onclick="setTab(this)">ชำระแล้ว</div>
+      </div>
+      <div class="filter-bar">
+        <input class="fsearch" type="text" placeholder="🔍 ค้นหาเลขบิล หรือ ชื่อสมาชิก..."/>
+        <select class="fselect"><option>ทุกหมู่บ้าน</option></select>
+        <select class="fselect"><option>ตุลาคม 2566</option><option>กันยายน 2566</option></select>
+      </div>
+      <div class="card">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>เลขที่บิล</th><th>ชื่อผู้ใช้น้ำ</th><th>มิเตอร์ก่อน → หลัง</th><th>หน่วย</th><th>ยอดสุทธิ</th><th>รอบบิล</th><th>สถานะ</th><th style="text-align:right">จัดการ</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="tbl-footer"><span>แสดง...</span><div class="tbl-pagination"><div class="pg-btn active">1</div></div></div>
+      </div>
+    </div>
+
+    <!-- ══════════ PAYMENTS ══════════ -->
+    <div class="page" id="page-payments">
+      <div class="page-hd">
+        <div><div class="page-title">ระบบรับชำระเงิน</div><div class="page-sub">Payment Collection &amp; Slip Verification</div></div>
+        <div class="page-hd-actions">
+          <button class="btn btn-primary" onclick="openCashModal()"><i class="ti ti-plus"></i>บันทึกรับเงินสด</button>
+        </div>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-icon" style="background:var(--red-50);color:var(--red-700)"><i class="ti ti-coins"></i></div><div class="kpi-label">ยอดค้างชำระทั้งหมด</div><div class="kpi-val text-error">—</div><div class="kpi-footer"><span class="kpi-badge kb-red">+2.4%</span></div></div>
+        <div class="kpi-card"><div class="kpi-icon" style="background:var(--green-50);color:var(--green-700)"><i class="ti ti-cash"></i></div><div class="kpi-label">ยอดจัดเก็บวันนี้</div><div class="kpi-val" style="color:var(--green-700)">—</div><div class="kpi-footer"><span class="kpi-badge kb-green">วันนี้</span></div></div>
+        <div class="kpi-card"><div class="kpi-icon" style="background:var(--amber-100);color:var(--amber-700)"><i class="ti ti-hourglass"></i></div><div class="kpi-label">รอตรวจสอบสลิป</div><div class="kpi-val" style="color:var(--amber-700)">—</div><div class="kpi-footer"><span class="kpi-badge kb-amber">รายการ</span></div></div>
+        <div class="kpi-card" onclick="goPage('debtors')"><div class="kpi-icon" style="background:var(--red-50);color:var(--red-700)"><i class="ti ti-clock-x"></i></div><div class="kpi-label">เกินกำหนดชำระ</div><div class="kpi-val text-error">—</div><div class="kpi-footer"><span class="kpi-badge kb-red">→</span></div></div>
+      </div>
+      <div class="grid-3-2" style="align-items:start">
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-title"><i class="ti ti-activity" style="color:var(--blue-500)"></i>รายการชำระเงินล่าสุด</div>
+            <div style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;background:var(--green-700);border-radius:50%;display:inline-block;animation:pulse 1.5s infinite"></span><span class="text-muted" style="font-size:11.5px">Real-time</span></div>
+          </div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>วัน/เวลา</th><th>ผู้ใช้น้ำ</th><th>ยอดเงิน</th><th>ช่องทาง</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="tbl-footer"><span>แสดง...</span><div class="tbl-pagination"><div class="pg-btn active">1</div></div></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div class="card" style="background:var(--blue-900);border-color:var(--blue-800)">
+            <div class="card-hd" style="border-bottom-color:rgba(255,255,255,.1)"><div class="card-title" style="color:#fff"><i class="ti ti-sparkles" style="color:var(--cyan-400)"></i>AI Verification Tool</div></div>
+            <div class="card-body">
+              <div style="background:rgba(255,255,255,.08);border-radius:var(--radius-md);padding:14px;margin-bottom:12px">
+                <div style="font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">ฟีเจอร์การตรวจสอบ</div>
+                <div style="display:flex;flex-direction:column;gap:8px">
+                  <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:rgba(255,255,255,.85)"><i class="ti ti-circle-check" style="color:var(--cyan-400)"></i>อ่านยอดเงินและวันเวลาอัตโนมัติ</div>
+                  <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:rgba(255,255,255,.85)"><i class="ti ti-circle-check" style="color:var(--cyan-400)"></i>ตรวจชื่อบัญชีผู้รับโอน</div>
+                  <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:rgba(255,255,255,.85)"><i class="ti ti-circle-check" style="color:var(--cyan-400)"></i>ป้องกันสลิปซ้ำ (Duplicate)</div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.06);border-radius:var(--radius-sm);padding:10px 12px;font-size:12.5px;color:rgba(255,255,255,.7)">
+                <i class="ti ti-shield-check" style="color:var(--cyan-400)"></i>ความแม่นยำ: <strong style="color:var(--cyan-400)">99.8%</strong>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-hd"><div class="card-title"><i class="ti ti-credit-card" style="color:var(--blue-500)"></i>ช่องทางการรับชำระ</div></div>
+            <div class="card-body" style="padding:14px">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                <div class="pay-channel-btn" onclick="openCashModal('cash')" onmouseenter="this.style.borderColor='var(--blue-400)'" onmouseleave="this.style.borderColor='var(--gray-200)'"><i class="ti ti-cash" style="font-size:24px;color:var(--blue-700)"></i><span style="font-size:12px;font-weight:600">เงินสด</span></div>
+                <div class="pay-channel-btn" onclick="openCashModal('promptpay')" onmouseenter="this.style.borderColor='var(--blue-400)'" onmouseleave="this.style.borderColor='var(--gray-200)'"><i class="ti ti-qrcode" style="font-size:24px;color:var(--blue-700)"></i><span style="font-size:12px;font-weight:600">PromptPay</span></div>
+                <div class="pay-channel-btn" onclick="openCashModal('bank')" onmouseenter="this.style.borderColor='var(--blue-400)'" onmouseleave="this.style.borderColor='var(--gray-200)'"><i class="ti ti-building-bank" style="font-size:24px;color:var(--blue-700)"></i><span style="font-size:12px;font-weight:600">ธนาคาร</span></div>
+                <div class="pay-channel-btn" onclick="openCashModal('mobile')" onmouseenter="this.style.borderColor='var(--blue-400)'" onmouseleave="this.style.borderColor='var(--gray-200)'"><i class="ti ti-device-mobile" style="font-size:24px;color:var(--blue-700)"></i><span style="font-size:12px;font-weight:600">Mobile App</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ DEBTORS ══════════ -->
+    <div class="page" id="page-debtors">
+      <div class="page-hd">
+        <div><div class="page-title">ระบบลูกหนี้ค้างชำระ</div><div class="page-sub">ติดตามและดำเนินการกับสมาชิกที่ค้างชำระ</div></div>
+        <div class="page-hd-actions">
+          <button class="btn btn-secondary" onclick="notifyAllDebtors()"><i class="ti ti-brand-line"></i>ส่งแจ้งเตือน LINE</button>
+          <button class="btn btn-danger" onclick="suspendAllOverdue3Months()"><i class="ti ti-droplet-off"></i>ตัดน้ำชั่วคราว</button>
+          <button class="btn btn-secondary" onclick="goPage('reports')"><i class="ti ti-download"></i>Export รายงาน</button>
+        </div>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi-card" style="border-top:3px solid #16a34a"><div class="kpi-label">ค้าง 1 เดือน</div><div class="kpi-val" style="color:#16a34a">—</div><div class="kpi-footer"><span class="kpi-badge kb-green">—</span></div></div>
+        <div class="kpi-card" style="border-top:3px solid var(--amber-700)"><div class="kpi-label">ค้าง 2 เดือน</div><div class="kpi-val" style="color:var(--amber-700)">—</div><div class="kpi-footer"><span class="kpi-badge kb-amber">เตรียมตัดน้ำ</span></div></div>
+        <div class="kpi-card" style="border-top:3px solid var(--red-700)"><div class="kpi-label">ค้างเกิน 3 เดือน</div><div class="kpi-val text-error">—</div><div class="kpi-footer"><span class="kpi-badge kb-red">ต้องดำเนินการ</span></div></div>
+        <div class="kpi-card"><div class="kpi-label">ยอดค้างรวมทั้งหมด</div><div class="kpi-val text-error">—</div><div class="kpi-footer"><span class="kpi-badge kb-red">—</span></div></div>
+      </div>
+      <div class="card">
+        <div class="card-hd">
+          <div class="card-title"><i class="ti ti-list-details" style="color:var(--red-700)"></i>รายชื่อลูกหนี้ค้างชำระ</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="debtor-severity-select" class="fselect" style="font-size:12px;padding:6px 10px"><option>ทุกสถานะ</option><option>ค้าง 1 เดือน</option><option>ค้าง 2 เดือน</option><option>ค้างเกิน 3 เดือน</option></select>
+          </div>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>#</th><th>ชื่อ-นามสกุล</th><th>บ้านเลขที่</th><th>ยอดค้าง</th><th>ระยะเวลา</th><th style="text-align:right">การจัดการ</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="tbl-footer">
+          <span>แสดง...</span>
+          <span class="card-link" onclick="goPage('reports')">ออกรายงานลูกหนี้ <i class="ti ti-arrow-right"></i></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ REPORTS ══════════ -->
+    <div class="page" id="page-reports">
+      <div class="page-hd">
+        <div><div class="page-title">รายงานและการวิเคราะห์</div><div class="page-sub">สถิติ ข้อมูลเชิงลึก และรายงานการเงินทั้งหมด</div></div>
+        <div class="page-hd-actions">
+          <button class="btn btn-secondary" onclick="exportCurrentReport()"><i class="ti ti-table-export"></i>Export CSV</button>
+          <button class="btn btn-primary"   onclick="window.print()"><i class="ti ti-printer"></i>พิมพ์</button>
+        </div>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-icon" style="background:var(--blue-50);color:var(--blue-700)"><i class="ti ti-cash"></i></div><div class="kpi-label">รายรับเดือนนี้</div><div class="kpi-val text-primary">—</div><div class="kpi-footer"><span class="kpi-badge kb-green">+12%</span></div></div>
+        <div class="kpi-card" onclick="goPage('debtors')"><div class="kpi-icon" style="background:var(--red-50);color:var(--red-700)"><i class="ti ti-clock-dollar"></i></div><div class="kpi-label">ค้างชำระรวม</div><div class="kpi-val text-error">—</div><div class="kpi-footer"><span class="kpi-badge kb-green">-5% ดีขึ้น</span></div></div>
+        <div class="kpi-card"><div class="kpi-icon" style="background:var(--cyan-50);color:var(--cyan-800)"><i class="ti ti-droplet"></i></div><div class="kpi-label">การใช้น้ำรวม</div><div class="kpi-val" style="color:var(--cyan-800)">—</div></div>
+        <div class="kpi-card"><div class="kpi-icon" style="background:var(--amber-100);color:var(--amber-700)"><i class="ti ti-brain"></i></div><div class="kpi-label">ความผิดปกติ AI</div><div class="kpi-val" style="color:var(--amber-700)">8 เคส</div><div class="kpi-footer"><span class="kpi-badge kb-amber">ต้องตรวจสอบ</span></div></div>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px">เลือกประเภทรายงาน</div>
+      <div class="report-grid">
+        <div class="rpt-card active-rpt" data-report="income"     onclick="switchReport('income')"><div class="rpt-icon" style="background:var(--blue-50);color:var(--blue-700)"><i class="ti ti-cash"></i></div><div class="rpt-name">รายรับรายเดือน</div><div class="rpt-desc">สรุปยอดเก็บเงินและรายได้รวม</div></div>
+        <div class="rpt-card"            data-report="debtors"    onclick="switchReport('debtors')"><div class="rpt-icon" style="background:var(--red-50);color:var(--red-700)"><i class="ti ti-clock-exclamation"></i></div><div class="rpt-name">ลูกหนี้ค้างชำระ</div><div class="rpt-desc">รายชื่อที่ยังไม่ชำระค่าน้ำ</div></div>
+        <div class="rpt-card"            data-report="usage"      onclick="switchReport('usage')"><div class="rpt-icon" style="background:var(--cyan-50);color:var(--cyan-800)"><i class="ti ti-droplet-half-2"></i></div><div class="rpt-name">การใช้น้ำ</div><div class="rpt-desc">สถิติปริมาณน้ำทั้งหมด</div></div>
+        <div class="rpt-card"            data-report="anomaly"    onclick="switchReport('anomaly')"><div class="rpt-icon" style="background:var(--blue-50);color:var(--blue-900)"><i class="ti ti-brain"></i></div><div class="rpt-name">AI ตรวจผิดปกติ</div><div class="rpt-desc">วิเคราะห์แนวโน้มรั่วซึม</div></div>
+        <div class="rpt-card"            data-report="newmembers" onclick="switchReport('newmembers')"><div class="rpt-icon" style="background:var(--gray-100);color:var(--gray-700)"><i class="ti ti-user-plus"></i></div><div class="rpt-name">ผู้ใช้น้ำใหม่</div><div class="rpt-desc">สรุปการติดตั้งมิเตอร์ใหม่</div></div>
+        <div class="rpt-card"            data-report="history"    onclick="switchReport('history')"><div class="rpt-icon" style="background:var(--gray-100);color:var(--gray-700)"><i class="ti ti-gauge"></i></div><div class="rpt-name">ประวัติจดมิเตอร์</div><div class="rpt-desc">บันทึกตัวเลขรายวัน</div></div>
+        <div class="rpt-card"            data-report="village"    onclick="switchReport('village')"><div class="rpt-icon" style="background:var(--gray-100);color:var(--gray-700)"><i class="ti ti-building-community"></i></div><div class="rpt-name">สรุปแต่ละหมู่บ้าน</div><div class="rpt-desc">เปรียบเทียบข้อมูลรายเขต</div></div>
+        <div class="rpt-card"            data-report="billing"    onclick="switchReport('billing')"><div class="rpt-icon" style="background:var(--gray-100);color:var(--gray-700)"><i class="ti ti-receipt-2"></i></div><div class="rpt-name">รายงานบิลรวม</div><div class="rpt-desc">สถานะบิลและการชำระ</div></div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><div class="card-title"><i class="ti ti-table" style="color:var(--blue-500)"></i>พรีวิวข้อมูล: รายรับรายเดือน</div><div style="display:flex;gap:6px"><button class="btn btn-secondary btn-sm" onclick="exportCurrentReport()"><i class="ti ti-file-type-csv"></i>CSV</button></div></div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>วันที่</th><th>เลขมิเตอร์</th><th>ชื่อ-นามสกุล</th><th style="text-align:right">จำนวน (m³)</th><th style="text-align:right">จำนวนเงิน</th><th>สถานะ</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="tbl-footer"><span>แสดง...</span><div class="tbl-pagination"><div class="pg-btn active">1</div></div></div>
+      </div>
+    </div>
+
+    <!-- ══════════ MAP ══════════ -->
+    <div class="page" id="page-map">
+      <div class="page-hd">
+        <div>
+          <div class="page-title">แผนที่การใช้น้ำ</div>
+          <div class="page-sub">ตำแหน่งมิเตอร์และข้อมูลการใช้น้ำแต่ละครัวเรือน</div>
+        </div>
+        <div class="page-hd-actions">
+          <select class="fselect" onchange="filterMapByVillage(this.value==='ทุกหมู่บ้าน'?'':this.value)">
+            <option>ทุกหมู่บ้าน</option>
+          </select>
+          <select class="fselect" onchange="filterMapByStatus(this.value==='ทุกสถานะ'?'':this.value==='ปกติ'?'normal':this.value==='ค้างชำระ'?'overdue':'closed')">
+            <option>ทุกสถานะ</option>
+            <option>ปกติ</option>
+            <option>ค้างชำระ</option>
+            <option>ปิดมิเตอร์</option>
+          </select>
+          <button class="btn btn-secondary" onclick="renderMap()"><i class="ti ti-refresh"></i>รีเฟรช</button>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 260px;gap:16px;align-items:start">
+        <div class="card" style="padding:0;overflow:hidden;margin-bottom:0">
+          <div id="map-container" style="height:540px;width:100%"></div>
+        </div>
+
+        <div>
+          <div class="card" style="margin-bottom:14px">
+            <div class="card-hd" style="padding:14px 16px"><div class="card-title"><i class="ti ti-info-circle" style="color:var(--blue-500)"></i>คำอธิบาย</div></div>
+            <div class="card-body" style="padding:12px 16px">
+              <div style="font-size:10.5px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">สีตามสถานะ</div>
+              <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;font-size:12.5px">
+                <div style="display:flex;align-items:center;gap:8px"><div style="width:12px;height:12px;border-radius:50%;background:#16a34a;flex-shrink:0"></div>ปกติ</div>
+                <div style="display:flex;align-items:center;gap:8px"><div style="width:12px;height:12px;border-radius:50%;background:#dc2626;flex-shrink:0"></div>ค้างชำระ</div>
+                <div style="display:flex;align-items:center;gap:8px"><div style="width:12px;height:12px;border-radius:50%;background:#6b7280;flex-shrink:0"></div>ปิดมิเตอร์</div>
+              </div>
+              <div style="font-size:10.5px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">ขนาดวงกลม</div>
+              <div style="font-size:12px;color:var(--gray-600)">ใหญ่ขึ้น = ใช้น้ำมากขึ้น</div>
+              <div style="margin-top:10px;font-size:10.5px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">วงประ</div>
+              <div style="font-size:12px;color:var(--gray-600)">แสดงขอบเขตหมู่บ้าน</div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-bottom:0">
+            <div class="card-hd" style="padding:14px 16px"><div class="card-title"><i class="ti ti-building-community" style="color:var(--blue-500)"></i>สรุปรายหมู่บ้าน</div></div>
+            <div class="card-body" style="padding:0 16px 8px" id="map-stats-body">
+              <div style="text-align:center;color:var(--gray-500);padding:16px;font-size:12px">กำลังโหลด...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ SETTINGS ══════════ -->
+    <div class="page" id="page-settings">
+      <div class="page-hd">
+        <div>
+          <div class="page-title">การตั้งค่าระบบ</div>
+          <div class="page-sub">บริหารข้อมูลพื้นฐาน ตัวเลือก Dropdown และการกำหนดค่าทั้งหมดของระบบ</div>
+        </div>
+      </div>
+      <div id="settings-tabs-bar" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:16px"></div>
+      <div id="settings-panel"></div>
+    </div>
+
+    <!-- ══════════ MAINTENANCE ══════════ -->
+    <div class="page" id="page-maintenance">
+      <div class="page-hd">
+        <div><div class="page-title">ระบบซ่อมบำรุง</div><div class="page-sub">ติดตามและจัดการงานซ่อมท่อ มิเตอร์ และโครงสร้างพื้นฐาน</div></div>
+        <div class="page-hd-actions">
+          <button class="btn btn-primary" onclick="openAddMaintenance()"><i class="ti ti-plus"></i>เพิ่มงานซ่อมบำรุง</button>
+        </div>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-icon" style="background:var(--blue-50);color:var(--blue-700)"><i class="ti ti-clipboard-list"></i></div><div class="kpi-label">รายการทั้งหมด</div><div class="kpi-val text-primary">—</div></div>
+        <div class="kpi-card"><div class="kpi-icon" style="background:var(--amber-100);color:var(--amber-700)"><i class="ti ti-clock"></i></div><div class="kpi-label">รอดำเนินการ</div><div class="kpi-val" style="color:var(--amber-700)">—</div></div>
+        <div class="kpi-card"><div class="kpi-icon" style="background:var(--red-50);color:var(--red-700)"><i class="ti ti-refresh"></i></div><div class="kpi-label">กำลังดำเนินการ</div><div class="kpi-val text-error">—</div></div>
+        <div class="kpi-card"><div class="kpi-icon" style="background:var(--cyan-50);color:var(--cyan-800)"><i class="ti ti-coin"></i></div><div class="kpi-label">ค่าใช้จ่ายรวม</div><div class="kpi-val" style="color:var(--cyan-800)">—</div></div>
+      </div>
+      <div class="card">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>รหัส</th><th>ประเภท</th><th>รายละเอียด</th><th>ผู้รับผิดชอบ</th><th>สถานะ</th><th>ค่าใช้จ่าย</th><th style="text-align:right">จัดการ</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="tbl-footer"><span>แสดง...</span></div>
+      </div>
+    </div>
+
+    <!-- ══════════ USERS ══════════ -->
+    <div class="page" id="page-users">
+      <div class="page-hd">
+        <div>
+          <div class="page-title">จัดการผู้ใช้งาน</div>
+          <div class="page-sub">เพิ่ม แก้ไข และกำหนดสิทธิ์ผู้ใช้งานในระบบ</div>
+        </div>
+        <div class="page-hd-actions">
+          <button class="btn btn-primary" onclick="openAddUser()"><i class="ti ti-user-plus"></i>เพิ่มผู้ใช้</button>
+        </div>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi-card" style="cursor:default"><div class="kpi-icon" style="background:var(--blue-50);color:var(--blue-700)"><i class="ti ti-users"></i></div><div class="kpi-label">ผู้ใช้ทั้งหมด</div><div class="kpi-val text-primary">—</div></div>
+        <div class="kpi-card" style="cursor:default"><div class="kpi-icon" style="background:#f0fdf4;color:var(--green-700)"><i class="ti ti-crown"></i></div><div class="kpi-label">Super Admin</div><div class="kpi-val" style="color:var(--green-700)">—</div></div>
+        <div class="kpi-card" style="cursor:default"><div class="kpi-icon" style="background:var(--cyan-50);color:var(--cyan-800)"><i class="ti ti-building-community"></i></div><div class="kpi-label">Village Admin</div><div class="kpi-val" style="color:var(--cyan-800)">—</div></div>
+        <div class="kpi-card" style="cursor:default"><div class="kpi-icon" style="background:var(--amber-100);color:var(--amber-700)"><i class="ti ti-circle-check"></i></div><div class="kpi-label">ใช้งานอยู่</div><div class="kpi-val" style="color:var(--amber-700)">—</div></div>
+      </div>
+      <div class="card">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>ชื่อ-นามสกุล</th><th>Username</th><th>เบอร์โทร</th><th>บทบาท</th><th>หมู่บ้าน</th><th>สถานะ</th><th style="text-align:right">จัดการ</th></tr></thead>
+            <tbody id="users-tbody"></tbody>
+          </table>
+        </div>
+        <div class="tbl-footer"><span></span></div>
+      </div>
+    </div>
+
+  </div><!-- end content-area -->
+
+  <!-- ══════════ BOTTOM NAVIGATION (Mobile only) ══════════ -->
+  <nav class="bottom-nav" id="bottom-nav" aria-label="เมนูหลัก">
+    <div class="bnav-item" data-page="dashboard" onclick="(window.goPage||goPage)('dashboard')">
+      <i class="ti ti-layout-dashboard"></i><span>หน้าหลัก</span>
+    </div>
+    <div class="bnav-item" data-page="meter" onclick="(window.goPage||goPage)('meter')">
+      <i class="ti ti-gauge"></i><span>มิเตอร์</span>
+    </div>
+    <div class="bnav-item" data-page="billing" onclick="(window.goPage||goPage)('billing')">
+      <i class="ti ti-receipt-2"></i><span>บิล</span>
+    </div>
+    <div class="bnav-item" data-page="members" onclick="(window.goPage||goPage)('members')">
+      <i class="ti ti-users"></i><span>สมาชิก</span>
+    </div>
+    <div class="bnav-item bnav-more-btn" onclick="window._toggleBnavMore()">
+      <i class="ti ti-dots"></i><span>เพิ่มเติม</span>
+    </div>
+  </nav>
+
+  <!-- Bottom Nav More Menu -->
+  <div class="bnav-more-sheet" id="bnav-more-sheet" style="display:none">
+    <div class="bnav-more-backdrop" onclick="window._closeBnavMore()"></div>
+    <div class="bnav-more-panel">
+      <div class="bnav-more-grid">
+        <div class="bnav-more-item" data-page="payments"    onclick="(window.goPage||goPage)('payments');window._closeBnavMore()">
+          <i class="ti ti-credit-card"></i><span>รับชำระ</span>
+        </div>
+        <div class="bnav-more-item" data-page="debtors"     onclick="(window.goPage||goPage)('debtors');window._closeBnavMore()">
+          <i class="ti ti-alert-triangle"></i><span>ลูกหนี้</span>
+        </div>
+        <div class="bnav-more-item" data-page="reports"     onclick="(window.goPage||goPage)('reports');window._closeBnavMore()">
+          <i class="ti ti-chart-bar"></i><span>รายงาน</span>
+        </div>
+        <div class="bnav-more-item" data-page="map"         onclick="(window.goPage||goPage)('map');window._closeBnavMore()">
+          <i class="ti ti-map-2"></i><span>แผนที่</span>
+        </div>
+        <div class="bnav-more-item" data-page="maintenance" onclick="(window.goPage||goPage)('maintenance');window._closeBnavMore()">
+          <i class="ti ti-tool"></i><span>ซ่อมบำรุง</span>
+        </div>
+        <div class="bnav-more-item" data-page="settings"    onclick="(window.goPage||goPage)('settings');window._closeBnavMore()">
+          <i class="ti ti-settings-2"></i><span>ตั้งค่า</span>
+        </div>
+      </div>
+      <button class="btn btn-secondary" style="width:100%;margin-top:8px" onclick="window._closeBnavMore()">ปิด</button>
+    </div>
+  </div>
+
+</div><!-- end main -->
+</div><!-- end app -->
+
+<!-- ══════════ MASTER DATA MODAL (Generic CRUD) ══════════ -->
+<div class="modal-overlay" id="md-modal" style="display:none" onclick="if(event.target===this)closeMdModal()">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-hd">
+      <div class="modal-title"><i class="ti ti-database-cog" style="color:var(--blue-500)"></i><span id="md-modal-title">เพิ่มข้อมูล</span></div>
+      <button class="modal-close" onclick="closeMdModal()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:14px">
+      <div class="form-row-2">
+        <div>
+          <label class="form-label">รหัส *</label>
+          <input class="form-input mono" id="md-f-code" placeholder="residential" style="font-family:'IBM Plex Mono',monospace"/>
+          <div class="text-muted" style="font-size:11px;margin-top:3px">ภาษาอังกฤษ ตัวเล็ก ไม่มีช่องว่าง</div>
+        </div>
+        <div>
+          <label class="form-label">ลำดับ</label>
+          <input class="form-input" id="md-f-sort" type="number" value="0" min="0"/>
+        </div>
+      </div>
+      <div class="form-row-2">
+        <div>
+          <label class="form-label">ชื่อ (ภาษาไทย) *</label>
+          <input class="form-input" id="md-f-name-th" placeholder="บ้านอยู่อาศัย"/>
+        </div>
+        <div>
+          <label class="form-label">ชื่อ (English)</label>
+          <input class="form-input" id="md-f-name-en" placeholder="Residential"/>
+        </div>
+      </div>
+      <div class="form-row-2">
+        <div>
+          <label class="form-label">ไอคอน <span class="text-muted" style="font-weight:400">(Tabler)</span></label>
+          <div style="display:flex;gap:6px">
+            <input class="form-input" id="md-f-icon" placeholder="ti-home" style="font-family:monospace" oninput="window._mdSyncIcon()"/>
+            <div id="md-icon-preview" style="width:38px;height:38px;border:1px solid var(--gray-200);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+              <i class="ti ti-photo" style="color:var(--gray-300)"></i>
+            </div>
+          </div>
+        </div>
+        <div>
+          <label class="form-label">สี</label>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input class="form-input" id="md-f-color" placeholder="#0058be" oninput="window._mdSyncIcon()"/>
+            <input type="color" id="md-f-color-pk" value="#0058be" style="width:38px;height:38px;border:1px solid var(--gray-200);border-radius:8px;padding:3px;cursor:pointer;flex-shrink:0" oninput="window._mdSyncColor(this.value)"/>
+          </div>
+        </div>
+      </div>
+      <div>
+        <label class="form-label">คำอธิบาย</label>
+        <input class="form-input" id="md-f-desc" placeholder="คำอธิบายเพิ่มเติม"/>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <span class="form-label" style="margin:0">เปิดใช้งาน</span>
+        <div class="toggle on" id="md-f-active" onclick="this.classList.toggle('on')"><div class="toggle-thumb"></div></div>
+      </div>
+    </div>
+    <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:14px 20px;border-top:1px solid var(--gray-100)">
+      <button class="btn btn-secondary" onclick="closeMdModal()">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveMdItemHandler()"><i class="ti ti-device-floppy"></i>บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ VILLAGE MODAL ══════════ -->
+<div class="modal-overlay" id="village-modal" style="display:none" onclick="if(event.target===this)closeVillageModal()">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-hd">
+      <div class="modal-title"><i class="ti ti-home-2" style="color:var(--blue-500)"></i><span id="village-modal-title">เพิ่มหมู่บ้านใหม่</span></div>
+      <button class="modal-close" onclick="closeVillageModal()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:14px">
+      <div class="form-row-2">
+        <div>
+          <label class="form-label">หมายเลขหมู่ *</label>
+          <input class="form-input" id="vf-moo" type="number" min="1" placeholder="1"/>
+        </div>
+        <div>
+          <label class="form-label">ชื่อหมู่บ้าน *</label>
+          <input class="form-input" id="vf-name" placeholder="บ้านกลาง"/>
+        </div>
+      </div>
+      <div>
+        <label class="form-label">คำอธิบาย / ที่อยู่</label>
+        <input class="form-input" id="vf-desc" placeholder="รายละเอียดเพิ่มเติม"/>
+      </div>
+    </div>
+    <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:14px 20px;border-top:1px solid var(--gray-100)">
+      <button class="btn btn-secondary" onclick="closeVillageModal()">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveVillageHandler()"><i class="ti ti-device-floppy"></i>บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ USER MODAL ══════════ -->
+<div class="modal-overlay" id="user-modal" style="display:none" onclick="if(event.target===this)closeUserModal()">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-hd">
+      <div class="modal-title"><i id="user-modal-icon" class="ti ti-user-plus"></i><span id="user-modal-title">เพิ่มผู้ใช้งานใหม่</span></div>
+      <button class="modal-close" onclick="closeUserModal()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:14px">
+      <div class="form-row-2">
+        <div><label class="form-label">ชื่อ-นามสกุล *</label><input class="form-input" id="uform-fullname" placeholder="ชื่อ นามสกุล"/></div>
+        <div><label class="form-label">อีเมล *</label><input class="form-input" id="uform-email" type="email" placeholder="user@example.com"/></div>
+      </div>
+      <div id="uform-pass-row">
+        <label class="form-label">รหัสผ่าน * <span style="color:var(--gray-400);font-weight:400">(อย่างน้อย 6 ตัวอักษร)</span></label>
+        <input class="form-input" id="uform-password" type="password" placeholder="••••••••"/>
+      </div>
+      <div class="form-row-2">
+        <div><label class="form-label">Username <span style="color:var(--gray-400);font-weight:400">(สำหรับ login)</span></label><input class="form-input" id="uform-username" placeholder="admin01" style="font-family:'IBM Plex Mono',monospace"/></div>
+        <div><label class="form-label">เบอร์โทร <span style="color:var(--gray-400);font-weight:400">(สำหรับ login)</span></label><input class="form-input" id="uform-phone" type="tel" placeholder="081-234-5678"/></div>
+      </div>
+      <div class="form-row-2">
+        <div>
+          <label class="form-label">บทบาท *</label>
+          <select class="form-input" id="uform-role" onchange="_toggleVillageField(this.value)">
+            <option value="super_admin">Super Admin</option>
+            <option value="village_admin">Village Admin</option>
+            <option value="meter_reader" selected>พนักงานจดมิเตอร์</option>
+            <option value="finance">การเงิน</option>
+          </select>
+        </div>
+        <div id="uform-village-wrap">
+          <label class="form-label">หมู่บ้านที่รับผิดชอบ</label>
+          <select class="form-input" id="uform-village">
+            <option value="">ทุกหมู่บ้าน</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--gray-50);border-radius:var(--radius-md)">
+        <input type="checkbox" id="uform-active" checked style="width:16px;height:16px;accent-color:var(--blue-700)"/>
+        <label for="uform-active" style="font-size:13px;font-weight:600;cursor:pointer">เปิดใช้งานบัญชีนี้</label>
+      </div>
+      <div class="info-box"><i class="ti ti-info-circle"></i><span>สามารถ login ด้วย อีเมล / เบอร์โทร / Username อย่างใดอย่างหนึ่งก็ได้</span></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeUserModal()">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveUser()"><i class="ti ti-check"></i> บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ MEMBER QUICK VIEW ══════════ -->
+<div class="modal-overlay" id="member-qv-modal" style="display:none" onclick="if(event.target===this)closeMemberQV()">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-hd">
+      <div class="modal-title"><i class="ti ti-user-circle"></i><span id="mqv-name">—</span></div>
+      <button class="modal-close" onclick="closeMemberQV()"><i class="ti ti-x"></i></button>
+    </div>
+    <div id="mqv-header" style="padding:14px 20px;border-bottom:1px solid var(--gray-100)"></div>
+    <div class="modal-body" id="mqv-body" style="padding:14px 20px;max-height:360px;overflow-y:auto"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeMemberQV()">ปิด</button>
+      <button class="btn btn-secondary" onclick="openEditMemberFromQV()"><i class="ti ti-edit"></i>แก้ไขข้อมูล</button>
+      <button class="btn btn-primary" onclick="gotoMeterFromQV()"><i class="ti ti-gauge"></i>จดมิเตอร์</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ MEMBER MODAL ══════════ -->
+<div class="modal-overlay" id="member-modal" style="display:none" onclick="if(event.target===this)closeMemberModal()">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-hd">
+      <div class="modal-title"><i id="modal-icon" class="ti ti-user-plus"></i><span id="modal-title-text">เพิ่มสมาชิกใหม่</span></div>
+      <button class="modal-close" onclick="closeMemberModal()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-tabs">
+      <div class="modal-tab active" onclick="switchModalTab(this,'tab-basic')"><i class="ti ti-id-badge" style="font-size:14px;margin-right:4px"></i>ข้อมูลพื้นฐาน</div>
+      <div class="modal-tab" onclick="switchModalTab(this,'tab-meter')"><i class="ti ti-gauge" style="font-size:14px;margin-right:4px"></i>มิเตอร์</div>
+      <div class="modal-tab" onclick="switchModalTab(this,'tab-contact')"><i class="ti ti-phone" style="font-size:14px;margin-right:4px"></i>ติดต่อ</div>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="modal-member-id"/>
+      <!-- Tab 1 -->
+      <div id="tab-basic" class="modal-panel active">
+        <div class="form-row-2">
+          <div><label class="form-label">ชื่อ *</label><input class="form-input" type="text" id="f-firstname" placeholder="ชื่อ"/></div>
+          <div><label class="form-label">นามสกุล *</label><input class="form-input" type="text" id="f-lastname" placeholder="นามสกุล"/></div>
+        </div>
+        <div class="form-row"><label class="form-label">เลขบัตรประชาชน 13 หลัก</label><input class="form-input" type="text" id="f-nationalid" placeholder="X-XXXX-XXXXX-XX-X" maxlength="17"/></div>
+        <div class="form-row-2">
+          <div><label class="form-label">ประเภทผู้ใช้น้ำ</label><select class="form-input" id="f-membertype"><option value="residential">บ้านอยู่อาศัย</option><option value="commercial">พาณิชยกรรม</option><option value="agriculture">เกษตรกรรม</option><option value="institution">หน่วยงาน/สถาบัน</option></select></div>
+          <div><label class="form-label">จำนวนคนในครัวเรือน</label><input class="form-input" type="number" id="f-household" value="1" min="1" max="99"/></div>
+        </div>
+        <div class="form-row-2">
+          <div><label class="form-label">บ้านเลขที่</label><input class="form-input" type="text" id="f-houseno" placeholder="42/1"/></div>
+          <div><label class="form-label">หมู่บ้าน</label><select class="form-input" id="f-village"><option value="">— กำลังโหลด —</option></select></div>
+        </div>
+        <div class="form-row" style="margin-bottom:0"><label class="form-label">วันที่สมัคร</label><input class="form-input" type="date" id="f-regdate"/></div>
+      </div>
+      <!-- Tab 2 -->
+      <div id="tab-meter" class="modal-panel">
+        <div class="form-row">
+          <label class="form-label">เลขมิเตอร์ *</label>
+          <div style="display:flex;gap:8px">
+            <input class="form-input" type="text" id="f-meter" placeholder="MTR-XXXXX" style="flex:1"/>
+            <button type="button" class="btn btn-secondary" onclick="generateMeterNo()" title="สร้างเลขมิเตอร์อัตโนมัติ" style="white-space:nowrap;flex-shrink:0">
+              <i class="ti ti-sparkles"></i>Auto
+            </button>
+          </div>
+          <div style="font-size:11px;color:var(--gray-400);margin-top:4px">
+            กด Auto เพื่อสร้างเลขถัดไปอัตโนมัติ หรือพิมพ์เองได้
+          </div>
+        </div>
+        <div class="form-row-2">
+          <div><label class="form-label">ขนาดมิเตอร์</label><select class="form-input" id="f-metersize"><option value="0.5">½ นิ้ว (½")</option><option value="0.75">¾ นิ้ว (¾")</option><option value="1">1 นิ้ว (1")</option><option value="1.5">1½ นิ้ว (1½")</option></select></div>
+          <div><label class="form-label">ยี่ห้อมิเตอร์</label><input class="form-input" type="text" id="f-meterbrand" placeholder="ITRON / SENSUS / ELSTER"/></div>
+        </div>
+        <div class="form-row-2">
+          <div><label class="form-label">วันที่ติดตั้ง</label><input class="form-input" type="date" id="f-meterinstall"/></div>
+          <div><label class="form-label">วันหมดอายุมิเตอร์</label><input class="form-input" type="date" id="f-meterexpire"/></div>
+        </div>
+        <div class="form-row" style="margin-bottom:0"><label class="form-label">สถานะ</label><select class="form-input" id="f-status"><option value="normal">ปกติ</option><option value="overdue">ค้างชำระ</option><option value="closed">ปิดมิเตอร์</option><option value="suspended">ระงับชั่วคราว</option></select></div>
+      </div>
+      <!-- Tab 3 -->
+      <div id="tab-contact" class="modal-panel">
+        <div class="form-row"><label class="form-label">เบอร์โทรศัพท์</label><input class="form-input" type="tel" id="f-phone" placeholder="08X-XXX-XXXX"/></div>
+        <div class="form-row-2">
+          <div><label class="form-label">LINE ID</label><input class="form-input" type="text" id="f-lineid" placeholder="@line_id"/></div>
+          <div><label class="form-label">อีเมล</label><input class="form-input" type="email" id="f-email" placeholder="email@example.com"/></div>
+        </div>
+        <div class="info-box" style="margin-bottom:12px"><i class="ti ti-map-pin" style="font-size:16px;flex-shrink:0;margin-top:1px"></i><span>พิกัด GPS ใช้สำหรับแสดงบนแผนที่และยืนยันตำแหน่งบ้าน</span></div>
+        <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:10px">
+          <div style="flex:1"><label class="form-label">Latitude</label><input class="form-input" type="number" id="f-gps-lat" placeholder="18.7883" step="0.000001"/></div>
+          <div style="flex:1"><label class="form-label">Longitude</label><input class="form-input" type="number" id="f-gps-lng" placeholder="98.9853" step="0.000001"/></div>
+          <button type="button" id="btn-get-location" onclick="getMemberLocation()"
+            style="padding:8px 12px;background:#0ea5e9;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:12px;font-family:'Sarabun',sans-serif;font-weight:600;white-space:nowrap;display:flex;align-items:center;gap:5px;height:38px;flex-shrink:0">
+            <i class="ti ti-current-location"></i>ตำแหน่งปัจจุบัน
+          </button>
+          <button type="button" onclick="_toggleGpsPicker()"
+            style="padding:8px 12px;background:#f1f5f9;color:#334155;border:1px solid #cbd5e1;border-radius:8px;cursor:pointer;font-size:12px;font-family:'Sarabun',sans-serif;font-weight:600;white-space:nowrap;display:flex;align-items:center;gap:5px;height:38px;flex-shrink:0">
+            <i class="ti ti-map-2"></i>เลือกบนแผนที่
+          </button>
+        </div>
+        <div id="gps-picker-wrap" style="display:none;margin-bottom:4px">
+          <div style="font-size:11px;color:var(--gray-500);margin-bottom:5px"><i class="ti ti-hand-click"></i> คลิกบนแผนที่เพื่อปักหมุดตำแหน่ง</div>
+          <div id="gps-picker-map" style="height:240px;border-radius:8px;border:1px solid var(--gray-200);overflow:hidden"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeMemberModal()">ยกเลิก</button>
+      <button class="btn btn-primary"   onclick="saveMember()"><i class="ti ti-check"></i>บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ DELETE CONFIRM ══════════ -->
+<div class="confirm-overlay" id="confirm-modal" style="display:none">
+  <div class="confirm-box">
+    <div style="width:52px;height:52px;background:var(--red-50);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:26px;color:var(--red-700)"><i class="ti ti-trash"></i></div>
+    <div style="font-size:16px;font-weight:700;color:var(--gray-900);margin-bottom:8px">ลบสมาชิก?</div>
+    <div id="confirm-msg" style="font-size:13.5px;color:var(--gray-500);margin-bottom:24px"></div>
+    <div style="display:flex;gap:10px;justify-content:center">
+      <button class="btn btn-secondary" onclick="closeConfirm()">ยกเลิก</button>
+      <button class="btn" style="background:var(--red-700);color:#fff" onclick="doDeleteMember()"><i class="ti ti-trash"></i>ลบเลย</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ CANCEL BILL MODAL ══════════ -->
+<div class="modal-overlay" id="cancel-bill-modal" style="display:none" onclick="if(event.target===this)closeCancelBillModal()">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-hd" style="border-bottom:none;padding-bottom:0">
+      <div></div>
+      <button class="modal-close" onclick="closeCancelBillModal()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body" style="padding:0 28px 28px;text-align:center">
+      <!-- Icon -->
+      <div style="width:64px;height:64px;background:linear-gradient(135deg,#fff1f1,#fde2e2);border-radius:20px;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:28px;color:var(--red-700);box-shadow:0 4px 16px rgba(186,26,26,.12)">
+        <i class="ti ti-ban"></i>
+      </div>
+      <!-- Title -->
+      <div style="font-size:17px;font-weight:800;color:var(--gray-900);margin-bottom:6px">ยืนยันยกเลิกใบแจ้งหนี้</div>
+      <div id="cancel-bill-id-label" style="font-size:12.5px;color:var(--gray-500);margin-bottom:20px;background:var(--gray-50);border-radius:8px;padding:6px 14px;display:inline-block;font-family:'IBM Plex Mono',monospace"></div>
+      <!-- Warning box -->
+      <div style="background:#fff8f0;border:1px solid #fed7aa;border-radius:12px;padding:12px 16px;text-align:left;margin-bottom:20px;display:flex;gap:10px;align-items:flex-start">
+        <i class="ti ti-alert-triangle" style="color:#f97316;font-size:16px;flex-shrink:0;margin-top:1px"></i>
+        <div style="font-size:12.5px;color:#7c2d12;line-height:1.6">การยกเลิกไม่สามารถย้อนกลับได้ บิลจะถูกทำเครื่องหมาย <strong>ยกเลิก</strong> และจะไม่นับในยอดรวม</div>
+      </div>
+      <!-- Reason input -->
+      <div style="text-align:left;margin-bottom:20px">
+        <label style="font-size:12.5px;font-weight:700;color:var(--gray-700);display:block;margin-bottom:8px">
+          <i class="ti ti-message" style="font-size:13px"></i> เหตุผลการยกเลิก <span style="color:var(--red-600)">*</span>
+        </label>
+        <textarea id="cancel-bill-reason" rows="3"
+          placeholder="เช่น ออกบิลผิดรอบ, ข้อมูลมิเตอร์ไม่ถูกต้อง, ลูกค้าปิดมิเตอร์..."
+          style="width:100%;box-sizing:border-box;resize:vertical;font-family:inherit;font-size:13.5px;padding:10px 14px;border:1.5px solid var(--gray-200);border-radius:10px;outline:none;line-height:1.6;color:var(--gray-800);background:var(--gray-50);transition:border-color .2s"
+          onfocus="this.style.borderColor='var(--red-400)';this.style.background='#fff'"
+          onblur="this.style.borderColor='var(--gray-200)';this.style.background='var(--gray-50)'"
+        ></textarea>
+      </div>
+      <!-- Buttons -->
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-secondary" style="flex:1" onclick="closeCancelBillModal()">
+          <i class="ti ti-arrow-left"></i>กลับ
+        </button>
+        <button class="btn" id="cancel-bill-confirm-btn"
+          style="flex:1.4;background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;box-shadow:0 4px 12px rgba(185,28,28,.3)"
+          onclick="confirmCancelBill()">
+          <i class="ti ti-ban"></i>ยืนยันยกเลิกบิล
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ PAYMENT MODAL (all channels) ══════════ -->
+<div class="modal-overlay" id="cash-modal" style="display:none" onclick="if(event.target===this)closeCashModal()">
+  <div class="modal modal-lg">
+    <div class="modal-hd">
+      <div class="modal-title"><i id="cp-modal-icon" class="ti ti-cash"></i><span id="cp-modal-title">บันทึกรับเงินสด</span></div>
+      <button class="modal-close" onclick="closeCashModal()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="cp-channel" value="cash"/>
+      <div class="form-row"><label class="form-label">เลขที่บิล *</label><select class="form-input" id="cp-bill"><option value="">-- เลือกบิล --</option></select></div>
+      <div class="form-row"><label class="form-label">ชื่อผู้ชำระ</label><input class="form-input" type="text" id="cp-name" placeholder="ชื่อ-นามสกุล"/></div>
+      <div class="form-row"><label class="form-label">จำนวนเงิน (บาท)</label><input class="form-input" type="number" id="cp-amount" placeholder="0.00" step="0.01"/></div>
+      <div class="form-row" id="cp-ref-row" style="display:none"><label class="form-label">เลขอ้างอิง</label><input class="form-input" type="text" id="cp-ref" placeholder="เลขที่อ้างอิงการโอน"/></div>
+      <div id="cp-slip-row" style="display:none;margin-bottom:16px">
+        <label class="form-label">แนบสลิปการโอน</label>
+        <div style="background:var(--gray-50);border:2px dashed var(--gray-300);border-radius:var(--radius-md);padding:18px;text-align:center;cursor:pointer;transition:var(--transition)" onclick="toast('ฟีเจอร์แนบสลิปอยู่ระหว่างพัฒนา','info')" onmouseenter="this.style.borderColor='var(--blue-300)'" onmouseleave="this.style.borderColor='var(--gray-300)'">
+          <i class="ti ti-photo-up" style="font-size:24px;color:var(--gray-400);display:block;margin-bottom:5px"></i>
+          <span style="font-size:12px;color:var(--gray-500)">คลิกเพื่อแนบสลิป หรือลากไฟล์มาวาง</span>
+        </div>
+      </div>
+      <div class="form-row" style="margin-bottom:0"><label class="form-label">หมายเหตุ</label><input class="form-input" type="text" id="cp-note" placeholder="(ถ้ามี)"/></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeCashModal()">ยกเลิก</button>
+      <button class="btn btn-primary"   onclick="saveCashPayment()"><i class="ti ti-check"></i>บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ BILL RECEIPT MODAL ══════════ -->
+<div class="modal-overlay" id="receipt-modal" style="display:none" onclick="if(event.target===this)closeReceiptModal()">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-hd">
+      <div class="modal-title"><i id="receipt-modal-icon" class="ti ti-receipt-2"></i><span id="receipt-modal-title">ใบแจ้งหนี้</span></div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button id="receipt-cancel-btn" class="btn btn-danger btn-sm" style="display:none"><i class="ti ti-ban"></i>ยกเลิกบิล</button>
+        <button class="btn btn-secondary btn-sm" onclick="printReceipt()"><i class="ti ti-printer"></i><span id="receipt-print-label">พิมพ์</span></button>
+        <button class="modal-close" onclick="closeReceiptModal()"><i class="ti ti-x"></i></button>
+      </div>
+    </div>
+    <div class="modal-body" id="receipt-body" style="padding:24px"></div>
+  </div>
+</div>
+
+<!-- ══════════ MAINTENANCE MODAL ══════════ -->
+<div class="modal-overlay" id="mnt-modal" style="display:none" onclick="if(event.target===this)closeMntModal()">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-hd">
+      <div class="modal-title"><i class="ti ti-tool"></i><span id="mnt-modal-title">เพิ่มงานซ่อมบำรุง</span></div>
+      <button class="modal-close" onclick="closeMntModal()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="mnt-modal-id"/>
+      <div class="form-row-2">
+        <div><label class="form-label">ประเภทงาน</label>
+          <select class="form-input" id="mnt-type">
+            <option value="pipe_repair">ซ่อมท่อ</option>
+            <option value="meter_replace">เปลี่ยนมิเตอร์</option>
+            <option value="tank_clean">ล้างถังพัก</option>
+            <option value="pump_service">บำรุงปั๊มน้ำ</option>
+            <option value="leak_fix">แก้ไขรั่วซึม</option>
+            <option value="other">อื่น ๆ</option>
+          </select>
+        </div>
+        <div><label class="form-label">สถานะ</label>
+          <select class="form-input" id="mnt-status">
+            <option value="pending">รอดำเนินการ</option>
+            <option value="in_progress">กำลังดำเนินการ</option>
+            <option value="completed">เสร็จแล้ว</option>
+            <option value="cancelled">ยกเลิก</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row"><label class="form-label">รายละเอียดงาน *</label><input class="form-input" type="text" id="mnt-desc" placeholder="เช่น ท่อแตกหน้าบ้านเลขที่ 42/1"/></div>
+      <div class="form-row"><label class="form-label">สถานที่</label><input class="form-input" type="text" id="mnt-location" placeholder="เช่น หมู่ 1 บ้านป่า"/></div>
+      <div class="form-row-2">
+        <div><label class="form-label">ผู้รับผิดชอบ</label><input class="form-input" type="text" id="mnt-assigned" placeholder="ช่างสมศักดิ์"/></div>
+        <div><label class="form-label">ค่าใช้จ่าย (บาท)</label><input class="form-input" type="number" id="mnt-cost" placeholder="0" min="0"/></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeMntModal()">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveMaintenance()"><i class="ti ti-check"></i>บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ RATE EDIT MODAL ══════════ -->
+<div class="modal-overlay" id="rate-modal" style="display:none" onclick="if(event.target===this)closeRateModal()">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-hd">
+      <div class="modal-title"><i class="ti ti-coin"></i><span>แก้ไขอัตราค่าน้ำ</span></div>
+      <button class="modal-close" onclick="closeRateModal()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label class="form-label">ช่วงการใช้น้ำ</label>
+        <div id="rate-range-label" style="padding:10px 14px;background:var(--gray-50);border-radius:var(--radius-md);font-weight:700;color:var(--blue-900)"></div>
+      </div>
+      <div class="form-row" style="margin-bottom:0">
+        <label class="form-label">อัตราค่าน้ำ (บาท/หน่วย)</label>
+        <input class="form-input" type="number" id="rate-new-value" step="0.5" min="0" placeholder="0.00"/>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeRateModal()">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveRateTier()"><i class="ti ti-check"></i>บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ ADD TIER MODAL ══════════ -->
+<div class="modal-overlay" id="add-tier-modal" style="display:none" onclick="if(event.target===this)closeAddTierModal()">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-hd">
+      <div class="modal-title"><i class="ti ti-plus"></i><span>เพิ่มช่วงอัตราค่าน้ำ</span></div>
+      <button class="modal-close" onclick="closeAddTierModal()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="info-box" style="margin:0 0 14px">
+        <i class="ti ti-info-circle"></i>
+        ระบบจะแบ่งช่วงสุดท้าย (<strong id="at-last-range"></strong>) ออกเป็น 2 ช่วงใหม่
+      </div>
+      <div class="form-row">
+        <label class="form-label">ช่วงเดิมสิ้นสุดที่หน่วยที่ (ช่วงใหม่เริ่มถัดไป)</label>
+        <input class="form-input" id="at-split-to" type="number" min="1" placeholder="80"/>
+      </div>
+      <div class="form-row" style="margin-bottom:0">
+        <label class="form-label">อัตราค่าน้ำช่วงใหม่ (บาท/หน่วย)</label>
+        <input class="form-input" id="at-new-rate" type="number" step="0.5" min="0" placeholder="0.00"/>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeAddTierModal()">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveNewTierHandler()"><i class="ti ti-check"></i>บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ LOADING OVERLAY ══════════ -->
+<div id="loading-overlay" style="display:flex;position:fixed;inset:0;background:rgba(0,16,64,.75);z-index:9998;align-items:center;justify-content:center;flex-direction:column;gap:16px">
+  <div style="width:48px;height:48px;border:4px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite"></div>
+  <div id="loading-text" style="color:#fff;font-size:15px;font-weight:600;font-family:'Sarabun',sans-serif;letter-spacing:.02em">กำลังโหลด...</div>
+</div>
+
+<!-- ══════════ AUTH OVERLAY (LOGIN) ══════════ -->
+<div id="auth-overlay" style="display:none">
+
+  <!-- Animated background -->
+  <div class="lo-bg">
+    <div class="lo-bg-orb lo-bg-orb-1"></div>
+    <div class="lo-bg-orb lo-bg-orb-2"></div>
+    <div class="lo-bg-orb lo-bg-orb-3"></div>
+    <div class="lo-bg-dots"></div>
+    <!-- water wave SVG -->
+    <svg class="lo-bg-wave" viewBox="0 0 1440 180" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <path fill="white" d="M0,80 C240,160 480,0 720,80 C960,160 1200,0 1440,80 L1440,180 L0,180 Z"/>
+      <path fill="white" opacity="0.5" d="M0,110 C360,30 720,150 1080,90 C1260,60 1380,130 1440,110 L1440,180 L0,180 Z"/>
+    </svg>
+  </div>
+
+  <!-- Layout wrapper -->
+  <div class="lo-wrap">
+
+    <!-- ── LEFT: Hero Section ── -->
+    <div class="lo-hero">
+
+      <div class="lo-badge">
+        <i class="ti ti-shield-check"></i>
+        Secure Village Water System
+      </div>
+
+      <div class="lo-hero-title">
+        Aqua<span class="lo-hero-title-accent">Flow</span><br>Pro
+      </div>
+      <div class="lo-hero-sub">
+        ระบบบริหารจัดการประปาหมู่บ้านครบวงจร พร้อมรายงาน
+        วิเคราะห์ข้อมูล และจัดการผู้ใช้น้ำอย่างมืออาชีพ
+      </div>
+
+      <div class="lo-chips">
+        <div class="lo-chip"><i class="ti ti-gauge"></i> จัดการมิเตอร์</div>
+        <div class="lo-chip"><i class="ti ti-receipt-2"></i> ออกบิลค่าน้ำ</div>
+        <div class="lo-chip"><i class="ti ti-credit-card"></i> รับชำระเงิน</div>
+        <div class="lo-chip"><i class="ti ti-chart-bar"></i> รายงานวิเคราะห์</div>
+        <div class="lo-chip"><i class="ti ti-map-2"></i> แผนที่ผู้ใช้น้ำ</div>
+      </div>
+
+      <!-- Mini dashboard preview -->
+      <div class="lo-preview">
+        <div class="lo-kpi-row">
+          <div class="lo-kpi">
+            <div class="lo-kpi-label">สมาชิกทั้งหมด</div>
+            <div class="lo-kpi-val c-blue">248</div>
+            <div class="lo-kpi-trend up">↑ 3 รายใหม่</div>
+          </div>
+          <div class="lo-kpi">
+            <div class="lo-kpi-label">ชำระแล้ว</div>
+            <div class="lo-kpi-val c-green">93%</div>
+            <div class="lo-kpi-trend up">↑ 2% จากเดือนก่อน</div>
+          </div>
+          <div class="lo-kpi">
+            <div class="lo-kpi-label">ค้างชำระ</div>
+            <div class="lo-kpi-val c-yellow">17</div>
+            <div class="lo-kpi-trend">รายการ</div>
+          </div>
+        </div>
+        <div class="lo-chart-card">
+          <div class="lo-chart-head">
+            <span class="lo-chart-title">การใช้น้ำรายเดือน (ลูกบาศก์เมตร)</span>
+            <div class="lo-chart-dot"></div>
+          </div>
+          <div class="lo-bars-wrap">
+            <div class="lo-bar" style="height:42%"></div>
+            <div class="lo-bar" style="height:58%"></div>
+            <div class="lo-bar" style="height:48%"></div>
+            <div class="lo-bar" style="height:72%"></div>
+            <div class="lo-bar" style="height:62%"></div>
+            <div class="lo-bar lo-bar-active" style="height:88%"></div>
+          </div>
+          <div class="lo-months">
+            <span>ม.ค.</span><span>ก.พ.</span><span>มี.ค.</span>
+            <span>เม.ย.</span><span>พ.ค.</span><span>มิ.ย.</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <!-- end .lo-hero -->
+
+    <!-- ── RIGHT: Login Panel ── -->
+    <div class="lo-panel">
+      <div class="lo-card">
+
+        <!-- Logo & App name -->
+        <div class="lo-logo-row">
+          <div class="lo-logo-icon"><i class="ti ti-droplet-filled"></i></div>
+          <div class="lo-app-name">AquaFlow Pro</div>
+          <div class="lo-app-tagline">ระบบบริหารจัดการประปาหมู่บ้าน</div>
+          <div class="lo-app-desc">เข้าสู่ระบบเพื่อจัดการผู้ใช้น้ำ มิเตอร์ ใบแจ้งหนี้<br>และรายงานการชำระเงิน</div>
+        </div>
+
+        <!-- Form -->
+        <div class="lo-form">
+
+          <!-- Username / Email / Phone -->
+          <div class="lo-field">
+            <i class="ti ti-user lo-field-icon"></i>
+            <input class="lo-input" id="login-identifier" type="text"
+              placeholder="อีเมล / เบอร์โทร / ชื่อผู้ใช้"
+              autocomplete="username"
+              onkeydown="if(event.key==='Enter')document.getElementById('login-password').focus()"/>
+          </div>
+
+          <!-- Password -->
+          <div class="lo-field">
+            <i class="ti ti-lock lo-field-icon"></i>
+            <input class="lo-input" id="login-password" type="password"
+              placeholder="รหัสผ่าน"
+              autocomplete="current-password"
+              style="padding-right:44px"
+              onkeydown="if(event.key==='Enter')doSignIn()"/>
+            <button class="lo-eye-btn" type="button"
+              onclick="loTogglePwd(this)" tabindex="-1" title="แสดง/ซ่อนรหัสผ่าน">
+              <i class="ti ti-eye"></i>
+            </button>
+          </div>
+
+          <!-- Remember / Forgot -->
+          <div class="lo-row">
+            <label class="lo-remember">
+              <input type="checkbox" id="login-remember"/>
+              จดจำการเข้าสู่ระบบ
+            </label>
+            <a href="#" class="lo-forgot" onclick="return false">ลืมรหัสผ่าน?</a>
+          </div>
+
+          <!-- Error message (managed by auth.service.js) -->
+          <div id="login-error" style="display:none"></div>
+
+          <!-- Login button (innerHTML managed by auth.service.js) -->
+          <button id="login-btn" onclick="doSignIn()">
+            <i class="ti ti-login"></i> เข้าสู่ระบบ
+          </button>
+
+        </div>
+        <!-- end .lo-form -->
+
+        <div class="lo-secure-note">
+          <i class="ti ti-shield-check"></i>
+          ข้อมูลของคุณได้รับการป้องกันด้วยระบบยืนยันตัวตนที่ปลอดภัย
+        </div>
+        <div class="lo-footer-text">AquaFlow Pro • Supabase Backend • © 2026</div>
+
+      </div>
+    </div>
+    <!-- end .lo-panel -->
+
+  </div>
+  <!-- end .lo-wrap -->
+
+</div>
+<!-- end #auth-overlay -->
+
+<!-- TOAST -->
+<div id="toast-container"></div>
+
+<!-- Login UI helpers -->
+<script>
+function loTogglePwd(btn) {
+  var inp  = document.getElementById('login-password');
+  var icon = btn.querySelector('i');
+  if (inp.type === 'password') {
+    inp.type = 'text';
+    icon.className = 'ti ti-eye-off';
+  } else {
+    inp.type = 'password';
+    icon.className = 'ti ti-eye';
+  }
+}
+</script>
+
+<!-- Service Worker Registration -->
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+</script>
+
+<!-- CDN Libraries (global scope, loaded before ES6 modules) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
+<!-- Application entry point (ES6 module — imports entire src/ tree) -->
+<script type="module" src="src/app.js"></script>
+</body>
+</html>
