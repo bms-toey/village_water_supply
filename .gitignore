@@ -27,3 +27,9 @@ build/
 
 # Node (if added later)
 node_modules/
+
+# Python scripts with secrets (local only)
+meter_reader.py
+*.jpg
+*.png
+*_result.json

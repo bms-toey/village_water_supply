@@ -11,8 +11,8 @@ import { _dbVillages } from '../../services/db-mapper.service.js';
 
 // ─── Meter Photo / AI OCR ─────────────────────────────────────
 
-const _GEMINI_ENDPOINT = key =>
-  `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-lite:generateContent?key=${key}`;
+const _OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const _OPENROUTER_MODEL = 'qwen/qwen2.5-vl-72b-instruct';
 
 function _getFileInput(id, capture) {
   let inp = document.getElementById(id);
@@ -60,10 +60,10 @@ async function _processMeterPhoto(file) {
   };
 
   try {
-    const geminiKey = appState.systemConfig?.gemini_api_key || '';
-    if (!geminiKey) {
+    const apiKey = appState.systemConfig?.openrouter_api_key || '';
+    if (!apiKey) {
       if (statusEl) {
-        statusEl.innerHTML = `<i class="ti ti-alert-triangle" style="margin-right:4px"></i>กรุณาตั้ง Gemini API Key ใน <b>ตั้งค่า → ตั้งค่าทั่วไป</b> ก่อน`;
+        statusEl.innerHTML = `<i class="ti ti-alert-triangle" style="margin-right:4px"></i>กรุณาตั้ง OpenRouter API Key ใน <b>ตั้งค่า → ตั้งค่าทั่วไป</b> ก่อน`;
         statusEl.style.color = 'var(--amber-700)';
         statusEl.style.display = '';
       }
@@ -77,15 +77,25 @@ async function _processMeterPhoto(file) {
       reader.readAsDataURL(file);
     });
 
-    const res = await fetch(_GEMINI_ENDPOINT(geminiKey), {
+    const res = await fetch(_OPENROUTER_URL, {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({
-        contents: [{ parts: [
-          { inlineData: { mimeType: file.type || 'image/jpeg', data: base64 } },
-          { text: 'อ่านค่าตัวเลขจากมิเตอร์น้ำในรูปนี้ ตอบเฉพาะตัวเลขที่อ่านได้เท่านั้น ไม่ต้องมีคำอธิบาย หน่วย หรือข้อความอื่นใด' }
-        ]}],
-        generationConfig: { maxOutputTokens: 20, temperature: 0 }
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type':  'application/json',
+        'HTTP-Referer':  window.location.origin,
+        'X-Title':       'AquaFlow Meter Reader',
+      },
+      body: JSON.stringify({
+        model: _OPENROUTER_MODEL,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image_url', image_url: { url: `data:${file.type || 'image/jpeg'};base64,${base64}` } },
+            { type: 'text', text: 'อ่านค่าตัวเลขจากมิเตอร์น้ำในรูปนี้ ตอบเฉพาะตัวเลขที่อ่านได้เท่านั้น ไม่ต้องมีคำอธิบาย หน่วย หรือข้อความอื่นใด' }
+          ]
+        }],
+        max_tokens:  50,
+        temperature: 0,
       })
     });
 
@@ -95,7 +105,7 @@ async function _processMeterPhoto(file) {
     }
 
     const json   = await res.json();
-    const text   = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+    const text   = json.choices?.[0]?.message?.content?.trim() || '';
     const digits = text.replace(/\D/g, '');
 
     if (digits.length >= 3) {
