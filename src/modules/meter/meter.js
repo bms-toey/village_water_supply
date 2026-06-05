@@ -9,6 +9,135 @@ import { saveToStorage } from '../../services/storage.service.js';
 import { goPage } from '../../components/navigation/navigation.js';
 import { _dbVillages } from '../../services/db-mapper.service.js';
 
+// ─── Meter Photo / AI OCR ─────────────────────────────────────
+
+function _getFileInput(id, capture) {
+  let inp = document.getElementById(id);
+  if (!inp) {
+    inp = document.createElement('input');
+    inp.type   = 'file';
+    inp.accept = 'image/*';
+    inp.id     = id;
+    inp.style.display = 'none';
+    if (capture) inp.setAttribute('capture', capture);
+    document.body.appendChild(inp);
+    inp.addEventListener('change', function () {
+      if (this.files[0]) _processMeterPhoto(this.files[0]);
+      this.value = '';
+    });
+  }
+  return inp;
+}
+
+async function _processMeterPhoto(file) {
+  const statusEl  = document.getElementById('meter-ocr-status');
+  const wrap      = document.getElementById('meter-photo-wrap');
+  const drop      = document.getElementById('meter-photo-drop');
+  const preview   = document.getElementById('meter-photo-preview');
+  const clearBtn  = document.getElementById('meter-photo-clear-btn');
+  const aiBtn     = document.getElementById('meter-ai-btn');
+
+  // Show preview
+  const url = URL.createObjectURL(file);
+  if (preview) preview.src = url;
+  if (wrap)     wrap.style.display  = '';
+  if (drop)     drop.style.display  = 'none';
+  if (clearBtn) clearBtn.style.display = '';
+
+  // Status: loading
+  if (statusEl) {
+    statusEl.style.display = '';
+    statusEl.style.color   = 'var(--gray-600)';
+    statusEl.innerHTML     = '<i class="ti ti-loader-2" style="animation:spin .8s linear infinite;margin-right:6px"></i>กำลังวิเคราะห์ตัวเลขมิเตอร์...';
+  }
+  if (aiBtn) { aiBtn.disabled = true; aiBtn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin .8s linear infinite"></i>กำลังอ่าน...'; }
+
+  const done = () => {
+    if (aiBtn) { aiBtn.disabled = false; aiBtn.innerHTML = '<i class="ti ti-scan"></i>AI Scan'; }
+  };
+
+  if (typeof Tesseract === 'undefined') {
+    if (statusEl) { statusEl.textContent = 'ไม่พบ Tesseract.js — กรุณากรอกตัวเลขเอง'; statusEl.style.color = 'var(--amber-700)'; }
+    done(); return;
+  }
+
+  try {
+    const worker = await Tesseract.createWorker('eng', 1, {
+      logger: m => {
+        if (m.status === 'recognizing text' && statusEl) {
+          statusEl.innerHTML = `<i class="ti ti-loader-2" style="animation:spin .8s linear infinite;margin-right:6px"></i>กำลังอ่าน... ${Math.round((m.progress||0)*100)}%`;
+        }
+      },
+    });
+    await worker.setParameters({
+      tessedit_char_whitelist: '0123456789',
+      tessedit_pageseg_mode:   '7',
+    });
+    const { data: { text, confidence } } = await worker.recognize(file);
+    await worker.terminate();
+
+    const digits = text.replace(/\D/g, '');
+
+    if (digits.length >= 3) {
+      const val = parseInt(digits, 10);
+      const inp = document.getElementById('meter-new-val');
+      if (inp) { inp.value = val; inp.dispatchEvent(new Event('input')); }
+      calcMeter(String(val));
+      if (statusEl) {
+        statusEl.innerHTML = `<i class="ti ti-check" style="color:var(--green-700);margin-right:4px"></i>` +
+          `อ่านได้: <strong>${val.toLocaleString()}</strong> ` +
+          `(ความแม่นยำ ${Math.round(confidence)}%) — กรุณาตรวจสอบความถูกต้อง`;
+        statusEl.style.color = 'var(--green-700)';
+      }
+    } else {
+      if (statusEl) {
+        statusEl.innerHTML = `<i class="ti ti-alert-triangle" style="margin-right:4px"></i>ไม่สามารถอ่านตัวเลขได้ชัดเจน — กรุณากรอกเอง`;
+        statusEl.style.color = 'var(--amber-700)';
+      }
+    }
+  } catch (err) {
+    console.error('[Meter OCR]', err);
+    if (statusEl) {
+      statusEl.textContent = 'เกิดข้อผิดพลาด — กรุณากรอกตัวเลขเอง';
+      statusEl.style.color = 'var(--red-700)';
+    }
+  }
+  done();
+}
+
+// Exposed to window — called from inline onclick
+window._startMeterScan = function () {
+  _getFileInput('meter-cam-input', 'environment').click();
+};
+
+window._openMeterGallery = function () {
+  _getFileInput('meter-gallery-input', '').click();
+};
+
+window._handleMeterDrop = function (e) {
+  e.preventDefault();
+  const file = e.dataTransfer?.files?.[0];
+  if (file && file.type.startsWith('image/')) _processMeterPhoto(file);
+};
+
+window._clearMeterPhoto = function () {
+  const preview  = document.getElementById('meter-photo-preview');
+  const wrap     = document.getElementById('meter-photo-wrap');
+  const drop     = document.getElementById('meter-photo-drop');
+  const status   = document.getElementById('meter-ocr-status');
+  const clearBtn = document.getElementById('meter-photo-clear-btn');
+  if (preview)  { preview.src = ''; URL.revokeObjectURL(preview.src); }
+  if (wrap)     wrap.style.display  = 'none';
+  if (drop)     drop.style.display  = '';
+  if (status)   status.style.display = 'none';
+  if (clearBtn) clearBtn.style.display = 'none';
+};
+
+// Reset photo when member changes
+function _resetMeterPhoto() {
+  window._clearMeterPhoto?.();
+}
+
 // ─── Filter State ─────────────────────────────────────────────
 let _meterSearch        = '';
 let _meterStatusFilter  = 'pending'; // 'pending' | 'done' | 'all'
@@ -250,6 +379,7 @@ export function gotoMeter(name, meterId, memberId) {
   document.getElementById('meter-hd-id').textContent   = 'รหัสมิเตอร์: ' + meterId + ' • ' + name;
   const inp = document.getElementById('meter-new-val');
   if (inp) { inp.value = ''; calcMeter(''); }
+  _resetMeterPhoto();
   if (memberId) {
     const m = appState.members.find(x => x.id === memberId);
     const prevEl = document.getElementById('m-prev');

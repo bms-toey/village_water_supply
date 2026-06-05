@@ -281,7 +281,7 @@
                 <div style="font-size:12px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">เลขมิเตอร์ปัจจุบัน</div>
                 <div style="display:flex;gap:10px;align-items:center">
                   <input class="meter-big-input" type="number" id="meter-new-val" placeholder="0 0 0 0 0" oninput="calcMeter(this.value)"/>
-                  <button class="btn btn-secondary" style="white-space:nowrap;padding:14px 16px"><i class="ti ti-camera"></i>AI Scan</button>
+                  <button class="btn btn-secondary" id="meter-ai-btn" style="white-space:nowrap;padding:14px 16px" onclick="window._startMeterScan()"><i class="ti ti-scan"></i>AI Scan</button>
                 </div>
               </div>
               <div id="meter-warn" style="display:none;margin-bottom:16px">
@@ -303,13 +303,35 @@
           </div>
           <div style="display:flex;flex-direction:column;gap:14px">
             <div class="card">
-              <div class="card-hd"><div class="card-title"><i class="ti ti-photo" style="color:var(--blue-500)"></i>รูปถ่ายมิเตอร์</div></div>
-              <div class="card-body">
-                <div style="background:var(--gray-50);border:2px dashed var(--gray-300);border-radius:var(--radius-md);aspect-ratio:16/9;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:var(--transition)" onmouseenter="this.style.borderColor='var(--blue-300)'" onmouseleave="this.style.borderColor='var(--gray-300)'">
+              <div class="card-hd">
+                <div class="card-title"><i class="ti ti-photo" style="color:var(--blue-500)"></i>รูปถ่ายมิเตอร์</div>
+                <button class="btn btn-secondary btn-xs" onclick="window._clearMeterPhoto()" id="meter-photo-clear-btn" style="display:none"><i class="ti ti-trash"></i>ลบรูป</button>
+              </div>
+              <div class="card-body" style="padding:14px">
+                <!-- Drop zone -->
+                <div id="meter-photo-drop"
+                  style="background:var(--gray-50);border:2px dashed var(--gray-300);border-radius:var(--radius-md);
+                    min-height:140px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+                    gap:8px;cursor:pointer;transition:var(--transition);padding:20px"
+                  onclick="window._openMeterGallery()"
+                  ondragover="event.preventDefault();this.style.borderColor='var(--blue-400)';this.style.background='var(--blue-50)'"
+                  ondragleave="this.style.borderColor='var(--gray-300)';this.style.background='var(--gray-50)'"
+                  ondrop="window._handleMeterDrop(event)">
                   <i class="ti ti-camera-plus" style="font-size:32px;color:var(--gray-400)"></i>
-                  <div style="font-size:13px;color:var(--gray-500);font-weight:500">ถ่ายรูปหน้าปัดมิเตอร์</div>
+                  <div style="font-size:13px;color:var(--gray-500);font-weight:500">แตะเพื่อถ่ายรูป / เลือกรูปภาพ</div>
                   <div style="font-size:11px;color:var(--gray-400)">หรือลาก &amp; วางไฟล์ที่นี่</div>
+                  <div style="font-size:11px;color:var(--blue-500);margin-top:2px">
+                    <i class="ti ti-scan" style="font-size:12px"></i> กด AI Scan เพื่ออ่านตัวเลขอัตโนมัติ
+                  </div>
                 </div>
+                <!-- Photo preview -->
+                <div id="meter-photo-wrap" style="display:none;position:relative">
+                  <img id="meter-photo-preview" style="width:100%;border-radius:var(--radius-md);display:block;max-height:220px;object-fit:cover"/>
+                </div>
+                <!-- OCR status -->
+                <div id="meter-ocr-status" style="display:none;margin-top:10px;padding:10px 12px;
+                  border-radius:var(--radius-md);font-size:12.5px;background:var(--gray-50);
+                  border:1px solid var(--gray-200)"></div>
               </div>
             </div>
             <div class="card">
@@ -1389,6 +1411,7 @@ if ('serviceWorker' in navigator) {
 <!-- CDN Libraries (global scope, loaded before ES6 modules) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <!-- Application entry point (ES6 module — imports entire src/ tree) -->
 <script type="module" src="src/app.js"></script>
 </body>
