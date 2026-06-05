@@ -109,24 +109,27 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.admin_update_user(UUID, TEXT, TEXT, TEXT, TEXT, INT, BOOLEAN) TO authenticated;
 
--- STEP 6: Super Admin ตั้งรหัสผ่านให้ user อื่นได้ (ต้องมี pgcrypto extension)
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+-- STEP 6: Super Admin ตั้งรหัสผ่านให้ user อื่นได้
+-- pgcrypto ใน Supabase อยู่ใน schema "extensions" ต้องระบุ path ให้ถูก
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
+
+DROP FUNCTION IF EXISTS public.admin_set_user_password(UUID, TEXT);
 
 CREATE OR REPLACE FUNCTION public.admin_set_user_password(p_user_id UUID, p_password TEXT)
 RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, extensions
 AS $$
 BEGIN
   IF (SELECT role FROM public.profiles WHERE id = auth.uid()) <> 'super_admin' THEN
     RAISE EXCEPTION 'Permission denied';
   END IF;
   IF length(p_password) < 4 THEN
-    RAISE EXCEPTION 'Password too short';
+    RAISE EXCEPTION 'Password too short (minimum 4 characters)';
   END IF;
   UPDATE auth.users
-  SET encrypted_password = crypt(p_password, gen_salt('bf'))
+  SET encrypted_password = extensions.crypt(p_password, extensions.gen_salt('bf'))
   WHERE id = p_user_id;
 END;
 $$;
