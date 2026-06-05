@@ -71,13 +71,18 @@ BEGIN
 END;
 $$;
 
--- STEP 5: ตั้งค่า functions สำหรับ admin
+-- STEP 5: ลบ function เก่าทั้งหมด (ทุก signature) แล้วสร้างใหม่ครั้งเดียว
+-- (แก้ปัญหา "Could not choose best candidate" เมื่อมี overload 2 เวอร์ชัน)
+DROP FUNCTION IF EXISTS public.admin_update_user(UUID, TEXT, TEXT, TEXT, TEXT,       INT, BOOLEAN);
+DROP FUNCTION IF EXISTS public.admin_update_user(UUID, TEXT, TEXT, TEXT, user_role,  INT, BOOLEAN);
+
+-- รับ p_role เป็น TEXT แล้ว cast เป็น user_role ภายใน → ไม่มี overload conflict
 CREATE OR REPLACE FUNCTION public.admin_update_user(
   p_user_id   UUID,
   p_full_name TEXT,
   p_username  TEXT,
   p_phone     TEXT,
-  p_role      user_role,
+  p_role      TEXT,
   p_village   INT,
   p_active    BOOLEAN
 )
@@ -94,7 +99,7 @@ BEGIN
     full_name  = p_full_name,
     username   = NULLIF(trim(p_username), ''),
     phone      = NULLIF(trim(p_phone), ''),
-    role       = p_role,
+    role       = p_role::user_role,
     village_id = p_village,
     is_active  = p_active,
     updated_at = now()
@@ -102,7 +107,7 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.admin_update_user(UUID,TEXT,TEXT,TEXT,user_role,INT,BOOLEAN) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_update_user(UUID, TEXT, TEXT, TEXT, TEXT, INT, BOOLEAN) TO authenticated;
 
 -- STEP 6: Super Admin ตั้งรหัสผ่านให้ user อื่นได้ (ต้องมี pgcrypto extension)
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
