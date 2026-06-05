@@ -34,7 +34,7 @@ import {
 } from './modules/billing/billing.js';
 import {
   renderPayments, approvePayment, rejectPayment,
-  openCashModal, closeCashModal, openCashModalForBill, notifyBillDebtor, saveCashPayment
+  openCashModal, closeCashModal, openCashModalForBill, closePayTypeModal, notifyBillDebtor, saveCashPayment
 } from './modules/payments/payments.js';
 import { renderDebtors, notifyAllDebtors, suspendAllOverdue3Months, notifyDebtor, setDebtorSeverity } from './modules/debtors/debtors.js';
 import { renderReports, switchReport, exportCurrentReport, exportBillingCSV, exportMembersCSV } from './modules/reports/reports.js';
@@ -179,7 +179,7 @@ function _toggleVillageField(role) {
 // Escape key — close all modals
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
-  ['member-modal','cash-modal','confirm-modal','rate-modal','add-tier-modal','receipt-modal','mnt-modal','member-qv-modal','user-modal','cancel-bill-modal','md-modal','village-modal','bnav-more-sheet','change-pwd-modal']
+  ['member-modal','cash-modal','confirm-modal','rate-modal','add-tier-modal','receipt-modal','mnt-modal','member-qv-modal','user-modal','cancel-bill-modal','md-modal','village-modal','bnav-more-sheet','change-pwd-modal','pay-type-modal']
     .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
 });
 
@@ -206,7 +206,7 @@ Object.assign(window, {
   autoBill, openBillReceipt, closeReceiptModal, printReceipt,
   cancelBill, closeCancelBillModal, confirmCancelBill,
   // payments
-  openCashModal, closeCashModal, openCashModalForBill, notifyBillDebtor, saveCashPayment,
+  openCashModal, closeCashModal, openCashModalForBill, closePayTypeModal, notifyBillDebtor, saveCashPayment,
   approvePayment, rejectPayment,
   // debtors
   notifyAllDebtors, suspendAllOverdue3Months, notifyDebtor,

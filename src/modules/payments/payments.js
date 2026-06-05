@@ -116,8 +116,33 @@ export function openCashModal(channel) {
 
 export function closeCashModal() { document.getElementById('cash-modal').style.display = 'none'; }
 
+let _pendingPayBillId = null;
+
 export function openCashModalForBill(billId) {
-  openCashModal('cash');
+  _pendingPayBillId = billId;
+  const b = appState.bills.find(x => x.id === billId);
+  const m = b ? appState.members.find(x => x.id === b.memberId) : null;
+  const infoEl = document.getElementById('pay-type-bill-info');
+  if (infoEl) {
+    infoEl.innerHTML = b && m
+      ? `<div style="font-weight:700;font-size:13px;color:var(--blue-900)">${esc(m.firstName)} ${esc(m.lastName)}</div>
+         <div style="font-size:12px;color:var(--gray-500);margin-top:2px">${esc(b.id)} · รอบ ${esc(b.period)}</div>
+         <div style="font-size:18px;font-weight:800;color:var(--blue-700);margin-top:6px">฿${b.total.toLocaleString()}</div>`
+      : '—';
+  }
+  document.getElementById('pay-type-modal').style.display = 'flex';
+}
+
+export function closePayTypeModal() {
+  document.getElementById('pay-type-modal').style.display = 'none';
+}
+
+window._selectPayType = function(channel) {
+  closePayTypeModal();
+  const billId = _pendingPayBillId;
+  _pendingPayBillId = null;
+  openCashModal(channel);
+  if (!billId) return;
   const b = appState.bills.find(x => x.id === billId);
   if (!b) return;
   const select = document.getElementById('cp-bill');
@@ -125,7 +150,7 @@ export function openCashModalForBill(billId) {
   document.getElementById('cp-amount').value = b.total;
   const m = appState.members.find(x => x.id === b.memberId);
   if (m) document.getElementById('cp-name').value = m.firstName + ' ' + m.lastName;
-}
+};
 
 export function notifyBillDebtor(memberId) {
   const m = appState.members.find(x => x.id === memberId);

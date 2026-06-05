@@ -381,7 +381,8 @@ export async function saveMeter() {
     window.populateBillingFilters?.();
     window.renderBilling?.();
     toast(`ออกบิลใหม่รอบ ${period} — ฿${charges.total.toLocaleString()} (ใช้ข้อมูลมิเตอร์เดิม)`, 'success');
-    goPage('billing');
+    window._afterReceiptClose = resetMeterSelection;
+    window.openBillReceipt?.(newBillId);
     return;
   }
 
@@ -427,7 +428,8 @@ export async function saveMeter() {
   window.populateBillingFilters?.();
   window.renderBilling?.();
   toast(`บันทึกแล้ว — ${member.firstName} ใช้ ${usage} m³ ค่าน้ำ ฿${charges.total.toLocaleString()}`, 'success');
-  goPage('billing');
+  window._afterReceiptClose = resetMeterSelection;
+  window.openBillReceipt?.(billId);
 }
 
 export function renderMeterHistory(memberId) {

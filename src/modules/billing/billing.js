@@ -30,8 +30,8 @@ const billStatusMap = {
 export function renderBilling(filterStatus) {
   if (filterStatus !== undefined) _billStatusTab = filterStatus;
   const { bills, members, meterReadings } = appState;
-  const tbody = document.querySelector('#page-billing .tbl-wrap table tbody');
-  if (!tbody) return;
+  const container = document.getElementById('billing-card-list');
+  if (!container) return;
   let list = _billStatusTab ? bills.filter(b => b.status === _billStatusTab) : bills;
   if (_billSearch) {
     const q = _billSearch.toLowerCase();
@@ -42,39 +42,89 @@ export function renderBilling(filterStatus) {
   }
   if (_billPeriod)  list = list.filter(b => b.period === _billPeriod);
   if (_billVillage) list = list.filter(b => { const m = members.find(x => x.id === b.memberId); return m && m.village === _billVillage; });
+
   if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--gray-500);padding:24px">ไม่มีข้อมูล</td></tr>';
+    container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:48px 24px;color:var(--gray-400);font-size:14px">
+      <i class="ti ti-receipt-off" style="font-size:36px;margin-bottom:8px;display:block"></i>ไม่พบรายการ</div>`;
   } else {
-    tbody.innerHTML = list.map(b => {
-      const m       = members.find(x => x.id === b.memberId) || {};
-      const prev    = meterReadings.find(r => r.billId === b.id);
-      const st      = billStatusMap[b.status] || billStatusMap.pending;
-      const prevNum = prev ? prev.prevReading.toLocaleString() : '—';
-      const currNum = prev ? prev.currReading.toLocaleString() : '—';
-      const unpaid  = b.status === 'overdue' || b.status === 'pending';
-      const payBtn  = unpaid ? `<button class="btn btn-primary btn-xs" onclick="openCashModalForBill('${esc(b.id)}')"><i class="ti ti-cash"></i>รับชำระ</button>` : '';
-      const alertBtn = b.status === 'overdue'
-        ? `<button class="btn-icon" style="color:var(--red-700);border-color:var(--red-100)" title="แจ้งเตือน" onclick="notifyBillDebtor(${b.memberId})"><i class="ti ti-bell-exclamation"></i></button>`
-        : '';
+    // Sort: overdue first, then pending, then paid, then cancelled
+    const order = { overdue:0, pending:1, paid:2, cancelled:3 };
+    const sorted = [...list].sort((a, b) => (order[a.status]??9) - (order[b.status]??9));
+    container.innerHTML = sorted.map(b => {
+      const m    = members.find(x => x.id === b.memberId) || {};
+      const mr   = meterReadings.find(r => r.billId === b.id);
+      const st   = billStatusMap[b.status] || billStatusMap.pending;
+      const unpaid = b.status === 'overdue' || b.status === 'pending';
+      const isOverdue = b.status === 'overdue';
+      const prevNum = mr ? mr.prevReading.toLocaleString() : '—';
+      const currNum = mr ? mr.currReading.toLocaleString() : '—';
+
+      const payBtn = unpaid
+        ? `<button class="btn btn-primary btn-sm" style="flex:1;justify-content:center" onclick="openCashModalForBill('${esc(b.id)}')">
+             <i class="ti ti-cash"></i>รับชำระ
+           </button>` : '';
+      const alertBtn = isOverdue
+        ? `<button class="btn btn-secondary btn-sm" onclick="notifyBillDebtor(${b.memberId})" title="แจ้งเตือน">
+             <i class="ti ti-bell-exclamation" style="color:var(--red-700)"></i>
+           </button>` : '';
       const cancelBtn = unpaid
-        ? `<button class="btn-icon" style="color:var(--red-500)" title="ยกเลิกบิล" onclick="cancelBill('${esc(b.id)}')"><i class="ti ti-ban"></i></button>`
-        : '';
-      return `<tr class="${b.status==='cancelled'?'op-50':''}">
-        <td class="mono" style="font-size:12px;color:var(--blue-900)">${esc(b.id)}</td>
-        <td><div class="text-bold">${esc(m.firstName||'')} ${esc(m.lastName||'')}</div><div class="text-muted" style="font-size:11px">${esc(m.houseNo||'')} ${esc(m.village||'')}</div></td>
-        <td class="text-muted" style="font-family:'IBM Plex Mono',monospace;font-size:12px">${prevNum} → <strong style="color:var(--gray-900)">${currNum}</strong></td>
-        <td><strong>${b.usage}</strong> m³</td>
-        <td class="text-bold${b.status==='overdue'?' text-error':''}">฿${b.total.toLocaleString()}</td>
-        <td>${esc(b.period)}</td>
-        <td><span class="pill ${st.cls}">${st.label}</span></td>
-        <td><div style="display:flex;gap:5px;justify-content:flex-end;align-items:center">${payBtn}<button class="btn-icon" title="ดูเอกสาร" onclick="openBillReceipt('${esc(b.id)}')"><i class="ti ti-receipt-2"></i></button>${alertBtn}${cancelBtn}</div></td>
-      </tr>`;
+        ? `<button class="btn btn-secondary btn-sm" onclick="cancelBill('${esc(b.id)}')" title="ยกเลิกบิล">
+             <i class="ti ti-ban" style="color:var(--red-500)"></i>
+           </button>` : '';
+
+      return `
+      <div style="background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius-lg);
+        overflow:hidden;box-shadow:var(--shadow-sm);display:flex;flex-direction:column;
+        opacity:${b.status==='cancelled'?.55:1};
+        border-left:4px solid ${isOverdue?'var(--red-500)':b.status==='paid'?'var(--green-600)':b.status==='cancelled'?'var(--gray-300)':'var(--blue-400)'}">
+
+        <!-- Top: bill ID + status -->
+        <div style="display:flex;justify-content:space-between;align-items:center;
+          padding:10px 14px;background:var(--gray-50);border-bottom:1px solid var(--gray-100)">
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--gray-500)">${esc(b.id)}</span>
+          <span class="pill ${st.cls}" style="font-size:11px;padding:2px 10px">${st.label}</span>
+        </div>
+
+        <!-- Member info -->
+        <div style="padding:12px 14px 8px;display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+          <div style="min-width:0">
+            <div style="font-weight:700;font-size:14px;color:var(--blue-900);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+              ${esc(m.firstName||'')} ${esc(m.lastName||'')}
+            </div>
+            <div style="font-size:11.5px;color:var(--gray-500);margin-top:2px">
+              ${esc(m.houseNo||'')} ${esc(m.village||'')}
+            </div>
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <div style="font-size:22px;font-weight:800;line-height:1;color:${isOverdue?'var(--red-700)':'var(--blue-900)'}">฿${b.total.toLocaleString()}</div>
+            <div style="font-size:11px;color:var(--gray-400);margin-top:3px">${esc(b.period)}</div>
+          </div>
+        </div>
+
+        <!-- Meter reading -->
+        <div style="padding:6px 14px 12px;font-size:12px;color:var(--gray-500)">
+          <span style="font-family:'IBM Plex Mono',monospace">${prevNum} → ${currNum}</span>
+          <span style="margin:0 6px;color:var(--gray-300)">•</span>
+          <strong style="color:var(--gray-700)">${b.usage} m³</strong>
+          <span style="margin:0 6px;color:var(--gray-300)">•</span>
+          กำหนด ${b.dueDate}
+        </div>
+
+        <!-- Actions -->
+        <div style="padding:10px 14px 12px;display:flex;gap:8px;border-top:1px solid var(--gray-100);flex-wrap:wrap">
+          ${payBtn}
+          <button class="btn btn-secondary btn-sm" onclick="openBillReceipt('${esc(b.id)}')" style="flex:1;justify-content:center;min-width:90px">
+            <i class="ti ti-receipt-2"></i>ดูเอกสาร
+          </button>
+          ${alertBtn}${cancelBtn}
+        </div>
+      </div>`;
     }).join('');
   }
-  const footer = document.querySelector('#page-billing .tbl-footer span');
-  if (footer) footer.textContent = `แสดง 1–${list.length} จาก ${bills.length} รายการ`;
 
-  // Exclude cancelled bills from all financial totals
+  const footer = document.getElementById('billing-card-footer');
+  if (footer) footer.textContent = `แสดง ${list.length} จาก ${bills.length} รายการ`;
+
   const activeBills   = bills.filter(b => b.status !== 'cancelled');
   const totalAmount   = activeBills.reduce((s, b) => s + b.total, 0);
   const paidAmount    = activeBills.filter(b => b.status === 'paid').reduce((s, b) => s + b.total, 0);
@@ -310,7 +360,11 @@ export function openBillReceipt(billId) {
   document.getElementById('receipt-modal').style.display = 'flex';
 }
 
-export function closeReceiptModal() { document.getElementById('receipt-modal').style.display = 'none'; }
+export function closeReceiptModal() {
+  document.getElementById('receipt-modal').style.display = 'none';
+  const cb = window._afterReceiptClose;
+  if (cb) { window._afterReceiptClose = null; cb(); }
+}
 
 export function printReceipt() {
   const body = document.getElementById('receipt-body');
