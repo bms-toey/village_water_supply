@@ -36,6 +36,7 @@ const SYSTEM_CONFIG_FIELDS = [
   { key: 'org_phone',          label: 'เบอร์โทรติดต่อ',                 type: 'text',     placeholder: '081-234-5678' },
   { key: 'billing_due_days',   label: 'วันครบกำหนดชำระ (หลังออกบิล)', type: 'number',   placeholder: '15' },
   { key: 'line_notify_token',  label: 'LINE Notify Token',              type: 'password', placeholder: 'token...' },
+  { key: 'gemini_api_key',    label: 'Gemini AI API Key (จดมิเตอร์)', type: 'password', placeholder: 'AQ.xxx...' },
 ];
 
 let _activeTab = 'rates';

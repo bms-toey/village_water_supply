@@ -11,6 +11,9 @@ import { _dbVillages } from '../../services/db-mapper.service.js';
 
 // ─── Meter Photo / AI OCR ─────────────────────────────────────
 
+const _GEMINI_ENDPOINT = key =>
+  `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`;
+
 function _getFileInput(id, capture) {
   let inp = document.getElementById(id);
   if (!inp) {
@@ -56,26 +59,43 @@ async function _processMeterPhoto(file) {
     if (aiBtn) { aiBtn.disabled = false; aiBtn.innerHTML = '<i class="ti ti-scan"></i>AI Scan'; }
   };
 
-  if (typeof Tesseract === 'undefined') {
-    if (statusEl) { statusEl.textContent = 'ไม่พบ Tesseract.js — กรุณากรอกตัวเลขเอง'; statusEl.style.color = 'var(--amber-700)'; }
-    done(); return;
-  }
-
   try {
-    const worker = await Tesseract.createWorker('eng', 1, {
-      logger: m => {
-        if (m.status === 'recognizing text' && statusEl) {
-          statusEl.innerHTML = `<i class="ti ti-loader-2" style="animation:spin .8s linear infinite;margin-right:6px"></i>กำลังอ่าน... ${Math.round((m.progress||0)*100)}%`;
-        }
-      },
-    });
-    await worker.setParameters({
-      tessedit_char_whitelist: '0123456789',
-      tessedit_pageseg_mode:   '7',
-    });
-    const { data: { text, confidence } } = await worker.recognize(file);
-    await worker.terminate();
+    const geminiKey = appState.systemConfig?.gemini_api_key || '';
+    if (!geminiKey) {
+      if (statusEl) {
+        statusEl.innerHTML = `<i class="ti ti-alert-triangle" style="margin-right:4px"></i>กรุณาตั้ง Gemini API Key ใน <b>ตั้งค่า → ตั้งค่าทั่วไป</b> ก่อน`;
+        statusEl.style.color = 'var(--amber-700)';
+        statusEl.style.display = '';
+      }
+      done(); return;
+    }
 
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload  = e => resolve(e.target.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    const res = await fetch(_GEMINI_ENDPOINT(geminiKey), {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        contents: [{ parts: [
+          { inlineData: { mimeType: file.type || 'image/jpeg', data: base64 } },
+          { text: 'อ่านค่าตัวเลขจากมิเตอร์น้ำในรูปนี้ ตอบเฉพาะตัวเลขที่อ่านได้เท่านั้น ไม่ต้องมีคำอธิบาย หน่วย หรือข้อความอื่นใด' }
+        ]}],
+        generationConfig: { maxOutputTokens: 20, temperature: 0 }
+      })
+    });
+
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({}));
+      throw new Error(errJson?.error?.message || `HTTP ${res.status}`);
+    }
+
+    const json   = await res.json();
+    const text   = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
     const digits = text.replace(/\D/g, '');
 
     if (digits.length >= 3) {
@@ -85,20 +105,19 @@ async function _processMeterPhoto(file) {
       calcMeter(String(val));
       if (statusEl) {
         statusEl.innerHTML = `<i class="ti ti-check" style="color:var(--green-700);margin-right:4px"></i>` +
-          `อ่านได้: <strong>${val.toLocaleString()}</strong> ` +
-          `(ความแม่นยำ ${Math.round(confidence)}%) — กรุณาตรวจสอบความถูกต้อง`;
+          `AI อ่านได้: <strong>${val.toLocaleString()}</strong> — กรุณาตรวจสอบความถูกต้อง`;
         statusEl.style.color = 'var(--green-700)';
       }
     } else {
       if (statusEl) {
-        statusEl.innerHTML = `<i class="ti ti-alert-triangle" style="margin-right:4px"></i>ไม่สามารถอ่านตัวเลขได้ชัดเจน — กรุณากรอกเอง`;
+        statusEl.innerHTML = `<i class="ti ti-alert-triangle" style="margin-right:4px"></i>อ่านไม่ได้ชัดเจน (AI ตอบว่า: "${text||'ไม่มีข้อมูล'}") — กรุณากรอกเอง`;
         statusEl.style.color = 'var(--amber-700)';
       }
     }
   } catch (err) {
-    console.error('[Meter OCR]', err);
+    console.error('[Meter AI]', err);
     if (statusEl) {
-      statusEl.textContent = 'เกิดข้อผิดพลาด — กรุณากรอกตัวเลขเอง';
+      statusEl.innerHTML = `<i class="ti ti-alert-triangle" style="margin-right:4px"></i>เกิดข้อผิดพลาด: ${err.message} — กรุณากรอกเอง`;
       statusEl.style.color = 'var(--red-700)';
     }
   }
