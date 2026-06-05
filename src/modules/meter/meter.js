@@ -12,7 +12,7 @@ import { _dbVillages } from '../../services/db-mapper.service.js';
 // ─── Meter Photo / AI OCR ─────────────────────────────────────
 
 const _GEMINI_ENDPOINT = key =>
-  `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${key}`;
+  `https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash-lite:generateContent?key=${key}`;
 
 function _getFileInput(id, capture) {
   let inp = document.getElementById(id);
