@@ -329,7 +329,7 @@ export function renderMeter(searchOverride) {
   </div>
 
   <!-- ─── Member list grouped by village ─── -->
-  <div style="padding:0 24px 28px">
+  <div style="padding:0 14px 88px">
     ${!displayList.length
       ? `<div style="text-align:center;padding:52px 24px;color:var(--gray-400);font-size:14px;line-height:2">${emptyMsg}</div>`
       : groups.map(g => {
@@ -338,69 +338,123 @@ export function renderMeter(searchOverride) {
           const gPend  = g.members.filter(m => !readSet.has(m.id)).length;
           const gDone  = g.members.length - gPend;
           return `
-          <div style="margin-top:24px">
+          <div style="margin-top:18px">
             <!-- Village header -->
-            <div style="display:flex;align-items:center;gap:10px;padding:9px 14px;
+            <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;
               background:var(--blue-50);border-radius:10px;border-left:4px solid var(--blue-500);
-              margin-bottom:0">
-              <i class="ti ti-home-2" style="color:var(--blue-500);font-size:16px;flex-shrink:0"></i>
-              <span style="font-weight:700;color:var(--blue-900);font-size:13.5px">${mooTxt}${esc(g.village)}</span>
-              <div style="margin-left:auto;display:flex;gap:5px;align-items:center;flex-shrink:0">
-                ${gPend > 0 ? `<span style="background:var(--amber-100);color:var(--amber-700);font-size:11px;padding:2px 9px;border-radius:12px;font-weight:600;white-space:nowrap">ยังไม่จด ${gPend}</span>` : ''}
-                ${gDone > 0 ? `<span style="background:var(--green-100);color:var(--green-700);font-size:11px;padding:2px 9px;border-radius:12px;font-weight:600;white-space:nowrap">จดแล้ว ${gDone}</span>` : ''}
-                <span style="font-size:11.5px;color:var(--gray-400);white-space:nowrap">รวม ${g.members.length}</span>
+              margin-bottom:10px">
+              <i class="ti ti-home-2" style="color:var(--blue-500);font-size:15px;flex-shrink:0"></i>
+              <span style="font-weight:700;color:var(--blue-900);font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${mooTxt}${esc(g.village)}</span>
+              <div style="display:flex;gap:4px;flex-shrink:0">
+                ${gPend > 0 ? `<span style="background:var(--amber-100);color:var(--amber-700);font-size:11px;padding:2px 8px;border-radius:12px;font-weight:600">รอ ${gPend}</span>` : ''}
+                ${gDone > 0 ? `<span style="background:var(--green-100);color:var(--green-700);font-size:11px;padding:2px 8px;border-radius:12px;font-weight:600">✓ ${gDone}</span>` : ''}
               </div>
             </div>
 
-            <!-- Member table -->
-            <div class="tbl-wrap" style="border-top:none;border-radius:0 0 10px 10px">
-              <table>
-                <thead><tr style="font-size:11px;color:var(--gray-400);letter-spacing:.03em">
-                  <th style="width:44px;text-align:center">ลำดับ</th>
-                  <th>ชื่อ-สกุล</th>
-                  <th>บ้านเลขที่</th>
-                  <th style="text-align:center;font-family:'IBM Plex Mono',monospace">เลขมิเตอร์</th>
-                  <th style="text-align:right">ค่าล่าสุด</th>
-                  <th style="text-align:center;width:100px">สถานะ</th>
-                  <th style="text-align:right;width:100px"></th>
-                </tr></thead>
-                <tbody>
-                  ${g.members.map(m => {
-                    const done = readSet.has(m.id);
-                    const seq  = villageSeqMap.get(m.id) || '—';
-                    return `<tr style="cursor:pointer${done ? ';opacity:.72' : ''}"
-                      onmouseenter="this.style.background='var(--blue-50)'"
-                      onmouseleave="this.style.background=''"
-                      onclick="gotoMeter('${esc(m.firstName+' '+m.lastName)}','${esc(m.meter||'')}',${m.id})">
-                      <td style="text-align:center;font-size:12px;color:var(--gray-400);font-family:'IBM Plex Mono',monospace;font-weight:700">${seq}</td>
-                      <td>
-                        <span style="font-weight:600;font-size:13px;color:var(--blue-900)">${esc(m.firstName)} ${esc(m.lastName)}</span>
-                      </td>
-                      <td style="font-size:12.5px;color:var(--gray-600)">${esc(m.houseNo||'—')}</td>
-                      <td style="text-align:center;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--blue-700)">${esc(m.meter||'—')}</td>
-                      <td style="text-align:right;font-size:13px;font-weight:600">${Number(m.lastRead).toLocaleString()}</td>
-                      <td style="text-align:center;white-space:nowrap">
-                        ${done
-                          ? `<span class="pill pill-paid"    style="font-size:11px;white-space:nowrap">จดแล้ว</span>`
-                          : `<span class="pill pill-pending" style="font-size:11px;white-space:nowrap">ยังไม่จด</span>`
-                        }
-                      </td>
-                      <td style="text-align:right">
-                        <button class="btn btn-primary btn-xs"
-                          onclick="event.stopPropagation();gotoMeter('${esc(m.firstName+' '+m.lastName)}','${esc(m.meter||'')}',${m.id})">
-                          <i class="ti ti-pencil"></i>${done ? 'แก้ไข' : 'จดมิเตอร์'}
-                        </button>
-                      </td>
-                    </tr>`;
-                  }).join('')}
-                </tbody>
-              </table>
+            <!-- Member cards -->
+            <div style="display:flex;flex-direction:column;gap:8px">
+              ${g.members.map(m => {
+                const done    = readSet.has(m.id);
+                const seq     = villageSeqMap.get(m.id) || '—';
+                const reading = meterReadings.find(r => r.memberId === m.id && r.period === period);
+                const newRead = reading ? Number(reading.newRead).toLocaleString() : null;
+                const borderColor = done ? 'var(--green-400)' : 'var(--amber-400)';
+                return `
+                <div onclick="gotoMeter('${esc(m.firstName+' '+m.lastName)}','${esc(m.meter||'')}',${m.id})"
+                  onpointerdown="this.style.transform='scale(.985)';this.style.boxShadow='none'"
+                  onpointerup="this.style.transform='';this.style.boxShadow='0 1px 4px rgba(0,0,0,.08)'"
+                  onpointercancel="this.style.transform='';this.style.boxShadow='0 1px 4px rgba(0,0,0,.08)'"
+                  style="display:flex;align-items:center;gap:0;background:#fff;
+                    border-radius:14px;border:1.5px solid ${done ? 'var(--green-100)' : 'var(--gray-150)'};
+                    border-left:5px solid ${borderColor};
+                    box-shadow:0 1px 4px rgba(0,0,0,.08);
+                    cursor:pointer;transition:transform .12s,box-shadow .12s;
+                    opacity:${done ? '.78' : '1'};overflow:hidden;-webkit-tap-highlight-color:transparent">
+
+                  <!-- Seq -->
+                  <div style="width:34px;text-align:center;flex-shrink:0;
+                    font-size:11px;color:var(--gray-400);font-weight:700;
+                    font-family:'IBM Plex Mono',monospace;padding:18px 0">
+                    ${seq}
+                  </div>
+
+                  <!-- Info -->
+                  <div style="flex:1;padding:13px 8px 13px 2px;min-width:0">
+                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;flex-wrap:wrap">
+                      <span style="font-weight:700;font-size:15px;color:var(--blue-900);line-height:1.1">
+                        ${esc(m.firstName)} ${esc(m.lastName)}
+                      </span>
+                      ${done
+                        ? `<span style="background:var(--green-100);color:var(--green-700);font-size:10.5px;padding:2px 7px;border-radius:10px;font-weight:700;flex-shrink:0">✓ จดแล้ว</span>`
+                        : `<span style="background:var(--amber-50);color:var(--amber-600);font-size:10.5px;padding:2px 7px;border-radius:10px;font-weight:700;flex-shrink:0;border:1px solid var(--amber-200)">รอจด</span>`
+                      }
+                    </div>
+                    <div style="display:flex;gap:10px;font-size:12px;color:var(--gray-500);flex-wrap:wrap">
+                      <span>🏠 ${esc(m.houseNo||'—')}</span>
+                      <span style="font-family:'IBM Plex Mono',monospace;color:var(--blue-600);font-size:11.5px">${esc(m.meter||'—')}</span>
+                      ${done && newRead
+                        ? `<span style="color:var(--green-700);font-weight:600">${Number(m.lastRead).toLocaleString()} → <b>${newRead}</b></span>`
+                        : `<span>ล่าสุด: <b style="color:var(--gray-700)">${Number(m.lastRead).toLocaleString()}</b></span>`
+                      }
+                    </div>
+                  </div>
+
+                  <!-- Arrow -->
+                  <div style="padding:0 14px;flex-shrink:0;color:${done ? 'var(--green-400)' : 'var(--blue-400)'}">
+                    <i class="ti ti-chevron-right" style="font-size:20px"></i>
+                  </div>
+                </div>`;
+              }).join('')}
             </div>
           </div>`;
         }).join('')
     }
-  </div>`;
+  </div>
+
+  <!-- ─── FAB: จดถัดไป ─── -->
+  ${pendingAll > 0 ? `
+  <button onclick="window._gotoNextPending()"
+    onpointerdown="this.style.transform='scale(.93)'" onpointerup="this.style.transform=''" onpointercancel="this.style.transform=''"
+    style="position:fixed;bottom:20px;right:16px;z-index:800;
+      background:linear-gradient(135deg,var(--blue-600),var(--blue-500));
+      color:#fff;border:none;border-radius:24px;
+      padding:14px 22px;font-size:15px;font-weight:700;
+      display:flex;align-items:center;gap:9px;
+      box-shadow:0 4px 18px rgba(59,130,246,.5);
+      cursor:pointer;transition:transform .12s;-webkit-tap-highlight-color:transparent">
+    <i class="ti ti-player-skip-forward" style="font-size:17px"></i>
+    จดถัดไป
+    <span style="background:rgba(255,255,255,.25);border-radius:16px;padding:2px 9px;font-size:12.5px">
+      ${pendingAll}
+    </span>
+  </button>` : `
+  <div style="position:fixed;bottom:20px;right:16px;z-index:800;
+    background:var(--green-500);color:#fff;border-radius:24px;
+    padding:12px 20px;font-size:14px;font-weight:700;
+    display:flex;align-items:center;gap:8px;
+    box-shadow:0 4px 18px rgba(34,197,94,.4)">
+    <i class="ti ti-circle-check" style="font-size:18px"></i>
+    จดครบแล้ว!
+  </div>`}
+  `;
 }
+
+// FAB: ข้ามไปสมาชิกถัดไปที่ยังไม่จด (เรียงตามลำดับหมู่บ้าน → บ้านเลขที่)
+window._gotoNextPending = function () {
+  const period  = currentPeriod();
+  const readSet = new Set(appState.meterReadings.filter(r => r.period === period).map(r => r.memberId));
+  const pending = appState.members.filter(m => m.status !== 'closed' && !readSet.has(m.id));
+  if (!pending.length) return;
+  const villMooMap = {};
+  _dbVillages.forEach(v => { villMooMap[v.name] = v.moo_number || 999; });
+  pending.sort((a, b) => {
+    const mA = villMooMap[a.village] || 999, mB = villMooMap[b.village] || 999;
+    if (mA !== mB) return mA - mB;
+    return (a.houseNo || '').localeCompare(b.houseNo || '', 'th');
+  });
+  const m = pending[0];
+  gotoMeter(m.firstName + ' ' + m.lastName, m.meter || '', m.id);
+};
 
 export function gotoMeter(name, meterId, memberId) {
   appState.currentMeterMemberId = memberId || null;
