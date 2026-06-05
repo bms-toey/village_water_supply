@@ -77,7 +77,8 @@ export function openAddUser() {
   _editUserId = null;
   document.getElementById('user-modal-title').textContent = 'เพิ่มผู้ใช้งานใหม่';
   document.getElementById('user-modal-icon').className    = 'ti ti-user-plus';
-  document.getElementById('uform-pass-row').style.display = '';
+  document.getElementById('uform-pass-label').innerHTML   = 'รหัสผ่าน * <span style="color:var(--gray-400);font-weight:400">(อย่างน้อย 4 ตัวอักษร)</span>';
+  document.getElementById('uform-password').placeholder   = '••••••••';
   ['uform-fullname','uform-email','uform-password','uform-username','uform-phone'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   document.getElementById('uform-role').value     = 'meter_reader';
   document.getElementById('uform-village').value  = '';
@@ -91,7 +92,9 @@ export function openEditUser(uid) {
   _editUserId = uid;
   document.getElementById('user-modal-title').textContent = 'แก้ไขผู้ใช้งาน';
   document.getElementById('user-modal-icon').className    = 'ti ti-user-edit';
-  document.getElementById('uform-pass-row').style.display = 'none';
+  document.getElementById('uform-pass-label').innerHTML   = 'รหัสผ่านใหม่ <span style="color:var(--gray-400);font-weight:400">(เว้นว่างถ้าไม่ต้องการเปลี่ยน)</span>';
+  document.getElementById('uform-password').placeholder   = 'เว้นว่างถ้าไม่เปลี่ยน';
+  document.getElementById('uform-password').value         = '';
   document.getElementById('uform-fullname').value = u.full_name || '';
   document.getElementById('uform-email').value    = u.email     || '';
   document.getElementById('uform-username').value = u.username  || '';
@@ -123,9 +126,14 @@ export async function saveUser() {
   const reset = () => { btn.disabled = false; btn.innerHTML = '<i class="ti ti-check"></i> บันทึก'; };
   if (_editUserId) {
     const { error } = await _sb.rpc('admin_update_user', { p_user_id: _editUserId, p_full_name: fullName, p_username: username, p_phone: phone, p_role: role, p_village: villageId, p_active: isActive });
+    if (error) { reset(); toast('แก้ไขล้มเหลว: ' + error.message, 'error'); return; }
+    if (password) {
+      if (password.length < 4) { reset(); toast('รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร', 'error'); return; }
+      const { error: pwErr } = await _sb.rpc('admin_set_user_password', { p_user_id: _editUserId, p_password: password });
+      if (pwErr) { reset(); toast('แก้ไขรหัสผ่านล้มเหลว: ' + pwErr.message, 'error'); return; }
+    }
     reset();
-    if (error) { toast('แก้ไขล้มเหลว: ' + error.message, 'error'); return; }
-    toast(`แก้ไข ${fullName} แล้ว`, 'success');
+    toast(`แก้ไข ${fullName} แล้ว${password ? ' (เปลี่ยนรหัสผ่านด้วย)' : ''}`, 'success');
   } else {
     if (!email) { reset(); toast('กรุณากรอกอีเมล', 'error'); return; }
     if (!password || password.length < 4) { reset(); toast('รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร', 'error'); return; }

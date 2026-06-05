@@ -781,8 +781,13 @@
         <div><label class="form-label">อีเมล *</label><input class="form-input" id="uform-email" type="email" placeholder="user@example.com"/></div>
       </div>
       <div id="uform-pass-row">
-        <label class="form-label">รหัสผ่าน * <span style="color:var(--gray-400);font-weight:400">(อย่างน้อย 6 ตัวอักษร)</span></label>
-        <input class="form-input" id="uform-password" type="password" placeholder="••••••••"/>
+        <label class="form-label" id="uform-pass-label">รหัสผ่าน * <span style="color:var(--gray-400);font-weight:400">(อย่างน้อย 4 ตัวอักษร)</span></label>
+        <div style="position:relative">
+          <input class="form-input" id="uform-password" type="password" placeholder="••••••••" autocomplete="new-password" style="padding-right:44px"/>
+          <button type="button" onclick="(function(b){var i=document.getElementById('uform-password');i.type=i.type==='password'?'text':'password';b.querySelector('i').className=i.type==='password'?'ti ti-eye':'ti ti-eye-off'})(this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--gray-500);padding:4px;min-height:unset">
+            <i class="ti ti-eye"></i>
+          </button>
+        </div>
       </div>
       <div class="form-row-2">
         <div><label class="form-label">Username <span style="color:var(--gray-400);font-weight:400">(สำหรับ login)</span></label><input class="form-input" id="uform-username" placeholder="admin01" style="font-family:'IBM Plex Mono',monospace"/></div>

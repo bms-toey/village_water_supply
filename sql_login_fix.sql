@@ -104,6 +104,30 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.admin_update_user(UUID,TEXT,TEXT,TEXT,user_role,INT,BOOLEAN) TO authenticated;
 
+-- STEP 6: Super Admin ตั้งรหัสผ่านให้ user อื่นได้ (ต้องมี pgcrypto extension)
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+CREATE OR REPLACE FUNCTION public.admin_set_user_password(p_user_id UUID, p_password TEXT)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF (SELECT role FROM public.profiles WHERE id = auth.uid()) <> 'super_admin' THEN
+    RAISE EXCEPTION 'Permission denied';
+  END IF;
+  IF length(p_password) < 4 THEN
+    RAISE EXCEPTION 'Password too short';
+  END IF;
+  UPDATE auth.users
+  SET encrypted_password = crypt(p_password, gen_salt('bf'))
+  WHERE id = p_user_id;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.admin_set_user_password(UUID, TEXT) TO authenticated;
+
 -- ══════════════════════════════════════════════════════════════
 -- หลังจาก run SQL แล้ว:
 -- ให้ไปที่ Settings > Users ในแอป แล้วกรอก Username / เบอร์โทร
