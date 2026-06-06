@@ -56,6 +56,38 @@
 .rt-dot--off{background:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.18)}
 .rt-time{font-size:11px;color:var(--gray-500);font-family:'IBM Plex Mono',monospace;letter-spacing:.02em;min-width:52px;text-align:center}
 #rt-icon{font-size:13px;color:var(--gray-400)}
+/* ─── Topbar Dropdown Panels ──────────────────── */
+.tbar-drop{position:fixed;top:62px;right:12px;width:300px;background:var(--white);border:1px solid var(--gray-200);border-radius:14px;box-shadow:0 12px 40px rgba(0,35,111,.15);z-index:9999;overflow:hidden;animation:toastIn .18s ease}
+.tbd-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--gray-100)}
+.tbd-title{font-weight:700;font-size:13px;color:var(--gray-900);display:flex;align-items:center;gap:7px}
+.tbd-title i{color:var(--blue-600);font-size:15px}
+.tbd-x{background:transparent;border:none;cursor:pointer;color:var(--gray-400);font-size:15px;padding:2px;line-height:1;border-radius:4px;transition:var(--transition)}
+.tbd-x:hover{color:var(--gray-700);background:var(--gray-100)}
+.tbd-body{max-height:340px;overflow-y:auto}
+.tbd-item{display:flex;align-items:center;gap:12px;padding:11px 16px;cursor:pointer;transition:background .1s;border-bottom:1px solid var(--gray-50)}
+.tbd-item:hover{background:var(--gray-50)}
+.tbd-item:last-child{border-bottom:none}
+.tbd-item-label{flex:1;font-size:13px;color:var(--gray-800)}
+.tbd-cnt{font-weight:700;font-size:12px;background:var(--red-100);color:var(--red-700);border-radius:20px;padding:1px 9px;flex-shrink:0}
+.tbd-cnt--blue{background:var(--blue-100);color:var(--blue-700)}
+.tbd-cnt--amber{background:#fef3c7;color:#92400e}
+.tbd-profile{display:flex;align-items:center;gap:12px;padding:16px;border-bottom:1px solid var(--gray-100);background:var(--gray-50)}
+.tbd-avatar{width:40px!important;height:40px!important;font-size:14px!important;flex-shrink:0}
+.tbd-uname{font-weight:700;font-size:14px;color:var(--gray-900);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tbd-urole{font-size:11.5px;color:var(--gray-500);margin-top:2px}
+.tbd-btn{width:100%;text-align:left;display:flex;align-items:center;gap:10px;padding:12px 16px;background:transparent;border:none;cursor:pointer;font-family:Sarabun,sans-serif;font-size:13.5px;color:var(--gray-700);border-bottom:1px solid var(--gray-50);transition:background .1s}
+.tbd-btn:last-child{border-bottom:none}
+.tbd-btn:hover{background:var(--gray-50)}
+.tbd-btn--red{color:var(--red-600)!important}
+.tbd-btn--red:hover{background:var(--red-50)!important}
+/* ─── Search Dropdown ──────────────────────────── */
+.search-drop{position:fixed;background:var(--white);border:1px solid var(--gray-200);border-radius:12px;box-shadow:0 8px 32px rgba(0,35,111,.13);z-index:9998;overflow:hidden;animation:toastIn .15s ease}
+.sd-item{padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--gray-50);transition:background .1s}
+.sd-item:hover{background:var(--blue-50)}
+.sd-item:last-child{border-bottom:none}
+.sd-name{font-weight:600;font-size:13px;color:var(--gray-900)}
+.sd-sub{font-size:11.5px;color:var(--gray-500);margin-top:2px}
+.sd-empty{padding:14px 16px;color:var(--gray-400);font-size:13px;text-align:center}
 
 /* โ”€โ”€โ”€ CONTENT AREA โ”€โ”€โ”€ */
 .content-area{flex:1;overflow-y:auto;overflow-x:hidden;background:var(--surface);padding:28px 32px 40px;max-width:100%}

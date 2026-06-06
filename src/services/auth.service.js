@@ -168,6 +168,10 @@ export async function _initApp() {
 
   // Signal realtime service to stamp last-updated time
   window.dispatchEvent(new Event('aquaflow:data-ready'));
+
+  // Handle PWA shortcut ?page= query param (e.g. from manifest shortcuts)
+  const startPage = new URLSearchParams(window.location.search).get('page');
+  if (startPage && window.goPage) window.goPage(startPage);
 }
 
 // ─── Session Check ────────────────────────────────────────────

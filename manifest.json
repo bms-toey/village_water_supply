@@ -2,8 +2,8 @@
   "name": "AquaFlow Pro — ระบบประปาหมู่บ้าน",
   "short_name": "AquaFlow",
   "description": "ระบบบริหารจัดการประปาหมู่บ้านครบวงจร",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#00236f",
   "theme_color": "#00236f",
@@ -42,14 +42,14 @@
       "name": "จดมิเตอร์",
       "short_name": "มิเตอร์",
       "description": "บันทึกการอ่านมิเตอร์",
-      "url": "/?page=meter",
+      "url": "./?page=meter",
       "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
     },
     {
       "name": "ออกบิล",
       "short_name": "บิล",
       "description": "ระบบออกบิลค่าน้ำ",
-      "url": "/?page=billing",
+      "url": "./?page=billing",
       "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
     }
   ]

@@ -95,14 +95,15 @@
       <i class="ti ti-search"></i>
       <input type="text" placeholder="ค้นหาสมาชิก, มิเตอร์, บิล..."/>
     </div>
-    <div class="topbar-icon" role="button" aria-label="การแจ้งเตือน"><i class="ti ti-bell"></i><div class="topbar-notif-dot"></div></div>
-    <div class="topbar-icon" role="button" aria-label="หมู่บ้าน"><i class="ti ti-building-community"></i></div>
+    <button class="topbar-icon" id="topbar-search-btn" aria-label="ค้นหา" title="ค้นหาสมาชิก" style="display:none"><i class="ti ti-search"></i></button>
+    <div class="topbar-icon" id="topbar-bell" role="button" tabindex="0" aria-label="การแจ้งเตือน" title="การแจ้งเตือน"><i class="ti ti-bell"></i><div class="topbar-notif-dot" id="notif-badge" style="display:none"></div></div>
+    <div class="topbar-icon" id="topbar-village" role="button" tabindex="0" aria-label="หมู่บ้าน" title="สถิติหมู่บ้าน"><i class="ti ti-building-community"></i></div>
     <div class="topbar-realtime" id="topbar-realtime" role="button" tabindex="0" aria-label="รีเฟรชข้อมูล" title="คลิกเพื่อรีเฟรชข้อมูล" onclick="window._manualRefresh?.()" onkeydown="if(event.key==='Enter')window._manualRefresh?.()">
       <span class="rt-dot rt-dot--wait" id="rt-dot"></span>
       <span class="rt-time" id="rt-time">--:--:--</span>
       <i class="ti ti-refresh" id="rt-icon"></i>
     </div>
-    <div class="topbar-avatar">AD</div>
+    <div class="topbar-avatar" id="topbar-user-avatar" role="button" tabindex="0" aria-label="บัญชีผู้ใช้" title="บัญชีผู้ใช้">AD</div>
   </div>
 
   <!-- CONTENT AREA -->
@@ -1571,6 +1572,57 @@
 
 <!-- TOAST -->
 <div id="toast-container"></div>
+
+<!-- ══════════ TOPBAR DROPDOWN PANELS ══════════ -->
+
+<!-- Notification panel -->
+<div id="notif-panel" class="tbar-drop" style="display:none">
+  <div class="tbd-head">
+    <span class="tbd-title"><i class="ti ti-bell"></i>การแจ้งเตือน</span>
+    <button class="tbd-x" onclick="document.getElementById('notif-panel').style.display='none'" aria-label="ปิด"><i class="ti ti-x"></i></button>
+  </div>
+  <div id="notif-list" class="tbd-body"></div>
+</div>
+
+<!-- Village stats panel -->
+<div id="village-panel" class="tbar-drop" style="display:none">
+  <div class="tbd-head">
+    <span class="tbd-title"><i class="ti ti-building-community"></i>หมู่บ้าน</span>
+    <button class="tbd-x" onclick="document.getElementById('village-panel').style.display='none'" aria-label="ปิด"><i class="ti ti-x"></i></button>
+  </div>
+  <div id="village-list" class="tbd-body"></div>
+</div>
+
+<!-- User account panel -->
+<div id="user-panel" class="tbar-drop" style="display:none">
+  <div class="tbd-profile">
+    <div class="user-avatar tbd-avatar" id="upanel-avatar">AD</div>
+    <div style="min-width:0">
+      <div class="tbd-uname" id="upanel-name">ผู้ดูแลระบบ</div>
+      <div class="tbd-urole" id="upanel-role">Super Admin</div>
+    </div>
+  </div>
+  <div class="tbd-body">
+    <button class="tbd-btn" onclick="window._closeAllPanels?.();openChangePwdModal()">
+      <i class="ti ti-key"></i>เปลี่ยนรหัสผ่าน
+    </button>
+    <button class="tbd-btn tbd-btn--red" onclick="window._closeAllPanels?.();doSignOut()">
+      <i class="ti ti-logout"></i>ออกจากระบบ
+    </button>
+  </div>
+</div>
+
+<!-- Mobile Search Overlay -->
+<div id="mobile-search-overlay" style="display:none;position:fixed;inset:0;z-index:10000;background:var(--white,#fff);padding:env(safe-area-inset-top,0) 0 0">
+  <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--gray-200,#e5e7eb)">
+    <div style="flex:1;display:flex;align-items:center;gap:8px;background:var(--gray-50,#f9fafb);border:1px solid var(--gray-200,#e5e7eb);border-radius:24px;padding:9px 14px">
+      <i class="ti ti-search" style="color:var(--gray-400,#9ca3af);font-size:16px;flex-shrink:0"></i>
+      <input id="mobile-search-inp" type="search" placeholder="ค้นหาสมาชิก, มิเตอร์, บ้านเลขที่..." autocomplete="off" style="border:none;background:transparent;outline:none;flex:1;font-size:14px;font-family:Sarabun,sans-serif;color:var(--gray-900,#111)"/>
+    </div>
+    <button onclick="document.getElementById('mobile-search-overlay').style.display='none';document.getElementById('mobile-search-inp').value='';document.getElementById('mobile-search-results').innerHTML=''" style="background:transparent;border:none;font-size:14px;color:var(--blue-700,#1d4ed8);cursor:pointer;font-family:Sarabun,sans-serif;font-weight:600;white-space:nowrap;padding:0 4px">ยกเลิก</button>
+  </div>
+  <div id="mobile-search-results" style="overflow-y:auto;padding:8px 12px;max-height:calc(100vh - 80px)"></div>
+</div>
 
 <!-- Login UI helpers -->
 <script>

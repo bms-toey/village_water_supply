@@ -4,15 +4,22 @@
 //   CDN resources    → Cache-first    (fonts/icons rarely change, saves bandwidth)
 //   Supabase API     → Network-only   (never cache live data)
 
-const CACHE_APP = 'aquaflow-app-v2';
+const CACHE_APP = 'aquaflow-app-v3';
 const CACHE_CDN = 'aquaflow-cdn-v1';
 
 // ─── Install ──────────────────────────────────────────────────
 self.addEventListener('install', event => {
-  // Pre-cache minimal shell for offline access
+  // Use relative paths so the SW works at any deployment subdirectory
+  // (e.g. GitHub Pages at /village_water_supply/ or a custom domain at /)
+  const base = new URL('./', self.location.href).pathname;
   event.waitUntil(
     caches.open(CACHE_APP)
-      .then(cache => cache.addAll(['/', '/index.html', '/manifest.json']))
+      .then(cache => cache.addAll([
+        base,
+        base + 'index.html',
+        base + 'manifest.json',
+        base + 'config.js',
+      ]))
       .catch(() => {})
   );
   // Wait for all tabs to close before activating (no forced logout)

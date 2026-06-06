@@ -117,6 +117,10 @@
   /* Realtime indicator: show only dot + icon on mobile */
   .rt-time { display: none; }
   .topbar-realtime { padding: 6px 8px; gap: 4px; }
+  /* Mobile search button */
+  #topbar-search-btn { display: flex !important; }
+  /* Topbar panels: full width on small screens */
+  .tbar-drop { right: 8px; left: 8px; width: auto; }
   .breadcrumb-page {
     overflow: hidden;
     text-overflow: ellipsis;
