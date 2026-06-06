@@ -1,6 +1,6 @@
 // ─── Users Module ──────────────────────────────────────────────
 import { esc, toast } from '../../utils/dom.util.js';
-import { _sb, _sbCreate } from '../../services/supabase.service.js';
+import { _sb } from '../../services/supabase.service.js';
 import { _dbVillages } from '../../services/db-mapper.service.js';
 import { currentUser, currentProfile } from '../../services/auth.service.js';
 
@@ -26,7 +26,12 @@ export async function renderUsers() {
 
 async function _loadAllUsers() {
   const { data, error } = await _sb.rpc('get_all_users');
-  if (error) { console.error('[users]', error); return; }
+  if (error) {
+    console.error('[users] get_all_users:', error);
+    const tbody = document.getElementById('users-tbody');
+    if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--red-600);padding:24px">โหลดข้อมูลไม่ได้: ${esc(error.message)}</td></tr>`;
+    return;
+  }
   _allUsers = data || [];
 }
 
@@ -125,13 +130,24 @@ export async function saveUser() {
   btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin .8s linear infinite"></i> บันทึก...';
   const reset = () => { btn.disabled = false; btn.innerHTML = '<i class="ti ti-check"></i> บันทึก'; };
   if (_editUserId) {
-    const { error } = await _sb.rpc('admin_update_user', { p_user_id: _editUserId, p_full_name: fullName, p_username: username, p_phone: phone, p_role: role, p_village: villageId, p_active: isActive });
+    const { error } = await _sb.rpc('admin_update_user', {
+      p_user_id:   _editUserId,
+      p_full_name: fullName,
+      p_username:  username,
+      p_phone:     phone,
+      p_role:      role,
+      p_village:   villageId,
+      p_active:    isActive,
+    });
     if (error) { reset(); toast('แก้ไขล้มเหลว: ' + error.message, 'error'); return; }
     if (password) {
       if (password.length < 8 || !/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
         reset(); toast('รหัสผ่านต้องมีอย่างน้อย 8 ตัว และมีทั้งตัวอักษรและตัวเลข', 'error'); return;
       }
-      const { error: pwErr } = await _sb.rpc('admin_set_user_password', { p_user_id: _editUserId, p_password: password });
+      const { error: pwErr } = await _sb.rpc('admin_set_user_password', {
+        p_user_id:  _editUserId,
+        p_password: password,
+      });
       if (pwErr) { reset(); toast('แก้ไขรหัสผ่านล้มเหลว: ' + pwErr.message, 'error'); return; }
     }
     reset();
@@ -141,11 +157,16 @@ export async function saveUser() {
     if (!password || password.length < 8 || !/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
       reset(); toast('รหัสผ่านต้องมีอย่างน้อย 8 ตัว และมีทั้งตัวอักษรและตัวเลข', 'error'); return;
     }
-    const { data, error } = await _sbCreate.auth.signUp({ email, password, options: { data: { full_name: fullName, username, phone, role } } });
+    const { error } = await _sb.rpc('admin_create_user', {
+      p_email:     email,
+      p_password:  password,
+      p_full_name: fullName,
+      p_username:  username,
+      p_phone:     phone,
+      p_role:      role,
+      p_village:   villageId,
+    });
     if (error) { reset(); toast('สร้างผู้ใช้ล้มเหลว: ' + error.message, 'error'); return; }
-    if (data.user) {
-      await _sb.rpc('admin_update_user', { p_user_id: data.user.id, p_full_name: fullName, p_username: username, p_phone: phone, p_role: role, p_village: villageId, p_active: true });
-    }
     reset();
     toast(`เพิ่มผู้ใช้ ${fullName} แล้ว`, 'success');
   }
