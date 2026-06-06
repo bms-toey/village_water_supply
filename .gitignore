@@ -22,15 +22,17 @@ desktop.ini
 *.key
 # config.js is committed — anon key is browser-safe, protected by Supabase RLS
 
-# Build output (none currently — vanilla project)
+# Build output
 dist/
 build/
 
-# Node (if added later)
+# Node
 node_modules/
+package-lock.json
+generate-icons.js
 
 # Python scripts with secrets (local only)
 meter_reader.py
 *.jpg
-*.png
+# Allow icons/*.png (PWA); ignore other raw images
 *_result.json

@@ -3,6 +3,7 @@
   "short_name": "AquaFlow",
   "description": "ระบบบริหารจัดการประปาหมู่บ้านครบวงจร",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#00236f",
   "theme_color": "#00236f",
@@ -30,13 +31,12 @@
       "purpose": "maskable"
     },
     {
-      "src": "icons/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any"
+      "src": "icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
-  "screenshots": [],
   "shortcuts": [
     {
       "name": "จดมิเตอร์",
