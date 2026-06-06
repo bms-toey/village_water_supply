@@ -15,7 +15,8 @@ self.addEventListener('install', event => {
       .then(cache => cache.addAll(['/', '/index.html', '/manifest.json']))
       .catch(() => {})
   );
-  // Don't skipWaiting automatically — let the client trigger it after user confirms
+  // Take control immediately — client will reload to login on controllerchange
+  self.skipWaiting();
 });
 
 // ─── Activate ─────────────────────────────────────────────────

@@ -1601,11 +1601,13 @@ if ('serviceWorker' in navigator) {
       if (document.visibilityState === 'visible') _swReg.update().catch(() => {});
     });
 
-    // ── When SW changes controller → reload to apply fresh files ──
+    // ── When SW changes controller → sign out and reload to login ──
     let _reloading = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       if (_reloading) return;
       _reloading = true;
+      // Flag tells auth.service to force sign-out on next checkSession()
+      sessionStorage.setItem('_sw_force_logout', '1');
       window.location.reload();
     });
   });

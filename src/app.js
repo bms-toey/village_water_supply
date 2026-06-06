@@ -64,7 +64,7 @@ import {
 import {
   renderMaintenance, setMntTab,
   completeMaintenance, openAddMaintenance, openEditMaintenance, closeMntModal, saveMaintenance,
-  openMeterReplaceModal, closeMeterReplaceModal, onMrMemberChange, saveMeterReplacement, genNewMeterNo, genNewMeterNo,
+  openMeterReplaceModal, closeMeterReplaceModal, onMrMemberChange, saveMeterReplacement, genNewMeterNo,
 } from './modules/maintenance/maintenance.js';
 import { renderMap, closeMemberMapPopup, filterMapByVillage, filterMapByStatus } from './modules/map/map.js';
 import { renderUsers, openAddUser, openEditUser, closeUserModal, saveUser, toggleUserActive } from './modules/users/users.js';

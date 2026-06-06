@@ -20,6 +20,7 @@ desktop.ini
 .env.local
 *.pem
 *.key
+config.js
 
 # Build output (none currently — vanilla project)
 dist/
