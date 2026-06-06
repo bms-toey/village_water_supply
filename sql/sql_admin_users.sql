@@ -27,10 +27,10 @@ BEGIN
   )
   ON CONFLICT (id) DO UPDATE
     SET full_name = EXCLUDED.full_name,
-        email     = COALESCE(EXCLUDED.email,     profiles.email),
-        username  = COALESCE(EXCLUDED.username,  profiles.username),
-        phone     = COALESCE(EXCLUDED.phone,     profiles.phone),
-        role      = EXCLUDED.role;
+        email     = COALESCE(EXCLUDED.email,    profiles.email),
+        username  = COALESCE(EXCLUDED.username, profiles.username),
+        phone     = COALESCE(EXCLUDED.phone,    profiles.phone);
+        -- role ไม่ update เพื่อป้องกัน overwrite role ที่ตั้งไว้แล้ว (เช่น super_admin)
   RETURN NEW;
 EXCEPTION WHEN OTHERS THEN
   -- ไม่ให้ trigger fail ทำให้ signup ล้มเหลว

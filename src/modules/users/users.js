@@ -99,6 +99,7 @@ export function openAddUser() {
 export function openEditUser(uid) {
   const u = _allUsers.find(x => x.id === uid); if (!u) return;
   _editUserId = uid;
+  const isMe = uid === currentUser?.id;
   document.getElementById('user-modal-title').textContent = 'แก้ไขผู้ใช้งาน';
   document.getElementById('user-modal-icon').className    = 'ti ti-user-edit';
   document.getElementById('uform-pass-label').innerHTML   = 'รหัสผ่านใหม่ <span style="color:var(--gray-400);font-weight:400">(เว้นว่างถ้าไม่ต้องการเปลี่ยน)</span>';
@@ -111,6 +112,11 @@ export function openEditUser(uid) {
   document.getElementById('uform-role').value     = u.role;
   document.getElementById('uform-village').value  = u.village_id || '';
   document.getElementById('uform-active').checked = u.is_active !== false;
+  // ป้องกัน admin เปลี่ยน role / ปิดใช้งาน ตัวเอง
+  const roleEl   = document.getElementById('uform-role');
+  const activeEl = document.getElementById('uform-active');
+  if (roleEl)   { roleEl.disabled   = isMe; roleEl.title   = isMe ? 'ไม่สามารถเปลี่ยน Role ของตัวเองได้' : ''; }
+  if (activeEl) { activeEl.disabled = isMe; activeEl.title = isMe ? 'ไม่สามารถปิดใช้งานบัญชีตัวเองได้' : ''; }
   document.getElementById('user-modal').style.display = 'flex';
 }
 
@@ -134,6 +140,13 @@ export async function saveUser() {
   btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin .8s linear infinite"></i> บันทึก...';
   const reset = () => { btn.disabled = false; btn.innerHTML = '<i class="ti ti-check"></i> บันทึก'; };
   if (_editUserId) {
+    const isMe = _editUserId === currentUser?.id;
+    if (isMe && role !== currentProfile?.role) {
+      reset(); toast('ไม่สามารถเปลี่ยน Role ของตัวเองได้', 'error'); return;
+    }
+    if (isMe && !isActive) {
+      reset(); toast('ไม่สามารถปิดใช้งานบัญชีตัวเองได้', 'error'); return;
+    }
     const { error } = await _sb.rpc('admin_update_user', {
       p_user_id:   _editUserId,
       p_full_name: fullName,
