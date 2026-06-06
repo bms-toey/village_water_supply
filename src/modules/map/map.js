@@ -72,15 +72,19 @@ export function renderMap() {
     vGroups[v].lats.push(lat); vGroups[v].lngs.push(lng);
   });
   Object.entries(vGroups).forEach(([v, g]) => {
-    const cLat  = g.lats.reduce((s, x) => s + x, 0) / g.lats.length;
-    const cLng  = g.lngs.reduce((s, x) => s + x, 0) / g.lngs.length;
+    // Use bounding-box center so the circle is evenly centered over all members
+    const minLat = Math.min(...g.lats), maxLat = Math.max(...g.lats);
+    const minLng = Math.min(...g.lngs), maxLng = Math.max(...g.lngs);
+    const cLat = (minLat + maxLat) / 2;
+    const cLng = (minLng + maxLng) / 2;
     const color = vColors[v] || '#94a3b8';
+    // Radius = farthest member distance + 15% buffer + 60m — no cap
     const maxDist = g.lats.reduce((mx, lat, i) => {
       const dlat = (lat - cLat) * 111320;
       const dlng = (g.lngs[i] - cLng) * 111320 * Math.cos(cLat * Math.PI / 180);
       return Math.max(mx, Math.sqrt(dlat * dlat + dlng * dlng));
-    }, 60);
-    const radius = Math.min(Math.max(maxDist + 50, 100), 450);
+    }, 0);
+    const radius = Math.max(maxDist * 1.15 + 60, 100);
     L.circle([cLat, cLng], { radius, color, fillColor: color, fillOpacity: 0.08, weight: 2, dashArray: '8 5' })
       .bindTooltip(`<strong style="font-family:'Sarabun',sans-serif">${v}</strong><br><span style="font-size:11px">${g.lats.length} หลังคา</span>`, { sticky: true })
       .addTo(_mapInstance);
