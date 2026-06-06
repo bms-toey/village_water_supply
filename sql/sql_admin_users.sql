@@ -67,10 +67,12 @@ BEGIN
 END;
 $$;
 
--- ── 2. Drop functions เดิมที่อาจมี signature ต่างออกไป ──────────────
+-- ── 2. Drop functions เดิมทุก signature ที่อาจมีค้างอยู่ ─────────────
 DROP FUNCTION IF EXISTS admin_create_user(TEXT,TEXT,TEXT,TEXT,TEXT,user_role,INT);
+DROP FUNCTION IF EXISTS admin_create_user(TEXT,TEXT,TEXT,TEXT,TEXT,TEXT,INT);
 DROP FUNCTION IF EXISTS get_all_users();
 DROP FUNCTION IF EXISTS admin_update_user(UUID,TEXT,TEXT,TEXT,user_role,INT,BOOLEAN);
+DROP FUNCTION IF EXISTS admin_update_user(UUID,TEXT,TEXT,TEXT,TEXT,INT,BOOLEAN);
 DROP FUNCTION IF EXISTS admin_set_user_password(UUID,TEXT);
 DROP FUNCTION IF EXISTS get_email_by_identifier(TEXT);
 
