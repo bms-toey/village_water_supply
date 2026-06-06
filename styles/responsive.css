@@ -76,7 +76,7 @@
   .grid-3-2       { grid-template-columns: 1fr; }
   .grid-2         { grid-template-columns: 1fr; }
 
-  .topbar-search  { min-width: 160px; }
+  .topbar-search  { flex: 0 0 160px; width: 160px; }
 }
 
 /* ═══════════════════════════════════════════════════════════
