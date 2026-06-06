@@ -146,20 +146,17 @@ export async function saveUser() {
   const reset = () => { btn.disabled = false; btn.innerHTML = '<i class="ti ti-check"></i> บันทึก'; };
   if (_editUserId) {
     const isMe = _editUserId === currentUser?.id;
-    if (isMe && role !== currentProfile?.role) {
-      reset(); toast('ไม่สามารถเปลี่ยน Role ของตัวเองได้', 'error'); return;
-    }
-    if (isMe && !isActive) {
-      reset(); toast('ไม่สามารถปิดใช้งานบัญชีตัวเองได้', 'error'); return;
-    }
+    // ถ้าแก้ตัวเอง ล็อก role และ active ไว้เสมอ
+    const effectiveRole   = isMe ? (currentProfile?.role ?? role) : role;
+    const effectiveActive = isMe ? true : isActive;
     const { error } = await _sb.rpc('admin_update_user', {
       p_user_id:   _editUserId,
       p_full_name: fullName,
       p_username:  username,
       p_phone:     phone,
-      p_role:      role,
+      p_role:      effectiveRole,
       p_village:   villageId,
-      p_active:    isActive,
+      p_active:    effectiveActive,
     });
     if (error) { reset(); toast('แก้ไขล้มเหลว: ' + error.message, 'error'); return; }
     if (password) {
