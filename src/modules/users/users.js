@@ -92,6 +92,11 @@ export function openAddUser() {
   document.getElementById('uform-role').value     = 'meter_reader';
   document.getElementById('uform-village').value  = '';
   document.getElementById('uform-active').checked = true;
+  // reset disabled state ที่อาจค้างมาจาก openEditUser (self)
+  ['uform-role','uform-active'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.disabled = false; el.title = ''; }
+  });
   document.getElementById('user-modal').style.display = 'flex';
   setTimeout(() => document.getElementById('uform-fullname').focus(), 80);
 }
