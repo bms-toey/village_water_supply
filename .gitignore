@@ -20,7 +20,7 @@ desktop.ini
 .env.local
 *.pem
 *.key
-config.js
+# config.js is committed — anon key is browser-safe, protected by Supabase RLS
 
 # Build output (none currently — vanilla project)
 dist/
