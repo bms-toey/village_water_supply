@@ -744,6 +744,16 @@
   <div class="bnav-more-sheet" id="bnav-more-sheet" style="display:none">
     <div class="bnav-more-backdrop" onclick="window._closeBnavMore()"></div>
     <div class="bnav-more-panel">
+      <!-- User info strip -->
+      <div style="display:flex;align-items:center;gap:12px;padding:0 4px 14px;border-bottom:1px solid var(--gray-100);margin-bottom:14px">
+        <div style="width:38px;height:38px;border-radius:50%;background:var(--blue-900);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0" id="bnav-avatar">AD</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:13.5px;color:var(--gray-900);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="bnav-name">ผู้ดูแลระบบ</div>
+          <div style="font-size:11.5px;color:var(--gray-500)" id="bnav-role">Super Admin</div>
+        </div>
+        <button class="btn btn-secondary" style="padding:6px 12px;font-size:12px;flex-shrink:0" onclick="window._closeBnavMore();openChangePwdModal()"><i class="ti ti-key"></i></button>
+        <button class="btn" style="padding:6px 12px;font-size:12px;flex-shrink:0;background:var(--red-50);color:var(--red-700);border:1px solid var(--red-200)" onclick="window._closeBnavMore();doSignOut()"><i class="ti ti-logout"></i> ออก</button>
+      </div>
       <div class="bnav-more-grid">
         <div class="bnav-more-item" data-page="payments"    onclick="(window.goPage||goPage)('payments');window._closeBnavMore()">
           <i class="ti ti-credit-card"></i><span>รับชำระ</span>
@@ -1570,6 +1580,99 @@ function loTogglePwd(btn) {
     icon.className = 'ti ti-eye';
   }
 }
+</script>
+
+<!-- PWA Install Prompt (Android + iOS) -->
+<script>
+(function () {
+  const _installed = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+
+  // ── Android / Chrome: catch beforeinstallprompt ────────────
+  let _deferredPrompt = null;
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    _deferredPrompt = e;
+    if (!_installed()) _showInstallBanner();
+  });
+
+  // ── iOS Safari: show manual guide ──────────────────────────
+  function _isIos() {
+    return /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+  }
+  function _isInStandaloneMode() { return _installed(); }
+
+  window.addEventListener('load', () => {
+    if (_isIos() && !_isInStandaloneMode()) {
+      const dismissed = sessionStorage.getItem('_ios_install_dismissed');
+      if (!dismissed) setTimeout(_showIosGuide, 3000);
+    }
+  });
+
+  function _showInstallBanner() {
+    if (document.getElementById('pwa-install-banner')) return;
+    const b = document.createElement('div');
+    b.id = 'pwa-install-banner';
+    b.style.cssText = [
+      'position:fixed','bottom:80px','left:50%','transform:translateX(-50%)',
+      'z-index:9998','background:#fff','color:var(--gray-900,#111)',
+      'border-radius:14px','padding:14px 16px',
+      'display:flex','align-items:center','gap:12px',
+      'box-shadow:0 8px 32px rgba(0,0,0,.18)','font-size:13.5px',
+      'font-family:Sarabun,sans-serif','max-width:calc(100vw - 32px)',
+      'border:1px solid var(--gray-200,#e5e7eb)',
+      'animation:toastIn .25s ease',
+    ].join(';');
+    b.innerHTML = `
+      <img src="icons/icon-192.png" style="width:40px;height:40px;border-radius:10px;flex-shrink:0" onerror="this.style.display='none'"/>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:14px">ติดตั้ง AquaFlow Pro</div>
+        <div style="color:var(--gray-500,#6b7280);font-size:12px;margin-top:1px">ใช้งานได้เร็วขึ้น แม้ไม่มีอินเทอร์เน็ต</div>
+      </div>
+      <button id="pwa-install-btn" style="background:var(--blue-900,#00236f);color:#fff;border:none;border-radius:9px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0;font-family:Sarabun,sans-serif">ติดตั้ง</button>
+      <button id="pwa-dismiss-btn" style="background:transparent;color:var(--gray-400,#9ca3af);border:none;font-size:20px;cursor:pointer;line-height:1;padding:0 2px;flex-shrink:0" aria-label="ปิด">&times;</button>`;
+    document.body.appendChild(b);
+    document.getElementById('pwa-install-btn').addEventListener('click', async () => {
+      b.remove();
+      if (_deferredPrompt) {
+        _deferredPrompt.prompt();
+        await _deferredPrompt.userChoice;
+        _deferredPrompt = null;
+      }
+    });
+    document.getElementById('pwa-dismiss-btn').addEventListener('click', () => b.remove());
+  }
+
+  function _showIosGuide() {
+    if (document.getElementById('pwa-ios-guide')) return;
+    const g = document.createElement('div');
+    g.id = 'pwa-ios-guide';
+    g.style.cssText = [
+      'position:fixed','bottom:80px','left:12px','right:12px',
+      'z-index:9998','background:#fff','color:var(--gray-900,#111)',
+      'border-radius:14px','padding:16px',
+      'box-shadow:0 8px 32px rgba(0,0,0,.18)','font-size:13.5px',
+      'font-family:Sarabun,sans-serif',
+      'border:1px solid var(--gray-200,#e5e7eb)',
+      'animation:toastIn .25s ease',
+    ].join(';');
+    g.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <img src="icons/icon-192.png" style="width:36px;height:36px;border-radius:8px;flex-shrink:0" onerror="this.style.display='none'"/>
+        <div style="flex:1"><div style="font-weight:700;font-size:14px">ติดตั้ง AquaFlow Pro บน iPhone</div></div>
+        <button id="pwa-ios-close" style="background:transparent;color:var(--gray-400,#9ca3af);border:none;font-size:22px;cursor:pointer;line-height:1;padding:0 4px" aria-label="ปิด">&times;</button>
+      </div>
+      <div style="color:var(--gray-700,#374151);font-size:13px;line-height:1.7">
+        1. กดปุ่ม <strong>แชร์</strong> <span style="font-size:16px">&#11014;</span> ที่แถบด้านล่าง<br>
+        2. เลือก <strong>"เพิ่มไปยังหน้าจอหลัก"</strong><br>
+        3. กด <strong>เพิ่ม</strong>
+      </div>`;
+    document.body.appendChild(g);
+    document.getElementById('pwa-ios-close').addEventListener('click', () => {
+      sessionStorage.setItem('_ios_install_dismissed', '1');
+      g.remove();
+    });
+  }
+})();
 </script>
 
 <!-- Service Worker Registration + Auto-update Detection -->

@@ -95,6 +95,7 @@ export async function loadCurrentProfile() {
   if (!data) return;
   currentProfile = data;
 
+  const initials = (data.full_name || '?').substring(0, 2).toUpperCase();
   const el = {
     name:   document.querySelector('.user-name'),
     role:   document.querySelector('.user-role'),
@@ -102,7 +103,14 @@ export async function loadCurrentProfile() {
   };
   if (el.name)   el.name.textContent   = data.full_name;
   if (el.role)   el.role.textContent   = roleLabels[data.role] || data.role;
-  if (el.avatar) el.avatar.textContent = (data.full_name || '?').substring(0, 2).toUpperCase();
+  if (el.avatar) el.avatar.textContent = initials;
+
+  const bnavName   = document.getElementById('bnav-name');
+  const bnavRole   = document.getElementById('bnav-role');
+  const bnavAvatar = document.getElementById('bnav-avatar');
+  if (bnavName)   bnavName.textContent   = data.full_name;
+  if (bnavRole)   bnavRole.textContent   = roleLabels[data.role] || data.role;
+  if (bnavAvatar) bnavAvatar.textContent = initials;
 }
 
 // ─── App Init (called after auth) ────────────────────────────
