@@ -77,7 +77,7 @@ export function openAddUser() {
   _editUserId = null;
   document.getElementById('user-modal-title').textContent = 'เพิ่มผู้ใช้งานใหม่';
   document.getElementById('user-modal-icon').className    = 'ti ti-user-plus';
-  document.getElementById('uform-pass-label').innerHTML   = 'รหัสผ่าน * <span style="color:var(--gray-400);font-weight:400">(อย่างน้อย 4 ตัวอักษร)</span>';
+  document.getElementById('uform-pass-label').innerHTML   = 'รหัสผ่าน * <span style="color:var(--gray-400);font-weight:400">(อย่างน้อย 8 ตัว มีตัวเลขด้วย)</span>';
   document.getElementById('uform-password').placeholder   = '••••••••';
   ['uform-fullname','uform-email','uform-password','uform-username','uform-phone'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   document.getElementById('uform-role').value     = 'meter_reader';
@@ -128,7 +128,9 @@ export async function saveUser() {
     const { error } = await _sb.rpc('admin_update_user', { p_user_id: _editUserId, p_full_name: fullName, p_username: username, p_phone: phone, p_role: role, p_village: villageId, p_active: isActive });
     if (error) { reset(); toast('แก้ไขล้มเหลว: ' + error.message, 'error'); return; }
     if (password) {
-      if (password.length < 4) { reset(); toast('รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร', 'error'); return; }
+      if (password.length < 8 || !/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+        reset(); toast('รหัสผ่านต้องมีอย่างน้อย 8 ตัว และมีทั้งตัวอักษรและตัวเลข', 'error'); return;
+      }
       const { error: pwErr } = await _sb.rpc('admin_set_user_password', { p_user_id: _editUserId, p_password: password });
       if (pwErr) { reset(); toast('แก้ไขรหัสผ่านล้มเหลว: ' + pwErr.message, 'error'); return; }
     }
@@ -136,7 +138,9 @@ export async function saveUser() {
     toast(`แก้ไข ${fullName} แล้ว${password ? ' (เปลี่ยนรหัสผ่านด้วย)' : ''}`, 'success');
   } else {
     if (!email) { reset(); toast('กรุณากรอกอีเมล', 'error'); return; }
-    if (!password || password.length < 4) { reset(); toast('รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร', 'error'); return; }
+    if (!password || password.length < 8 || !/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+      reset(); toast('รหัสผ่านต้องมีอย่างน้อย 8 ตัว และมีทั้งตัวอักษรและตัวเลข', 'error'); return;
+    }
     const { data, error } = await _sbCreate.auth.signUp({ email, password, options: { data: { full_name: fullName, username, phone, role } } });
     if (error) { reset(); toast('สร้างผู้ใช้ล้มเหลว: ' + error.message, 'error'); return; }
     if (data.user) {

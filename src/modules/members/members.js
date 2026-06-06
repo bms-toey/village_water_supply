@@ -5,6 +5,7 @@ import { statusMap, memberTypeMap, meterSizeMap, getMemberTypeDisplay, getMeterS
 import { buildSelectOptions, _populateMemberFormDropdowns } from '../settings/settings.js';
 import { sbUpdateMember, sbInsertMember, sbDeleteMember } from '../../services/data-loader.service.js';
 import { saveToStorage } from '../../services/storage.service.js';
+import { currentUser } from '../../services/auth.service.js';
 
 // ─── Filter State ─────────────────────────────────────────────
 let _memberSearch  = '';
@@ -40,9 +41,9 @@ export function renderMembers() {
     const full  = esc(m.firstName + ' ' + m.lastName);
     const msize = getMeterSizeDisplay(m.meterSize);
     const actionBtn = m.status === 'overdue'
-      ? `<button class="btn-icon" data-mid="${m.id}" data-act="debtors" title="ดูหนี้"><i class="ti ti-alert-triangle"></i></button>`
-      : `<button class="btn-icon" data-mid="${m.id}" data-act="billing" title="ดูบิล"><i class="ti ti-receipt"></i></button>`;
-    return `<tr data-mid="${m.id}" data-meter="${esc(m.meter)}" data-name="${full}" class="member-row">
+      ? `<button class="btn-icon" data-mid="${m.id}" data-act="debtors" aria-label="ดูหนี้ ${full}" title="ดูหนี้"><i class="ti ti-alert-triangle"></i></button>`
+      : `<button class="btn-icon" data-mid="${m.id}" data-act="billing" aria-label="ดูบิล ${full}" title="ดูบิล"><i class="ti ti-receipt"></i></button>`;
+    return `<tr data-mid="${m.id}" data-meter="${esc(m.meter)}" data-name="${full}" class="member-row" tabindex="0" aria-label="${full} มิเตอร์ ${esc(m.meter)}">
       <td><div style="display:flex;align-items:center;gap:11px">
         <div class="mavatar" style="background:${getAvatarColor(m.id)}">${getInitials(m.firstName, m.lastName)}</div>
         <div>
@@ -57,9 +58,9 @@ export function renderMembers() {
       <td><span class="pill ${st.cls}">${st.label}</span></td>
       <td><div style="display:flex;gap:5px;justify-content:flex-end">
         ${actionBtn}
-        <button class="btn-icon" data-mid="${m.id}" data-act="meter"  title="จดมิเตอร์"><i class="ti ti-gauge"></i></button>
-        <button class="btn-icon" data-mid="${m.id}" data-act="edit"   title="แก้ไข"><i class="ti ti-edit"></i></button>
-        <button class="btn-icon" data-mid="${m.id}" data-act="delete" title="ลบ" style="color:var(--red-700);border-color:var(--red-100)"><i class="ti ti-trash"></i></button>
+        <button class="btn-icon" data-mid="${m.id}" data-act="meter"  aria-label="จดมิเตอร์ ${full}" title="จดมิเตอร์"><i class="ti ti-gauge"></i></button>
+        <button class="btn-icon" data-mid="${m.id}" data-act="edit"   aria-label="แก้ไข ${full}" title="แก้ไข"><i class="ti ti-edit"></i></button>
+        <button class="btn-icon" data-mid="${m.id}" data-act="delete" aria-label="ลบ ${full}" title="ลบ" style="color:var(--red-700);border-color:var(--red-100)"><i class="ti ti-trash"></i></button>
       </div></td>
     </tr>`;
   }).join('');
@@ -275,7 +276,7 @@ export function closeConfirm() { appState.pendingDeleteId = null; document.getEl
 export function doDeleteMember() {
   if (appState.pendingDeleteId === null) return;
   const m = appState.members.find(x => x.id === appState.pendingDeleteId);
-  sbDeleteMember(appState.pendingDeleteId);
+  sbDeleteMember(appState.pendingDeleteId, currentUser?.id);
   appState.members = appState.members.filter(x => x.id !== appState.pendingDeleteId);
   closeConfirm(); renderMembers(); saveToStorage();
   if (m) toast(`ลบ ${m.firstName} ${m.lastName} แล้ว`, 'warn');

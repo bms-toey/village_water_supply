@@ -548,6 +548,23 @@ export function calcMeter(val) {
   }
 }
 
+function _detectAnomaly(usage, member, allReadings) {
+  if (usage === 0) return 'meter_fault';
+
+  const history = allReadings
+    .filter(r => r.memberId === member.id && r.usage > 0)
+    .sort((a, b) => b.readingDate.localeCompare(a.readingDate))
+    .slice(0, 4);
+
+  const avg = history.length >= 2
+    ? history.reduce((s, r) => s + r.usage, 0) / history.length
+    : 15;
+
+  if (usage > Math.max(avg * 3, 45)) return 'high_usage';
+  if (avg > 10 && usage > 0 && usage < 2) return 'suspected_leak';
+  return null;
+}
+
 export async function saveMeter() {
   const { bills, members, meterReadings, currentMeterMemberId } = appState;
   const v = document.getElementById('meter-new-val').value;
@@ -611,7 +628,7 @@ export async function saveMeter() {
     readingDate: today, period, prevReading: prev, currReading: curr, usage,
     waterCharge: charges.waterCharge, serviceCharge: charges.serviceCharge,
     total: charges.total, readBy: 'ผู้ดูแลระบบ', method: 'manual',
-    anomaly: usage > 45 ? 'high_usage' : null, billId,
+    anomaly: _detectAnomaly(usage, member, meterReadings), billId,
   };
   meterReadings.push(newReading);
 

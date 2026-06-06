@@ -3,9 +3,9 @@
 // after a successful auth event.
 // ──────────────────────────────────────────────────────────────
 import { _sb } from './supabase.service.js';
-import { loadAllFromSupabase } from './data-loader.service.js';
+import { loadAllFromSupabase, sbUpdateBillFees } from './data-loader.service.js';
 import { loadFromStorage, loadRateConfig, loadMaintenanceFromStorage } from './storage.service.js';
-import { syncOverdueStatus } from '../utils/date.util.js';
+import { syncOverdueStatus, applyLateFees } from '../utils/date.util.js';
 import { saveToStorage } from './storage.service.js';
 import { toast } from '../utils/dom.util.js';
 import { roleLabels } from '../config/ui.config.js';
@@ -132,7 +132,12 @@ export async function _initApp() {
   const usersNav = document.getElementById('nav-users');
   if (usersNav) usersNav.style.display = currentProfile?.role === 'super_admin' ? '' : 'none';
 
-  if (syncOverdueStatus()) saveToStorage();
+  const overdueChanged = syncOverdueStatus();
+  const feeChanges     = applyLateFees();
+  if (overdueChanged || feeChanges.length) {
+    saveToStorage();
+    feeChanges.forEach(b => sbUpdateBillFees(b.id, b.lateFee, b.total));
+  }
 
   if (_renderCallbacks) {
     const r = _renderCallbacks;
@@ -190,8 +195,13 @@ export async function doChangePassword() {
 
   errEl.style.display = 'none';
 
-  if (!newPwd || newPwd.length < 4) {
-    errEl.textContent   = 'รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร';
+  if (!newPwd || newPwd.length < 8) {
+    errEl.textContent   = 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (!/[a-zA-Z]/.test(newPwd) || !/[0-9]/.test(newPwd)) {
+    errEl.textContent   = 'รหัสผ่านต้องมีทั้งตัวอักษรและตัวเลขอย่างน้อย 1 ตัว';
     errEl.style.display = 'block';
     return;
   }

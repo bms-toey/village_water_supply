@@ -1,3 +1,12 @@
+// ─── Global Error Tracking ────────────────────────────────────
+window.onerror = (msg, src, line, col) => {
+  const file = src ? src.split('/').pop().split('?')[0] : '?';
+  console.error(`[AquaFlow] ${file}:${line}:${col} — ${msg}`);
+};
+window.addEventListener('unhandledrejection', (e) => {
+  console.error('[AquaFlow] Unhandled promise rejection:', e.reason);
+});
+
 // ─── Application Entry Point ───────────────────────────────────
 // Single <script type="module"> in index.html loads this file.
 // It imports all modules and re-exports to window.* so that
@@ -17,10 +26,10 @@ import { doSignIn, doSignOut, checkSession, registerRenderCallbacks, openChangeP
 import { goPage, setTab, initNavigation, closeMobileSidebar } from './components/navigation/navigation.js';
 
 // ─── Utils ────────────────────────────────────────────────────
-import { toast } from './utils/dom.util.js';
+import { toast, showConfirm } from './utils/dom.util.js';
 
 // ─── Modules ──────────────────────────────────────────────────
-import { renderDashboard } from './modules/dashboard/dashboard.js';
+import { renderDashboard, setDashChartYear } from './modules/dashboard/dashboard.js';
 import {
   renderMembers, openAddMember, openEditMember, closeMemberModal, saveMember,
   switchModalTab, openMemberQuickView, closeMemberQV, openEditMemberFromQV, gotoMeterFromQV,
@@ -34,7 +43,8 @@ import {
 } from './modules/billing/billing.js';
 import {
   renderPayments, approvePayment, rejectPayment,
-  openCashModal, closeCashModal, openCashModalForBill, closePayTypeModal, notifyBillDebtor, saveCashPayment
+  openCashModal, closeCashModal, openCashModalForBill, closePayTypeModal, notifyBillDebtor, saveCashPayment,
+  cancelPayment, printReceiptByPayment
 } from './modules/payments/payments.js';
 import { renderDebtors, notifyAllDebtors, suspendAllOverdue3Months, notifyDebtor, setDebtorSeverity } from './modules/debtors/debtors.js';
 import { renderReports, switchReport, exportCurrentReport, exportBillingCSV, exportMembersCSV } from './modules/reports/reports.js';
@@ -51,9 +61,14 @@ import {
   _populateMemberFormDropdowns, _populateMaintenanceTypeSelect,
   populateVillageDropdowns,
 } from './modules/settings/settings.js';
-import { renderMaintenance, completeMaintenance, openAddMaintenance, openEditMaintenance, closeMntModal, saveMaintenance } from './modules/maintenance/maintenance.js';
+import {
+  renderMaintenance, setMntTab,
+  completeMaintenance, openAddMaintenance, openEditMaintenance, closeMntModal, saveMaintenance,
+  openMeterReplaceModal, closeMeterReplaceModal, onMrMemberChange, saveMeterReplacement, genNewMeterNo, genNewMeterNo,
+} from './modules/maintenance/maintenance.js';
 import { renderMap, closeMemberMapPopup, filterMapByVillage, filterMapByStatus } from './modules/map/map.js';
 import { renderUsers, openAddUser, openEditUser, closeUserModal, saveUser, toggleUserActive } from './modules/users/users.js';
+import { portalSearch } from './modules/portal/portal.js';
 
 // ─── Register render callbacks with auth (avoid circular import) ───
 registerRenderCallbacks({
@@ -80,6 +95,12 @@ const _goPageWithRender = (id) => {
   if (id === 'reports')       renderReports();
   if (id === 'meter')           renderMeter();
   if (id === 'map')           setTimeout(renderMap, 60);
+  if (id === 'portal') {
+    const inp = document.getElementById('portal-search-input');
+    if (inp) { inp.value = ''; }
+    const res = document.getElementById('portal-result');
+    if (res) res.style.display = 'none';
+  }
   if (id === 'maintenance')   renderMaintenance();
   if (id === 'users')         renderUsers();
   if (id === 'settings')      renderSettings();
@@ -179,7 +200,7 @@ function _toggleVillageField(role) {
 // Escape key — close all modals
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
-  ['member-modal','cash-modal','confirm-modal','rate-modal','add-tier-modal','receipt-modal','mnt-modal','member-qv-modal','user-modal','cancel-bill-modal','md-modal','village-modal','bnav-more-sheet','change-pwd-modal','pay-type-modal']
+  ['member-modal','cash-modal','confirm-modal','app-confirm-modal','rate-modal','add-tier-modal','receipt-modal','mnt-modal','mr-modal','member-qv-modal','user-modal','cancel-bill-modal','md-modal','village-modal','bnav-more-sheet','change-pwd-modal','pay-type-modal']
     .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
 });
 
@@ -193,7 +214,7 @@ Object.assign(window, {
   // navigation
   goPage: _goPageWithRender, setTab,
   // dashboard (called from links)
-  renderDashboard,
+  renderDashboard, setDashChartYear,
   // members
   openAddMember, openEditMember, closeMemberModal, saveMember,
   switchModalTab, openMemberQuickView, closeMemberQV, openEditMemberFromQV, gotoMeterFromQV,
@@ -207,7 +228,7 @@ Object.assign(window, {
   cancelBill, closeCancelBillModal, confirmCancelBill,
   // payments
   openCashModal, closeCashModal, openCashModalForBill, closePayTypeModal, notifyBillDebtor, saveCashPayment,
-  approvePayment, rejectPayment,
+  approvePayment, rejectPayment, cancelPayment, printReceiptByPayment,
   // debtors
   notifyAllDebtors, suspendAllOverdue3Months, notifyDebtor,
   renderDebtors, renderMembers, renderBilling, populateBillingFilters,
@@ -224,14 +245,18 @@ Object.assign(window, {
   saveSystemConfigHandler, populateVillageDropdowns,
   _populateMemberFormDropdowns, _populateMaintenanceTypeSelect,
   // maintenance
+  setMntTab,
   completeMaintenance, openAddMaintenance, openEditMaintenance, closeMntModal, saveMaintenance,
+  openMeterReplaceModal, closeMeterReplaceModal, onMrMemberChange, saveMeterReplacement, genNewMeterNo,
   // map
   renderMap, closeMemberMapPopup, filterMapByVillage, filterMapByStatus,
   // users
   openAddUser, openEditUser, closeUserModal, saveUser, toggleUserActive,
   _toggleVillageField,
+  // portal
+  portalSearch,
   // utils
-  toast,
+  toast, showConfirm,
 });
 
 // ─── Bootstrap ───────────────────────────────────────────────

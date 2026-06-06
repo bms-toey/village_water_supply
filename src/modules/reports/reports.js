@@ -27,18 +27,48 @@ export function renderReports() {
   if (rkpis[1]) rkpis[1].textContent = '฿' + overdueTotal.toLocaleString();
   if (rkpis[2]) rkpis[2].textContent = totalUsage.toLocaleString() + ' m³';
   if (rkpis[3]) rkpis[3].textContent = anomalyCount + ' เคส';
-  const titles = { income: 'รายรับรายเดือน', debtors: 'ลูกหนี้ค้างชำระ', usage: 'การใช้น้ำรายสมาชิก', anomaly: 'AI ตรวจจับความผิดปกติ', newmembers: 'ผู้ใช้น้ำใหม่', history: 'ประวัติจดมิเตอร์', village: 'สรุปแต่ละหมู่บ้าน', billing: 'รายงานบิลรวม' };
+  const titles = { income: 'รายรับรายเดือน', daily: 'รายงานรับเงินประจำวัน', debtors: 'ลูกหนี้ค้างชำระ', usage: 'การใช้น้ำรายสมาชิก', anomaly: 'AI ตรวจจับความผิดปกติ', newmembers: 'ผู้ใช้น้ำใหม่', history: 'ประวัติจดมิเตอร์', village: 'สรุปแต่ละหมู่บ้าน', billing: 'รายงานบิลรวม' };
   const cardTitle = document.querySelector('#page-reports .card .card-title');
   if (cardTitle) cardTitle.innerHTML = `<i class="ti ti-table" style="color:var(--blue-500)"></i>พรีวิวข้อมูล: ${titles[_currentReport]||''}`;
   const tbody = document.querySelector('#page-reports .tbl-wrap table tbody');
   const thead = document.querySelector('#page-reports .tbl-wrap table thead tr');
   const rfoot = document.querySelector('#page-reports .tbl-footer span');
   if (!tbody || !thead) return;
-  const fn = { income: _rptIncome, debtors: _rptDebtors, usage: _rptUsage, anomaly: _rptAnomaly, newmembers: _rptNewMembers, history: _rptHistory, village: _rptVillage, billing: _rptBilling };
+  const fn = { income: _rptIncome, daily: _rptDaily, debtors: _rptDebtors, usage: _rptUsage, anomaly: _rptAnomaly, newmembers: _rptNewMembers, history: _rptHistory, village: _rptVillage, billing: _rptBilling };
   (fn[_currentReport] || _rptIncome)(tbody, thead, rfoot);
 }
 
 // ─── Report renderers (abbreviated for brevity — full logic preserved) ───
+function _rptDaily(tbody, thead, rfoot) {
+  thead.innerHTML = '<th>เวลา</th><th>สมาชิก</th><th>เลขใบเสร็จ</th><th>ช่องทาง</th><th style="text-align:right">ยอด (บาท)</th>';
+  const { payments, members } = appState;
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayPays = payments
+    .filter(p => p.status === 'approved' && p.paidAt.startsWith(todayStr))
+    .sort((a, b) => b.paidAt.localeCompare(a.paidAt));
+  const totalToday = todayPays.reduce((s, p) => s + p.amount, 0);
+  const byChannel  = {};
+  todayPays.forEach(p => { byChannel[p.channel] = (byChannel[p.channel] || 0) + p.amount; });
+  const chLabels = { cash: 'เงินสด', promptpay: 'PromptPay', bank: 'โอนธนาคาร', mobile: 'Mobile App' };
+  const summaryHtml = Object.entries(byChannel).map(([ch, amt]) =>
+    `<span style="background:var(--blue-50);color:var(--blue-700);padding:3px 10px;border-radius:12px;font-size:11.5px;font-weight:600">${chLabels[ch]||ch}: ฿${amt.toLocaleString()}</span>`
+  ).join(' ');
+  tbody.innerHTML = todayPays.length
+    ? todayPays.map(p => {
+        const m = members.find(x => x.id === p.memberId) || {};
+        const chLabel = chLabels[p.channel] || p.channel;
+        return `<tr>
+          <td class="text-muted" style="font-size:11.5px">${p.paidAt.substring(11,16)}</td>
+          <td class="text-bold">${esc((m.firstName||'')+' '+(m.lastName||''))}</td>
+          <td class="mono text-muted" style="font-size:11px">${esc(p.receiptNo||'—')}</td>
+          <td style="font-size:12px">${esc(chLabel)}</td>
+          <td style="text-align:right" class="text-bold">฿${p.amount.toLocaleString()}</td>
+        </tr>`;
+      }).join('')
+    : '<tr><td colspan="5" style="text-align:center;color:var(--gray-500);padding:24px">ยังไม่มีรายการรับเงินวันนี้</td></tr>';
+  if (rfoot) rfoot.innerHTML = `<span>รวมวันนี้ <strong>฿${totalToday.toLocaleString()}</strong> (${todayPays.length} รายการ) &nbsp;${summaryHtml}</span>`;
+}
+
 function _rptIncome(tbody, thead, rfoot) {
   thead.innerHTML = '<th>รอบบิล</th><th>บิลทั้งหมด</th><th>ชำระแล้ว</th><th>ค้างชำระ</th><th>รอยืนยัน</th><th style="text-align:right">รายรับรวม (บาท)</th>';
   const monthly = {};
@@ -103,7 +133,7 @@ function _rptBilling(tbody, thead, rfoot) {
 
 // ─── CSV Export ───────────────────────────────────────────────
 export function exportCurrentReport() {
-  const map = { income: _csvIncome, debtors: _csvDebtors, usage: _csvUsage, anomaly: _csvAnomaly, newmembers: exportMembersCSV, history: _csvHistory, village: _csvVillage, billing: exportBillingCSV };
+  const map = { income: _csvIncome, daily: _csvDaily, debtors: _csvDebtors, usage: _csvUsage, anomaly: _csvAnomaly, newmembers: exportMembersCSV, history: _csvHistory, village: _csvVillage, billing: exportBillingCSV };
   (map[_currentReport] || exportBillingCSV)();
 }
 function _exportCSV(rows, filename) {
@@ -111,6 +141,20 @@ function _exportCSV(rows, filename) {
   const blob = new Blob(['﻿'+csv], { type: 'text/csv;charset=utf-8' });
   const a    = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: filename });
   a.click(); URL.revokeObjectURL(a.href);
+}
+function _csvDaily() {
+  const todayStr = new Date().toISOString().split('T')[0];
+  const chLabels = { cash: 'เงินสด', promptpay: 'PromptPay', bank: 'โอนธนาคาร', mobile: 'Mobile App' };
+  const rows = [['เวลา','สมาชิก','เลขใบเสร็จ','ช่องทาง','ยอดเงิน']];
+  appState.payments
+    .filter(p => p.status === 'approved' && p.paidAt.startsWith(todayStr))
+    .sort((a, b) => b.paidAt.localeCompare(a.paidAt))
+    .forEach(p => {
+      const m = appState.members.find(x => x.id === p.memberId) || {};
+      rows.push([p.paidAt.substring(11,16),(m.firstName||'')+' '+(m.lastName||''),p.receiptNo||'',chLabels[p.channel]||p.channel,p.amount]);
+    });
+  _exportCSV(rows, `daily_payment_${todayStr}.csv`);
+  toast('Export รายงานประจำวันแล้ว', 'success');
 }
 function _csvIncome() { const m={}; appState.bills.forEach(b=>{if(!m[b.period])m[b.period]={total:0,paid:0,overdue:0,income:0};m[b.period].total++;if(b.status==='paid'){m[b.period].paid++;m[b.period].income+=b.total;}if(b.status==='overdue')m[b.period].overdue++;}); const rows=[['รอบบิล','บิลทั้งหมด','ชำระแล้ว','ค้างชำระ','รายรับรวม']]; Object.entries(m).sort((a,b)=>b[0].localeCompare(a[0])).forEach(([p,d])=>rows.push([p,d.total,d.paid,d.overdue,d.income])); _exportCSV(rows,'income_monthly.csv'); toast('Export รายรับรายเดือนแล้ว','success'); }
 function _csvDebtors() { const rows=[['สมาชิก','บ้านเลขที่','หมู่บ้าน','เลขบิล','รอบบิล','กำหนดชำระ','ยอดค้าง']]; appState.bills.filter(b=>b.status==='overdue').forEach(b=>{const m=appState.members.find(x=>x.id===b.memberId)||{};rows.push([(m.firstName||'')+' '+(m.lastName||''),m.houseNo||'',m.village||'',b.id,b.period,b.dueDate,b.total]);}); _exportCSV(rows,'debtors.csv'); toast('Export ลูกหนี้แล้ว','success'); }

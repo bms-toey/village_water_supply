@@ -23,6 +23,7 @@
 <link rel="stylesheet" href="styles/responsive.css"/>
 <link rel="stylesheet" href="styles/theme.css"/>
 <link rel="stylesheet" href="styles/login.css"/>
+<link rel="stylesheet" href="styles/print.css"/>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css"/>
 </head>
 <body>
@@ -56,6 +57,8 @@
     <div class="nav-label">ระบบ</div>
     <div class="nav-item" data-page="settings"><i class="ti ti-settings-2"></i> ตั้งค่าระบบ</div>
     <div class="nav-item" data-page="users" id="nav-users" style="display:none"><i class="ti ti-users-group"></i> จัดการผู้ใช้</div>
+    <div class="nav-label">บริการ</div>
+    <div class="nav-item" data-page="portal"><i class="ti ti-user-search"></i> ตรวจสอบบิล</div>
   </div>
   <div class="sidebar-footer">
     <div class="user-row">
@@ -65,8 +68,8 @@
         <div class="user-role">Super Admin</div>
       </div>
       <div style="display:flex;gap:6px;margin-left:auto">
-        <i class="ti ti-key" title="เปลี่ยนรหัสผ่าน" onclick="openChangePwdModal()" style="color:rgba(255,255,255,.4);font-size:16px;cursor:pointer" onmouseenter="this.style.color='#fff'" onmouseleave="this.style.color='rgba(255,255,255,.4)'"></i>
-        <i class="ti ti-logout" title="ออกจากระบบ" onclick="doSignOut()" style="color:rgba(255,255,255,.4);font-size:16px;cursor:pointer" onmouseenter="this.style.color='#fff'" onmouseleave="this.style.color='rgba(255,255,255,.4)'"></i>
+        <i class="ti ti-key" role="button" tabindex="0" aria-label="เปลี่ยนรหัสผ่าน" title="เปลี่ยนรหัสผ่าน" onclick="openChangePwdModal()" onkeydown="if(event.key==='Enter')openChangePwdModal()" style="color:rgba(255,255,255,.4);font-size:16px;cursor:pointer" onmouseenter="this.style.color='#fff'" onmouseleave="this.style.color='rgba(255,255,255,.4)'"></i>
+        <i class="ti ti-logout" role="button" tabindex="0" aria-label="ออกจากระบบ" title="ออกจากระบบ" onclick="doSignOut()" onkeydown="if(event.key==='Enter')doSignOut()" style="color:rgba(255,255,255,.4);font-size:16px;cursor:pointer" onmouseenter="this.style.color='#fff'" onmouseleave="this.style.color='rgba(255,255,255,.4)'"></i>
       </div>
     </div>
   </div>
@@ -89,8 +92,8 @@
       <i class="ti ti-search"></i>
       <input type="text" placeholder="ค้นหาสมาชิก, มิเตอร์, บิล..."/>
     </div>
-    <div class="topbar-icon"><i class="ti ti-bell"></i><div class="topbar-notif-dot"></div></div>
-    <div class="topbar-icon"><i class="ti ti-building-community"></i></div>
+    <div class="topbar-icon" role="button" aria-label="การแจ้งเตือน"><i class="ti ti-bell"></i><div class="topbar-notif-dot"></div></div>
+    <div class="topbar-icon" role="button" aria-label="หมู่บ้าน"><i class="ti ti-building-community"></i></div>
     <div class="topbar-avatar">AD</div>
   </div>
 
@@ -141,8 +144,11 @@
         <div>
           <div class="card">
             <div class="card-hd">
-              <div class="card-title"><i class="ti ti-chart-bar" style="color:var(--blue-500)"></i>รายรับรายเดือน 2566</div>
-              <span class="card-link" onclick="goPage('reports')">ดูรายงาน <i class="ti ti-arrow-right"></i></span>
+              <div class="card-title"><i class="ti ti-chart-bar" style="color:var(--blue-500)"></i>รายรับรายเดือน</div>
+              <div style="display:flex;align-items:center;gap:6px">
+                <div id="dash-year-toggles" style="display:flex;gap:4px"></div>
+                <span class="card-link" onclick="goPage('reports')">ดูรายงาน <i class="ti ti-arrow-right"></i></span>
+              </div>
             </div>
             <div class="bar-chart-wrap" style="padding-top:18px">
               <div class="bar-chart" id="dash-bar-chart"></div>
@@ -500,6 +506,7 @@
       <div style="font-size:11px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px">เลือกประเภทรายงาน</div>
       <div class="report-grid">
         <div class="rpt-card active-rpt" data-report="income"     onclick="switchReport('income')"><div class="rpt-icon" style="background:var(--blue-50);color:var(--blue-700)"><i class="ti ti-cash"></i></div><div class="rpt-name">รายรับรายเดือน</div><div class="rpt-desc">สรุปยอดเก็บเงินและรายได้รวม</div></div>
+        <div class="rpt-card"            data-report="daily"      onclick="switchReport('daily')"><div class="rpt-icon" style="background:var(--green-50);color:var(--green-700)"><i class="ti ti-calendar-check"></i></div><div class="rpt-name">รับเงินประจำวัน</div><div class="rpt-desc">สรุปยอดจัดเก็บวันนี้แยกช่องทาง</div></div>
         <div class="rpt-card"            data-report="debtors"    onclick="switchReport('debtors')"><div class="rpt-icon" style="background:var(--red-50);color:var(--red-700)"><i class="ti ti-clock-exclamation"></i></div><div class="rpt-name">ลูกหนี้ค้างชำระ</div><div class="rpt-desc">รายชื่อที่ยังไม่ชำระค่าน้ำ</div></div>
         <div class="rpt-card"            data-report="usage"      onclick="switchReport('usage')"><div class="rpt-icon" style="background:var(--cyan-50);color:var(--cyan-800)"><i class="ti ti-droplet-half-2"></i></div><div class="rpt-name">การใช้น้ำ</div><div class="rpt-desc">สถิติปริมาณน้ำทั้งหมด</div></div>
         <div class="rpt-card"            data-report="anomaly"    onclick="switchReport('anomaly')"><div class="rpt-icon" style="background:var(--blue-50);color:var(--blue-900)"><i class="ti ti-brain"></i></div><div class="rpt-name">AI ตรวจผิดปกติ</div><div class="rpt-desc">วิเคราะห์แนวโน้มรั่วซึม</div></div>
@@ -590,23 +597,58 @@
       <div class="page-hd">
         <div><div class="page-title">ระบบซ่อมบำรุง</div><div class="page-sub">ติดตามและจัดการงานซ่อมท่อ มิเตอร์ และโครงสร้างพื้นฐาน</div></div>
         <div class="page-hd-actions">
-          <button class="btn btn-primary" onclick="openAddMaintenance()"><i class="ti ti-plus"></i>เพิ่มงานซ่อมบำรุง</button>
+          <button id="mnt-add-job-btn"     class="btn btn-primary"   onclick="openAddMaintenance()"><i class="ti ti-plus"></i>เพิ่มงานซ่อมบำรุง</button>
+          <button id="mnt-add-replace-btn" class="btn btn-secondary" style="display:none" onclick="openMeterReplaceModal()"><i class="ti ti-replace"></i>บันทึกเปลี่ยนมิเตอร์</button>
         </div>
       </div>
-      <div class="kpi-grid">
-        <div class="kpi-card"><div class="kpi-icon" style="background:var(--blue-50);color:var(--blue-700)"><i class="ti ti-clipboard-list"></i></div><div class="kpi-label">รายการทั้งหมด</div><div class="kpi-val text-primary">—</div></div>
-        <div class="kpi-card"><div class="kpi-icon" style="background:var(--amber-100);color:var(--amber-700)"><i class="ti ti-clock"></i></div><div class="kpi-label">รอดำเนินการ</div><div class="kpi-val" style="color:var(--amber-700)">—</div></div>
-        <div class="kpi-card"><div class="kpi-icon" style="background:var(--red-50);color:var(--red-700)"><i class="ti ti-refresh"></i></div><div class="kpi-label">กำลังดำเนินการ</div><div class="kpi-val text-error">—</div></div>
-        <div class="kpi-card"><div class="kpi-icon" style="background:var(--cyan-50);color:var(--cyan-800)"><i class="ti ti-coin"></i></div><div class="kpi-label">ค่าใช้จ่ายรวม</div><div class="kpi-val" style="color:var(--cyan-800)">—</div></div>
+
+      <!-- Tabs -->
+      <div class="tabs" style="margin-bottom:16px">
+        <div class="tab active" onclick="setMntTab('jobs')">งานซ่อมบำรุง</div>
+        <div class="tab"       onclick="setMntTab('replacements')"><i class="ti ti-replace" style="margin-right:4px;font-size:13px"></i>ประวัติเปลี่ยนมิเตอร์</div>
       </div>
-      <div class="card">
-        <div class="tbl-wrap">
-          <table>
-            <thead><tr><th>รหัส</th><th>ประเภท</th><th>รายละเอียด</th><th>ผู้รับผิดชอบ</th><th>สถานะ</th><th>ค่าใช้จ่าย</th><th style="text-align:right">จัดการ</th></tr></thead>
-            <tbody></tbody>
-          </table>
+
+      <!-- Section: Jobs -->
+      <div id="mnt-jobs-section">
+        <div class="kpi-grid">
+          <div class="kpi-card"><div class="kpi-icon" style="background:var(--blue-50);color:var(--blue-700)"><i class="ti ti-clipboard-list"></i></div><div class="kpi-label">รายการทั้งหมด</div><div class="kpi-val text-primary">—</div></div>
+          <div class="kpi-card"><div class="kpi-icon" style="background:var(--amber-100);color:var(--amber-700)"><i class="ti ti-clock"></i></div><div class="kpi-label">รอดำเนินการ</div><div class="kpi-val" style="color:var(--amber-700)">—</div></div>
+          <div class="kpi-card"><div class="kpi-icon" style="background:var(--red-50);color:var(--red-700)"><i class="ti ti-refresh"></i></div><div class="kpi-label">กำลังดำเนินการ</div><div class="kpi-val text-error">—</div></div>
+          <div class="kpi-card"><div class="kpi-icon" style="background:var(--cyan-50);color:var(--cyan-800)"><i class="ti ti-coin"></i></div><div class="kpi-label">ค่าใช้จ่ายรวม</div><div class="kpi-val" style="color:var(--cyan-800)">—</div></div>
         </div>
-        <div class="tbl-footer"><span>แสดง...</span></div>
+        <div class="card">
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>รหัส</th><th>ประเภท</th><th>รายละเอียด</th><th>ผู้รับผิดชอบ</th><th>สถานะ</th><th>ค่าใช้จ่าย</th><th style="text-align:right">จัดการ</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="tbl-footer"><span>แสดง...</span></div>
+        </div>
+      </div>
+
+      <!-- Section: Meter Replacements -->
+      <div id="mnt-replacements-section" style="display:none">
+        <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);max-width:360px">
+          <div class="kpi-card"><div class="kpi-icon" style="background:var(--blue-50);color:var(--blue-700)"><i class="ti ti-replace"></i></div><div class="kpi-label">เปลี่ยนมิเตอร์ทั้งหมด</div><div class="kpi-val text-primary" id="mnt-replace-count">—</div></div>
+        </div>
+        <div class="card">
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr>
+                <th>วันที่เปลี่ยน</th>
+                <th>สมาชิก</th>
+                <th>มิเตอร์เก่า</th>
+                <th>มิเตอร์ใหม่</th>
+                <th>เหตุผล</th>
+                <th>ผู้ดำเนินการ</th>
+                <th>หมายเหตุ</th>
+              </tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="tbl-footer"><span>แสดง...</span></div>
+        </div>
       </div>
     </div>
 
@@ -636,6 +678,42 @@
         </div>
         <div class="tbl-footer"><span></span></div>
       </div>
+    </div>
+
+    <!-- ══════════ PORTAL (Member Self-service) ══════════ -->
+    <div class="page" id="page-portal">
+      <div class="page-hd">
+        <div>
+          <div class="page-title">ตรวจสอบบิลสมาชิก</div>
+          <div class="page-sub">ค้นหาบิลและประวัติการชำระเงินด้วยเบอร์โทรหรือเลขมิเตอร์</div>
+        </div>
+      </div>
+
+      <!-- Search card -->
+      <div class="card" style="max-width:520px;margin:0 auto 24px">
+        <div style="padding:24px">
+          <div style="font-size:14px;font-weight:600;color:var(--blue-900);margin-bottom:16px">
+            <i class="ti ti-search" style="margin-right:6px;color:var(--blue-500)"></i>ค้นหาข้อมูล
+          </div>
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div>
+              <label style="font-size:12px;font-weight:600;color:var(--gray-600);display:block;margin-bottom:4px">เบอร์โทรศัพท์ หรือ เลขมิเตอร์</label>
+              <div style="display:flex;gap:8px">
+                <input id="portal-search-input" type="text" class="form-input" placeholder="เช่น 0812345678 หรือ M-001"
+                  aria-label="ค้นหาด้วยเบอร์โทรหรือเลขมิเตอร์"
+                  onkeydown="if(event.key==='Enter')portalSearch()"
+                  style="flex:1"/>
+                <button class="btn btn-primary" onclick="portalSearch()" aria-label="ค้นหา">
+                  <i class="ti ti-search"></i>ค้นหา
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Results -->
+      <div id="portal-result" style="display:none;max-width:760px;margin:0 auto"></div>
     </div>
 
   </div><!-- end content-area -->
@@ -681,6 +759,9 @@
         </div>
         <div class="bnav-more-item" data-page="settings"    onclick="(window.goPage||goPage)('settings');window._closeBnavMore()">
           <i class="ti ti-settings-2"></i><span>ตั้งค่า</span>
+        </div>
+        <div class="bnav-more-item" data-page="portal"      onclick="(window.goPage||goPage)('portal');window._closeBnavMore()">
+          <i class="ti ti-user-search"></i><span>ตรวจสอบบิล</span>
         </div>
       </div>
       <button class="btn btn-secondary" style="width:100%;margin-top:8px" onclick="window._closeBnavMore()">ปิด</button>
@@ -796,7 +877,7 @@
         <div><label class="form-label">อีเมล *</label><input class="form-input" id="uform-email" type="email" placeholder="user@example.com"/></div>
       </div>
       <div id="uform-pass-row">
-        <label class="form-label" id="uform-pass-label">รหัสผ่าน * <span style="color:var(--gray-400);font-weight:400">(อย่างน้อย 4 ตัวอักษร)</span></label>
+        <label class="form-label" id="uform-pass-label">รหัสผ่าน * <span style="color:var(--gray-400);font-weight:400">(อย่างน้อย 8 ตัว มีตัวเลขด้วย)</span></label>
         <div style="position:relative">
           <input class="form-input" id="uform-password" type="password" placeholder="••••••••" autocomplete="new-password" style="padding-right:44px"/>
           <button type="button" onclick="(function(b){var i=document.getElementById('uform-password');i.type=i.type==='password'?'text':'password';b.querySelector('i').className=i.type==='password'?'ti ti-eye':'ti ti-eye-off'})(this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--gray-500);padding:4px;min-height:unset">
@@ -956,6 +1037,21 @@
   </div>
 </div>
 
+<!-- ══════════ GENERIC CONFIRM MODAL ══════════ -->
+<div class="confirm-overlay" id="app-confirm-modal" style="display:none" role="alertdialog" aria-modal="true" aria-labelledby="app-confirm-title">
+  <div class="confirm-box">
+    <div style="width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:26px">
+      <i id="app-confirm-icon" class="ti ti-alert-triangle" style="color:var(--red-700)"></i>
+    </div>
+    <div id="app-confirm-title" style="font-size:16px;font-weight:700;color:var(--gray-900);margin-bottom:8px"></div>
+    <div id="app-confirm-body" style="font-size:13.5px;color:var(--gray-500);margin-bottom:24px;line-height:1.6"></div>
+    <div style="display:flex;gap:10px;justify-content:center">
+      <button id="app-confirm-cancel" class="btn btn-secondary">ยกเลิก</button>
+      <button id="app-confirm-ok"     class="btn btn-danger">ยืนยัน</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══════════ CANCEL BILL MODAL ══════════ -->
 <div class="modal-overlay" id="cancel-bill-modal" style="display:none" onclick="if(event.target===this)closeCancelBillModal()">
   <div class="modal" style="max-width:420px">
@@ -1086,6 +1182,80 @@
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeMntModal()">ยกเลิก</button>
       <button class="btn btn-primary" onclick="saveMaintenance()"><i class="ti ti-check"></i>บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ METER REPLACEMENT MODAL ══════════ -->
+<div class="modal-overlay" id="mr-modal" style="display:none" onclick="if(event.target===this)closeMeterReplaceModal()" role="dialog" aria-modal="true" aria-labelledby="mr-modal-title">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-hd">
+      <div class="modal-title"><i class="ti ti-replace"></i><span id="mr-modal-title">บันทึกการเปลี่ยนมิเตอร์</span></div>
+      <button class="modal-close" onclick="closeMeterReplaceModal()" aria-label="ปิด"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="modal-body">
+
+      <div class="form-row">
+        <label class="form-label">สมาชิก *</label>
+        <select class="form-input" id="mr-member" onchange="onMrMemberChange()">
+          <option value="">-- เลือกสมาชิก --</option>
+        </select>
+      </div>
+
+      <div class="form-row-2">
+        <div>
+          <label class="form-label">เลขมิเตอร์เก่า</label>
+          <input class="form-input" type="text" id="mr-old-meter" placeholder="กรอกอัตโนมัติเมื่อเลือกสมาชิก" readonly style="background:var(--gray-50)"/>
+        </div>
+        <div>
+          <label class="form-label">เลขมิเตอร์ใหม่ *</label>
+          <div style="display:flex;gap:6px">
+            <input class="form-input" type="text" id="mr-new-meter" placeholder="เช่น M-2024-001" style="flex:1"/>
+            <button type="button" class="btn btn-secondary" onclick="genNewMeterNo()" title="สร้างเลขมิเตอร์อัตโนมัติ" style="white-space:nowrap;flex-shrink:0"><i class="ti ti-wand"></i>Gen</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row-2">
+        <div>
+          <label class="form-label">ค่ามิเตอร์สุดท้าย (เก่า) m³</label>
+          <input class="form-input" type="number" id="mr-old-read" placeholder="0" min="0" step="0.01"/>
+        </div>
+        <div>
+          <label class="form-label">ค่าตั้งต้น (ใหม่) m³</label>
+          <input class="form-input" type="number" id="mr-new-read" placeholder="0" min="0" step="0.01" value="0"/>
+        </div>
+      </div>
+
+      <div class="form-row-2">
+        <div>
+          <label class="form-label">วันที่เปลี่ยน *</label>
+          <input class="form-input" type="date" id="mr-date"/>
+        </div>
+        <div>
+          <label class="form-label">เหตุผล</label>
+          <select class="form-input" id="mr-reason">
+            <option value="broken">ชำรุด</option>
+            <option value="expired">ครบอายุการใช้งาน</option>
+            <option value="stolen">ถูกขโมย</option>
+            <option value="other">อื่น ๆ</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label class="form-label">หมายเหตุ</label>
+        <input class="form-input" type="text" id="mr-note" placeholder="ข้อมูลเพิ่มเติม (ไม่บังคับ)"/>
+      </div>
+
+      <div style="background:var(--amber-50);border:1px solid var(--amber-200);border-radius:var(--radius-md);padding:10px 14px;font-size:12px;color:var(--amber-800);display:flex;gap:8px;align-items:flex-start">
+        <i class="ti ti-info-circle" style="flex-shrink:0;margin-top:1px"></i>
+        <span>เลขมิเตอร์ของสมาชิกจะถูกอัปเดตเป็นมิเตอร์ใหม่โดยอัตโนมัติ</span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeMeterReplaceModal()">ยกเลิก</button>
+      <button class="btn btn-primary" id="mr-save-btn" onclick="saveMeterReplacement()"><i class="ti ti-device-floppy"></i>บันทึก</button>
     </div>
   </div>
 </div>
@@ -1355,7 +1525,7 @@
       <div class="form-group" style="margin-bottom:14px">
         <label class="form-label">รหัสผ่านใหม่</label>
         <div style="position:relative">
-          <input class="form-input" id="cpwd-new" type="password" placeholder="กรอกรหัสผ่านใหม่" autocomplete="new-password" style="padding-right:44px"/>
+          <input class="form-input" id="cpwd-new" type="password" placeholder="อย่างน้อย 8 ตัว มีตัวอักษรและตัวเลข" autocomplete="new-password" style="padding-right:44px"/>
           <button type="button" onclick="(function(b){var i=document.getElementById('cpwd-new');i.type=i.type==='password'?'text':'password';b.querySelector('i').className=i.type==='password'?'ti ti-eye':'ti ti-eye-off'})(this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--gray-500);padding:4px;min-height:unset">
             <i class="ti ti-eye"></i>
           </button>
@@ -1399,15 +1569,95 @@ function loTogglePwd(btn) {
 }
 </script>
 
-<!-- Service Worker Registration -->
+<!-- Service Worker Registration + Auto-update Detection -->
 <script>
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  window.addEventListener('load', async () => {
+    let _swReg = null;
+
+    try {
+      _swReg = await navigator.serviceWorker.register('/sw.js');
+    } catch (e) {
+      console.warn('[SW] registration failed:', e);
+      return;
+    }
+
+    // ── Detect new SW waiting to activate ─────────────────────
+    function _onUpdateFound() {
+      const newSW = _swReg.installing;
+      if (!newSW) return;
+      newSW.addEventListener('statechange', () => {
+        // New SW installed & waiting — old SW still in control
+        if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+          _showUpdateBanner(_swReg);
+        }
+      });
+    }
+
+    _swReg.addEventListener('updatefound', _onUpdateFound);
+
+    // Check for waiting SW on every page focus (catches updates that arrived while tab was open)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') _swReg.update().catch(() => {});
+    });
+
+    // ── When SW changes controller → reload to apply fresh files ──
+    let _reloading = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (_reloading) return;
+      _reloading = true;
+      window.location.reload();
+    });
+  });
+}
+
+// ── Update banner ────────────────────────────────────────────
+function _showUpdateBanner(reg) {
+  // Avoid duplicate banners
+  if (document.getElementById('sw-update-banner')) return;
+
+  const banner = document.createElement('div');
+  banner.id = 'sw-update-banner';
+  banner.style.cssText = [
+    'position:fixed', 'bottom:80px', 'left:50%', 'transform:translateX(-50%)',
+    'z-index:9999', 'background:var(--blue-900,#00236f)', 'color:#fff',
+    'border-radius:12px', 'padding:12px 18px',
+    'display:flex', 'align-items:center', 'gap:12px',
+    'box-shadow:0 8px 32px rgba(0,0,0,.35)', 'font-size:13.5px',
+    'font-family:Sarabun,sans-serif', 'max-width:calc(100vw - 32px)',
+    'animation:toastIn .25s ease',
+  ].join(';');
+
+  banner.innerHTML = `
+    <i class="ti ti-refresh" style="font-size:20px;flex-shrink:0;opacity:.85"></i>
+    <span style="flex:1;line-height:1.4">มีอัพเดทใหม่พร้อมใช้งาน</span>
+    <button id="sw-reload-btn"
+      style="background:#fff;color:var(--blue-900,#00236f);border:none;border-radius:8px;
+             padding:6px 16px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">
+      รีโหลด
+    </button>
+    <button id="sw-dismiss-btn"
+      style="background:transparent;color:rgba(255,255,255,.6);border:none;
+             font-size:18px;cursor:pointer;line-height:1;padding:0 2px;flex-shrink:0" aria-label="ปิด">
+      &times;
+    </button>`;
+
+  document.body.appendChild(banner);
+
+  document.getElementById('sw-reload-btn').addEventListener('click', () => {
+    // Tell the waiting SW to take control now
+    if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+    // controllerchange listener will reload the page
+  });
+
+  document.getElementById('sw-dismiss-btn').addEventListener('click', () => {
+    banner.remove();
   });
 }
 </script>
 
+<!-- App config (credentials — gitignored, never committed) -->
+<script src="config.js"></script>
 <!-- CDN Libraries (global scope, loaded before ES6 modules) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>

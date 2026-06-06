@@ -60,15 +60,15 @@ export function renderBilling(filterStatus) {
       const currNum = mr ? mr.currReading.toLocaleString() : '—';
 
       const payBtn = unpaid
-        ? `<button class="btn btn-primary btn-sm" style="flex:1;justify-content:center" onclick="openCashModalForBill('${esc(b.id)}')">
+        ? `<button class="btn btn-primary btn-sm" style="flex:1;justify-content:center" aria-label="รับชำระบิล ${b.id}" onclick="openCashModalForBill('${esc(b.id)}')">
              <i class="ti ti-cash"></i>รับชำระ
            </button>` : '';
       const alertBtn = isOverdue
-        ? `<button class="btn btn-secondary btn-sm" onclick="notifyBillDebtor(${b.memberId})" title="แจ้งเตือน">
+        ? `<button class="btn btn-secondary btn-sm" aria-label="แจ้งเตือนลูกหนี้" onclick="notifyBillDebtor(${b.memberId})" title="แจ้งเตือน">
              <i class="ti ti-bell-exclamation" style="color:var(--red-700)"></i>
            </button>` : '';
       const cancelBtn = unpaid
-        ? `<button class="btn btn-secondary btn-sm" onclick="cancelBill('${esc(b.id)}')" title="ยกเลิกบิล">
+        ? `<button class="btn btn-secondary btn-sm" aria-label="ยกเลิกบิล ${b.id}" onclick="cancelBill('${esc(b.id)}')" title="ยกเลิกบิล">
              <i class="ti ti-ban" style="color:var(--red-500)"></i>
            </button>` : '';
 
@@ -214,10 +214,17 @@ export function cancelBill(billId) {
 
 export function closeCancelBillModal() {
   document.getElementById('cancel-bill-modal').style.display = 'none';
-  _cancelBillId = null;
+  _cancelBillId     = null;
+  _cancelInProgress = false;
+  const btn = document.getElementById('cancel-bill-confirm-btn');
+  if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-ban"></i>ยืนยันยกเลิกบิล'; }
 }
 
+let _cancelInProgress = false;
+
 export function confirmCancelBill() {
+  if (_cancelInProgress) return;
+
   const reason = document.getElementById('cancel-bill-reason')?.value.trim();
   if (!reason) {
     const area = document.getElementById('cancel-bill-reason');
@@ -226,8 +233,26 @@ export function confirmCancelBill() {
     return;
   }
   const billId = _cancelBillId;
+  if (!billId) return;
+
   const b = appState.bills.find(x => x.id === billId);
   if (!b) { closeCancelBillModal(); return; }
+
+  // ตรวจสถานะอีกครั้ง ป้องกัน race condition กรณีบิลถูกชำระไประหว่างรอ
+  if (b.status === 'paid') {
+    toast('บิลนี้ถูกชำระแล้ว ไม่สามารถยกเลิกได้', 'error');
+    closeCancelBillModal();
+    return;
+  }
+  if (b.status === 'cancelled') {
+    toast('บิลนี้ถูกยกเลิกไปแล้ว', 'warn');
+    closeCancelBillModal();
+    return;
+  }
+
+  _cancelInProgress = true;
+  const btn = document.getElementById('cancel-bill-confirm-btn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin .8s linear infinite"></i> กำลังยกเลิก...'; }
 
   const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
   b.status       = 'cancelled';
@@ -240,6 +265,8 @@ export function confirmCancelBill() {
   closeReceiptModal();
   renderBilling();
   toast(`ยกเลิกบิล ${billId} แล้ว`, 'warn');
+
+  _cancelInProgress = false;
 }
 
 // ─── Receipt / Invoice Modal ──────────────────────────────────

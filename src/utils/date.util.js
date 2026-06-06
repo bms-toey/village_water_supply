@@ -2,6 +2,7 @@
 // Thai Buddhist Era date helpers and overdue status sync.
 // ──────────────────────────────────────────────────────────────
 import { appState } from '../state/app.state.js';
+import { rateConfig } from '../config/rate.config.js';
 
 const _MONTHS_TH = [
   'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
@@ -60,6 +61,35 @@ export function syncOverdueStatus() {
     const hasOverdue = appState.bills.some(b => b.memberId === m.id && b.status === 'overdue');
     const wanted = hasOverdue ? 'overdue' : 'normal';
     if (m.status !== wanted) { m.status = wanted; changed = true; }
+  });
+
+  return changed;
+}
+
+/**
+ * Apply late fees to all overdue bills based on months past due date.
+ * Idempotent — safe to call on every load.
+ * @returns {object[]} bills that had their lateFee updated
+ */
+export function applyLateFees() {
+  const today    = new Date();
+  const feeRate  = rateConfig.lateFeePerMonth || 50;
+  const changed  = [];
+
+  appState.bills.forEach(b => {
+    if (b.status !== 'overdue') return;
+    const dueDate = new Date(b.dueDate);
+    if (isNaN(dueDate.getTime())) return;
+
+    const daysOverdue   = Math.max(0, Math.floor((today - dueDate) / 86400000));
+    const monthsOverdue = Math.max(1, Math.ceil(daysOverdue / 30));
+    const newLateFee    = monthsOverdue * feeRate;
+
+    if (newLateFee !== (b.lateFee || 0)) {
+      b.lateFee = newLateFee;
+      b.total   = Math.round((b.waterCharge || 0) + (b.serviceCharge || 0) + newLateFee - (b.discount || 0));
+      changed.push(b);
+    }
   });
 
   return changed;

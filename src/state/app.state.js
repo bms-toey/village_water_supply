@@ -17,9 +17,10 @@ export const appState = {
   payments:      [],
 
   // Operations data
-  waterProduction: [],
-  waterQuality:    [],
-  maintenance:     [],
+  waterProduction:   [],
+  waterQuality:      [],
+  maintenance:       [],
+  meterReplacements: [],
 
   // Dynamic master data (category → item[])
   // Loaded from Supabase master_data table at startup

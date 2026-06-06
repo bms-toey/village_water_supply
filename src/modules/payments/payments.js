@@ -1,6 +1,6 @@
 // ─── Payments Module ───────────────────────────────────────────
 import { appState } from '../../state/app.state.js';
-import { esc, toast } from '../../utils/dom.util.js';
+import { esc, toast, showConfirm } from '../../utils/dom.util.js';
 import { channelMap } from '../../config/ui.config.js';
 import { sbUpsertPayment, sbUpdatePayment, sbUpdateBillStatus } from '../../services/data-loader.service.js';
 import { nextReceiptNo } from '../../utils/date.util.js';
@@ -32,10 +32,16 @@ export function renderPayments() {
       const m  = members.find(x => x.id === p.memberId) || {};
       const ch = channelMap[p.channel] || { label: p.channel, icon: 'ti-cash' };
       const st = payStatusMap[p.status] || payStatusMap.pending;
-      const actionBtns = p.status === 'pending'
-        ? `<button class="btn btn-primary btn-xs" onclick="approvePayment('${p.id}')"><i class="ti ti-check"></i>อนุมัติ</button>
-           <button class="btn btn-danger  btn-xs" onclick="rejectPayment('${p.id}')">ปฏิเสธ</button>`
-        : `<button class="btn-icon" title="ดู"><i class="ti ti-eye"></i></button>`;
+      let actionBtns;
+      if (p.status === 'pending') {
+        actionBtns = `<button class="btn btn-primary btn-xs" onclick="approvePayment('${p.id}')"><i class="ti ti-check"></i>อนุมัติ</button>
+           <button class="btn btn-danger btn-xs" onclick="rejectPayment('${p.id}')">ปฏิเสธ</button>`;
+      } else if (p.status === 'approved') {
+        actionBtns = `<button class="btn btn-secondary btn-xs" aria-label="พิมพ์ใบเสร็จ" onclick="printReceiptByPayment('${p.id}')" title="พิมพ์ใบเสร็จ"><i class="ti ti-printer"></i></button>
+           <button class="btn btn-xs" style="color:var(--red-600);border:1px solid var(--red-200);border-radius:var(--radius-sm);padding:3px 8px;background:#fff;cursor:pointer" aria-label="ยกเลิกใบเสร็จ" onclick="cancelPayment('${p.id}')" title="ยกเลิกใบเสร็จ"><i class="ti ti-ban"></i></button>`;
+      } else {
+        actionBtns = `<span style="font-size:11px;color:var(--gray-400)">${p.status === 'cancelled' ? 'ยกเลิกแล้ว' : '—'}</span>`;
+      }
       return `<tr>
         <td class="text-muted" style="font-size:12px">${p.paidAt}</td>
         <td class="text-bold">${esc(m.firstName||'')} ${esc(m.lastName||'')}</td>
@@ -156,6 +162,45 @@ export function notifyBillDebtor(memberId) {
   const m = appState.members.find(x => x.id === memberId);
   if (!m) return;
   toast(`ส่งแจ้งเตือนถึง: ${m.firstName} ${m.lastName} (${m.phone||'ไม่มีเบอร์'})`, 'info');
+}
+
+export function cancelPayment(pid) {
+  const { payments, bills } = appState;
+  const p = payments.find(x => x.id === pid);
+  if (!p) return;
+  if (p.status !== 'approved') { toast('ยกเลิกได้เฉพาะรายการที่อนุมัติแล้ว', 'error'); return; }
+  showConfirm({
+    title:   `ยกเลิกใบเสร็จ ${p.receiptNo || pid}`,
+    message: `ยอดเงิน: ฿${p.amount.toLocaleString()}\n\nบิลจะถูกเปลี่ยนกลับเป็นสถานะรอชำระ`,
+    okText:  'ยืนยันยกเลิก',
+    icon:    'ti-ban',
+    onOk() {
+      const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
+      p.status      = 'cancelled';
+      p.cancelledAt = now;
+      const b = bills.find(x => x.id === p.billId);
+      if (b && b.status === 'paid') {
+        const today = new Date().toISOString().split('T')[0];
+        b.status = b.dueDate < today ? 'overdue' : 'pending';
+        sbUpdateBillStatus(b.id, b.status);
+      }
+      sbUpdatePayment(pid, { status: 'cancelled', cancelled_at: now });
+      saveToStorage();
+      renderPayments();
+      window.renderBilling?.();
+      window.renderDebtors?.();
+      toast(`ยกเลิกใบเสร็จ ${p.receiptNo || pid} แล้ว`, 'warn');
+    },
+  });
+}
+
+export function printReceiptByPayment(pid) {
+  const p = appState.payments.find(x => x.id === pid);
+  if (!p) return;
+  const b = appState.bills.find(x => x.id === p.billId);
+  if (!b) return;
+  window.openBillReceipt?.(b.id);
+  setTimeout(() => window.printReceipt?.(), 350);
 }
 
 export function saveCashPayment() {

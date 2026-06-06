@@ -3,7 +3,7 @@
 // village management, rate tiers, system config, and audit log.
 // ──────────────────────────────────────────────────────────────
 import { appState } from '../../state/app.state.js';
-import { esc, toast } from '../../utils/dom.util.js';
+import { esc, toast, showConfirm } from '../../utils/dom.util.js';
 import { rateConfig, calcWaterCharge, calcWaterBreakdown } from '../../config/rate.config.js';
 import { saveRateConfig } from '../../services/storage.service.js';
 import {
@@ -225,15 +225,21 @@ export async function saveMdItemHandler() {
   _propagateChanges(item.category);
 }
 
-export async function deleteMdItemConfirm(id, category) {
+export function deleteMdItemConfirm(id, category) {
   const item = (appState.masterData[category] || []).find(x => x.id === id);
   if (!item) return;
-  if (!confirm(`ลบ "${item.nameTh}" ออกจากระบบ?\n\nการดำเนินการนี้ไม่สามารถย้อนกลับได้`)) return;
-  const { error } = await deleteMdItem(id, category);
-  if (error) { toast(`⚠ ${error}`, 'error'); return; }
-  toast(`ลบ "${item.nameTh}" แล้ว`, 'success');
-  _refreshMasterPanel(category);
-  _propagateChanges(category);
+  showConfirm({
+    title:   `ลบ "${item.nameTh}"?`,
+    message: 'การดำเนินการนี้ไม่สามารถย้อนกลับได้',
+    okText:  'ลบเลย',
+    async onOk() {
+      const { error } = await deleteMdItem(id, category);
+      if (error) { toast(`⚠ ${error}`, 'error'); return; }
+      toast(`ลบ "${item.nameTh}" แล้ว`, 'success');
+      _refreshMasterPanel(category);
+      _propagateChanges(category);
+    },
+  });
 }
 
 export async function toggleMdItemHandler(id, category, isActive) {
@@ -346,17 +352,23 @@ export async function saveVillageHandler() {
   window.renderMembers?.();
 }
 
-export async function deleteVillageConfirm(id) {
+export function deleteVillageConfirm(id) {
   const v = _dbVillages.find(x => x.id === id);
   if (!v) return;
   const count = appState.members.filter(m => m.village === v.name).length;
   if (count > 0) { toast(`ไม่สามารถลบได้ มีสมาชิก ${count} รายในหมู่บ้านนี้`, 'error'); return; }
-  if (!confirm(`ลบหมู่บ้าน "${v.name}"?`)) return;
-  const { error } = await deleteVillage(id);
-  if (error) { toast(`⚠ ${error}`, 'error'); return; }
-  toast(`ลบ "${v.name}" แล้ว`, 'success');
-  renderSettingsVillages();
-  populateVillageDropdowns();
+  showConfirm({
+    title:   `ลบหมู่บ้าน "${v.name}"?`,
+    message: count === 0 ? 'ไม่มีสมาชิกในหมู่บ้านนี้' : '',
+    okText:  'ลบเลย',
+    async onOk() {
+      const { error } = await deleteVillage(id);
+      if (error) { toast(`⚠ ${error}`, 'error'); return; }
+      toast(`ลบ "${v.name}" แล้ว`, 'success');
+      renderSettingsVillages();
+      populateVillageDropdowns();
+    },
+  });
 }
 
 export async function toggleVillageHandler(id, isActive) {
@@ -619,23 +631,27 @@ export async function saveNewTierHandler() {
 }
 
 // ─── Delete Last Tier ─────────────────────────────────────────
-export async function deleteLastTierConfirm() {
+export function deleteLastTierConfirm() {
   const n = rateConfig.tiers.length;
   if (n <= 1) { toast('ต้องมีอย่างน้อย 1 ช่วง', 'error'); return; }
   const last = rateConfig.tiers[n - 1];
   const prev = rateConfig.tiers[n - 2];
-  if (!confirm(`ลบช่วง "${last.from}+ หน่วย"?\n\nช่วง ${prev.from}–${last.from - 1} จะกลายเป็นช่วงสุดท้าย (ไม่จำกัด)`)) return;
-
-  const ok1 = await sbDeleteRateTier(last.from);
-  if (!ok1) return;
-  const ok2 = await sbUpdateTierTo(prev.from, null);
-  if (!ok2) return;
-
-  rateConfig.tiers.pop();
-  prev.to = Infinity;
-  saveRateConfig();
-  renderSettingsRates();
-  toast(`ลบช่วง "${last.from}+ หน่วย" แล้ว`, 'success');
+  showConfirm({
+    title:   `ลบช่วง "${last.from}+ หน่วย"?`,
+    message: `ช่วง ${prev.from}–${last.from - 1} จะกลายเป็นช่วงสุดท้าย (ไม่จำกัด)`,
+    okText:  'ลบเลย',
+    async onOk() {
+      const ok1 = await sbDeleteRateTier(last.from);
+      if (!ok1) return;
+      const ok2 = await sbUpdateTierTo(prev.from, null);
+      if (!ok2) return;
+      rateConfig.tiers.pop();
+      prev.to = Infinity;
+      saveRateConfig();
+      renderSettingsRates();
+      toast(`ลบช่วง "${last.from}+ หน่วย" แล้ว`, 'success');
+    },
+  });
 }
 
 // ─── Save Service Charges ─────────────────────────────────────

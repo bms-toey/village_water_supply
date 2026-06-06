@@ -1,0 +1,73 @@
+/* ─── Print Stylesheet ─────────────────────────────────────────
+   Hides navigation and cleans up layout for window.print()
+   ──────────────────────────────────────────────────────────── */
+@media print {
+  /* Hide chrome */
+  .sidebar,
+  .topbar,
+  .sidebar-backdrop,
+  .fab,
+  #loading-overlay,
+  #auth-overlay,
+  .page-hd-actions,
+  .filter-bar,
+  .tabs,
+  .tbl-pagination,
+  .report-grid,
+  .bar-chart-wrap,
+  .btn-menu,
+  .nav-badge,
+  [id$="-modal"],
+  .pay-channel-btn { display: none !important; }
+
+  /* Expand main area to full width */
+  .main { margin-left: 0 !important; padding: 0 !important; }
+  .content-area { padding: 12px !important; }
+
+  /* Only show active page */
+  .page { display: none !important; }
+  .page.active { display: block !important; }
+
+  /* Clean card styling */
+  .card {
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+    margin-bottom: 10px;
+    break-inside: avoid;
+  }
+
+  /* Table styling */
+  .tbl-wrap { overflow: visible !important; }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  th, td { border: 1px solid #ddd !important; padding: 5px 7px !important; }
+  thead tr { background: #f0f0f0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  /* Pills / badges */
+  .pill { border: 1px solid #ccc !important; background: #fff !important; color: #000 !important; padding: 1px 6px; font-size: 10px; }
+
+  /* Footer */
+  .tbl-footer { border-top: 1px solid #ccc; padding-top: 6px; font-size: 10px; }
+
+  /* Page header printed automatically */
+  #page-reports .page-hd::before {
+    content: "AquaFlow Pro — รายงาน";
+    display: block;
+    font-size: 15px;
+    font-weight: 700;
+    padding-bottom: 6px;
+    border-bottom: 2px solid #000;
+    margin-bottom: 10px;
+  }
+
+  /* KPI cards — simplified in print */
+  .kpi-grid { display: grid !important; grid-template-columns: repeat(4,1fr); gap: 6px; margin-bottom: 10px; }
+  .kpi-card { border: 1px solid #ccc !important; box-shadow: none !important; padding: 8px !important; }
+  .kpi-val { font-size: 16px !important; }
+  .kpi-label { font-size: 10px !important; }
+  .kpi-footer, .kpi-icon { display: none !important; }
+
+  /* Page break before each major section */
+  .card + .card { page-break-before: auto; }
+
+  body { font-family: 'Sarabun', sans-serif; color: #000; }
+}

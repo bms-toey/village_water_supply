@@ -141,34 +141,85 @@ function _renderDashAnomalies() {
   }).join('');
 }
 
+let _dashChartYear = null; // null = ปีปัจจุบัน
+
+export function setDashChartYear(yr) {
+  _dashChartYear = yr || null;
+  _renderDashBarChart();
+}
+
 function _renderDashBarChart() {
   const el = document.getElementById('dash-bar-chart');
   if (!el) return;
-  const monthly = {};
+
+  const thisYear = new Date().getFullYear() + 543;
+  const showYear = _dashChartYear || thisYear;
+  const prevYear = showYear - 1;
+
+  const getYear = (period) => { const p = period.split(' '); return p.length > 1 ? parseInt(p[1]) : 0; };
+
+  const monthly = {}, monthlyPrev = {};
   appState.bills.filter(b => b.status === 'paid').forEach(b => {
-    monthly[b.period] = (monthly[b.period] || 0) + b.total;
+    const yr = getYear(b.period);
+    if (yr === showYear) monthly[b.period]     = (monthly[b.period]     || 0) + b.total;
+    if (yr === prevYear) monthlyPrev[b.period] = (monthlyPrev[b.period] || 0) + b.total;
   });
-  const last8 = Object.keys(monthly).sort().slice(-8);
-  const maxAmt = last8.length ? Math.max(...last8.map(p => monthly[p])) : 0;
-  if (!last8.length || !maxAmt) {
+
+  const months  = Object.keys(monthly).sort().slice(-12);
+  const maxAmt  = months.length ? Math.max(...months.map(p => monthly[p])) : 0;
+  const hasPrev = Object.keys(monthlyPrev).length > 0;
+
+  const axisSpans = document.querySelectorAll('#page-dashboard .bar-chart-axis span');
+
+  if (!months.length || !maxAmt) {
     el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--gray-400);font-size:12px">ยังไม่มีข้อมูลรายรับ</div>';
-    const axisSpans = document.querySelectorAll('#page-dashboard .bar-chart-axis span');
     if (axisSpans[0]) axisSpans[0].textContent = '';
     if (axisSpans[1]) axisSpans[1].textContent = '';
+    _renderDashYearToggles(showYear, thisYear);
     return;
   }
-  el.innerHTML = last8.map(p => {
+
+  // Build comparison overlay value for each bar
+  el.innerHTML = months.map(p => {
     const pct = Math.round(monthly[p] / maxAmt * 100);
     const lbl = p.split(' ')[0];
-    return `<div class="bar-grp"><div class="bar-fill${pct===100?' hi':''}" style="height:${pct}%"></div><div class="bar-lbl">${esc(lbl)}</div></div>`;
+    // Match prev year period by replacing year
+    const prevPeriod = p.replace(String(showYear), String(prevYear));
+    const prevAmt    = monthlyPrev[prevPeriod] || 0;
+    const prevPct    = maxAmt > 0 ? Math.round(prevAmt / maxAmt * 100) : 0;
+    const trend      = prevAmt > 0 ? Math.round((monthly[p] - prevAmt) / prevAmt * 100) : null;
+    const trendHtml  = trend !== null
+      ? `<div style="font-size:8px;color:${trend>=0?'var(--green-600)':'var(--red-600)'};font-weight:700;margin-top:1px">${trend>=0?'▲':'▼'}${Math.abs(trend)}%</div>`
+      : '';
+    return `<div class="bar-grp" title="฿${monthly[p].toLocaleString()}">
+      ${hasPrev && prevPct > 0 ? `<div style="position:absolute;bottom:18px;left:50%;transform:translateX(-50%);width:40%;height:${prevPct}%;background:var(--blue-100);border-radius:3px 3px 0 0;opacity:.6"></div>` : ''}
+      <div class="bar-fill${pct===100?' hi':''}" style="height:${pct}%"></div>
+      <div class="bar-lbl">${esc(lbl)}</div>
+      ${trendHtml}
+    </div>`;
   }).join('');
-  const axisSpans = document.querySelectorAll('#page-dashboard .bar-chart-axis span');
-  const maxPeriod = last8.find(p => monthly[p] === maxAmt);
-  if (axisSpans[0]) axisSpans[0].textContent = `ยอดสูงสุด: ฿${maxAmt.toLocaleString()} (${maxPeriod||''})`;
-  if (axisSpans[1]) {
-    const avg = Math.round(last8.reduce((s, p) => s + monthly[p], 0) / last8.length);
-    axisSpans[1].textContent = `เฉลี่ย ฿${avg.toLocaleString()}/เดือน`;
-  }
+
+  const totalIncome = months.reduce((s, p) => s + monthly[p], 0);
+  const avg = Math.round(totalIncome / months.length);
+  if (axisSpans[0]) axisSpans[0].textContent = `ปี ${showYear} · รวม ฿${totalIncome.toLocaleString()}`;
+  if (axisSpans[1]) axisSpans[1].textContent = `เฉลี่ย ฿${avg.toLocaleString()}/เดือน`;
+
+  _renderDashYearToggles(showYear, thisYear);
+}
+
+function _renderDashYearToggles(showYear, thisYear) {
+  const wrap = document.getElementById('dash-year-toggles');
+  if (!wrap) return;
+  const years = [...new Set(
+    appState.bills.filter(b => b.status === 'paid').map(b => {
+      const p = b.period.split(' '); return p.length > 1 ? parseInt(p[1]) : 0;
+    }).filter(Boolean)
+  )].sort().reverse().slice(0, 3);
+  wrap.innerHTML = years.map(yr =>
+    `<button onclick="setDashChartYear(${yr})"
+      style="background:${yr===showYear?'var(--blue-600)':'var(--gray-100)'};color:${yr===showYear?'#fff':'var(--gray-600)'};
+        border:none;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer">${yr}</button>`
+  ).join('');
 }
 
 function _renderDashVillages() {
