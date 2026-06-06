@@ -67,8 +67,14 @@ BEGIN
 END;
 $$;
 
--- ── 2. admin_create_user — สร้าง auth user โดยตรง (ไม่ต้องยืนยัน email) ──
+-- ── 2. Drop functions เดิมที่อาจมี signature ต่างออกไป ──────────────
 DROP FUNCTION IF EXISTS admin_create_user(TEXT,TEXT,TEXT,TEXT,TEXT,user_role,INT);
+DROP FUNCTION IF EXISTS get_all_users();
+DROP FUNCTION IF EXISTS admin_update_user(UUID,TEXT,TEXT,TEXT,user_role,INT,BOOLEAN);
+DROP FUNCTION IF EXISTS admin_set_user_password(UUID,TEXT);
+DROP FUNCTION IF EXISTS get_email_by_identifier(TEXT);
+
+-- ── admin_create_user — สร้าง auth user โดยตรง (ไม่ต้องยืนยัน email) ──
 
 CREATE OR REPLACE FUNCTION admin_create_user(
   p_email     TEXT,
@@ -180,7 +186,7 @@ BEGIN
 END;
 $$;
 
--- ── 4. get_all_users — ดึงรายชื่อ users ทั้งหมด (เฉพาะ super_admin) ──
+-- ── 4. get_all_users ──────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION get_all_users()
 RETURNS TABLE (
   id         UUID,
@@ -206,7 +212,7 @@ BEGIN
 END;
 $$;
 
--- ── 5. admin_update_user — แก้ไขข้อมูล profile (ไม่รวม password) ────
+-- ── 5. admin_update_user ──────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION admin_update_user(
   p_user_id   UUID,
   p_full_name TEXT,
@@ -237,7 +243,7 @@ BEGIN
 END;
 $$;
 
--- ── 6. get_email_by_identifier — login ด้วย username/phone ────────────
+-- ── 6. get_email_by_identifier ───────────────────────────────────────
 CREATE OR REPLACE FUNCTION get_email_by_identifier(p_identifier TEXT)
 RETURNS TEXT LANGUAGE sql SECURITY DEFINER SET search_path = public, auth AS $$
   SELECT u.email
