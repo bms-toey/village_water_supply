@@ -359,7 +359,7 @@
    VERY SMALL PHONE (≤480px)
 ════════════════════════════════════════════════════════════ */
 @media (max-width: 480px) {
-  .topbar { height: 52px; }
+  .topbar { height: 46px; }
   .content-area { padding: 12px 10px calc(76px + env(safe-area-inset-bottom)); }
 
   .kpi-grid    { grid-template-columns: 1fr; }

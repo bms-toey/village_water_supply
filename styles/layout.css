@@ -32,12 +32,12 @@
 .main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
 
 /* โ”€โ”€โ”€ TOPBAR โ”€โ”€โ”€ */
-.topbar{height:58px;background:var(--white);border-bottom:1px solid var(--gray-200);display:flex;align-items:center;padding:0 28px;gap:14px;flex-shrink:0;box-shadow:var(--shadow-sm)}
+.topbar{height:48px;background:var(--white);border-bottom:1px solid var(--gray-200);display:flex;align-items:center;padding:0 20px;gap:10px;flex-shrink:0;box-shadow:var(--shadow-sm)}
 .topbar-breadcrumb{display:flex;align-items:center;gap:8px;flex:1}
 .breadcrumb-app{font-size:12px;color:var(--gray-500);font-weight:500}
 .breadcrumb-sep{color:var(--gray-300);font-size:14px}
 .breadcrumb-page{font-size:14px;font-weight:700;color:var(--blue-900)}
-.topbar-search{display:flex;align-items:center;gap:8px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:24px;padding:7px 14px;cursor:text;transition:var(--transition);flex:0 0 200px;width:200px}
+.topbar-search{display:flex;align-items:center;gap:8px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:24px;padding:5px 12px;cursor:text;transition:var(--transition);flex:0 0 200px;width:200px}
 .topbar-search:hover{border-color:var(--blue-200);background:#fff}
 .topbar-search input{border:none;background:transparent;outline:none;font-size:12.5px;font-family:'Sarabun',sans-serif;color:var(--gray-900);width:100%}
 .topbar-search input::placeholder{color:var(--gray-500)}
@@ -57,7 +57,7 @@
 .rt-time{font-size:11px;color:var(--gray-500);font-family:'IBM Plex Mono',monospace;letter-spacing:.02em;min-width:52px;text-align:center}
 #rt-icon{font-size:13px;color:var(--gray-400)}
 /* ─── Topbar Dropdown Panels ──────────────────── */
-.tbar-drop{position:fixed;top:62px;right:12px;width:300px;background:var(--white);border:1px solid var(--gray-200);border-radius:14px;box-shadow:0 12px 40px rgba(0,35,111,.15);z-index:9999;overflow:hidden;animation:toastIn .18s ease}
+.tbar-drop{position:fixed;top:52px;right:12px;width:300px;background:var(--white);border:1px solid var(--gray-200);border-radius:14px;box-shadow:0 12px 40px rgba(0,35,111,.15);z-index:9999;overflow:hidden;animation:toastIn .18s ease}
 .tbd-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--gray-100)}
 .tbd-title{font-weight:700;font-size:13px;color:var(--gray-900);display:flex;align-items:center;gap:7px}
 .tbd-title i{color:var(--blue-600);font-size:15px}
