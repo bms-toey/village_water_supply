@@ -142,12 +142,12 @@ document.querySelectorAll('#page-billing .tab').forEach((t, i) => {
   });
 })();
 
-// Members table — event delegation
-document.getElementById('members-tbody').addEventListener('click', function (e) {
-  const btn = e.target.closest('[data-act]');
-  const row = e.target.closest('.member-row');
-  if (!row) return;
-  const mid = parseInt(row.dataset.mid);
+// Members card list — event delegation
+document.getElementById('members-card-list').addEventListener('click', function (e) {
+  const btn  = e.target.closest('[data-act]');
+  const card = e.target.closest('.member-card-h');
+  if (!card) return;
+  const mid = parseInt(card.dataset.mid);
   const m   = appState.members.find(x => x.id === mid);
   if (!m) return;
   if (btn) {

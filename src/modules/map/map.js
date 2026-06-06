@@ -2,32 +2,32 @@
 import { appState } from '../../state/app.state.js';
 import { esc } from '../../utils/dom.util.js';
 import { statusMap } from '../../config/ui.config.js';
+import { _dbVillages } from '../../services/db-mapper.service.js';
 
 let _mapInstance  = null;
 let _mapMarkers   = [];
 
-const villageCenters = {
-  'หมู่ 1 บ้านป่า':   [18.7883, 98.9853],
-  'หมู่ 2 บ้านคลอง':  [18.7860, 98.9840],
-  'หมู่ 3 หนองใหญ่':  [18.7900, 98.9870],
-  'หมู่ 3 ท่าช้าง':   [18.7920, 98.9890],
-  'หมู่ 4 โคกสูง':    [18.7940, 98.9850],
-};
-const villageColors = {
-  'หมู่ 1 บ้านป่า':   '#3b82f6',
-  'หมู่ 2 บ้านคลอง':  '#10b981',
-  'หมู่ 3 หนองใหญ่':  '#f59e0b',
-  'หมู่ 3 ท่าช้าง':   '#8b5cf6',
-  'หมู่ 4 โคกสูง':    '#ef4444',
-};
+const _PALETTE = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#ef4444','#06b6d4','#f97316','#ec4899'];
+const _BASE = { lat: 18.7900, lng: 98.9870 };
 const statusFill = { normal: '#16a34a', overdue: '#dc2626', closed: '#6b7280', suspended: '#d97706' };
 
-function _effectiveLatLng(m) {
+function _buildVillageMaps() {
+  const n = _dbVillages.length || 1;
+  const centers = {}, colors = {};
+  _dbVillages.forEach((v, i) => {
+    const angle = (i / n) * 2 * Math.PI;
+    centers[v.name] = [_BASE.lat + Math.cos(angle) * 0.004, _BASE.lng + Math.sin(angle) * 0.004];
+    colors[v.name]  = _PALETTE[i % _PALETTE.length];
+  });
+  return { centers, colors };
+}
+
+function _effectiveLatLng(m, centers) {
   if (m.gpsLat && m.gpsLng) return [m.gpsLat, m.gpsLng];
-  const center = villageCenters[m.village] || [18.7900, 98.9870];
+  const center = centers[m.village] || [_BASE.lat, _BASE.lng];
   const seed  = (m.id * 9301 + 49297) % 233280;
   const seed2 = (m.id * 1234 + 5678)  % 9999;
-  return [center[0] + (seed / 233280 - 0.5) * 0.003, center[1] + (seed2 / 9999 - 0.5) * 0.003];
+  return [center[0] + (seed / 233280 - 0.5) * 0.002, center[1] + (seed2 / 9999 - 0.5) * 0.002];
 }
 
 export function renderMap() {
@@ -51,7 +51,9 @@ export function renderMap() {
   if (_mapInstance) { _mapInstance.remove(); _mapInstance = null; }
   _mapMarkers = [];
 
-  const coords = members.map(m => _effectiveLatLng(m));
+  const { centers: vCenters, colors: vColors } = _buildVillageMaps();
+
+  const coords = members.map(m => _effectiveLatLng(m, vCenters));
   const avgLat = coords.reduce((s, c) => s + c[0], 0) / coords.length;
   const avgLng = coords.reduce((s, c) => s + c[1], 0) / coords.length;
 
@@ -61,26 +63,32 @@ export function renderMap() {
     maxZoom: 19,
   }).addTo(_mapInstance);
 
-  // Village zones
+  // Village zones — compute dynamic center and radius from actual member positions
   const vGroups = {};
   members.forEach(m => {
     const v = m.village || 'อื่น ๆ';
     if (!vGroups[v]) vGroups[v] = { lats: [], lngs: [] };
-    const [lat, lng] = _effectiveLatLng(m);
+    const [lat, lng] = _effectiveLatLng(m, vCenters);
     vGroups[v].lats.push(lat); vGroups[v].lngs.push(lng);
   });
   Object.entries(vGroups).forEach(([v, g]) => {
-    const cLat = g.lats.reduce((s, x) => s + x, 0) / g.lats.length;
-    const cLng = g.lngs.reduce((s, x) => s + x, 0) / g.lngs.length;
-    const color = villageColors[v] || '#94a3b8';
-    L.circle([cLat, cLng], { radius: 120, color, fillColor: color, fillOpacity: 0.1, weight: 2, dashArray: '7 5' })
+    const cLat  = g.lats.reduce((s, x) => s + x, 0) / g.lats.length;
+    const cLng  = g.lngs.reduce((s, x) => s + x, 0) / g.lngs.length;
+    const color = vColors[v] || '#94a3b8';
+    const maxDist = g.lats.reduce((mx, lat, i) => {
+      const dlat = (lat - cLat) * 111320;
+      const dlng = (g.lngs[i] - cLng) * 111320 * Math.cos(cLat * Math.PI / 180);
+      return Math.max(mx, Math.sqrt(dlat * dlat + dlng * dlng));
+    }, 60);
+    const radius = Math.min(Math.max(maxDist + 50, 100), 450);
+    L.circle([cLat, cLng], { radius, color, fillColor: color, fillOpacity: 0.08, weight: 2, dashArray: '8 5' })
       .bindTooltip(`<strong style="font-family:'Sarabun',sans-serif">${v}</strong><br><span style="font-size:11px">${g.lats.length} หลังคา</span>`, { sticky: true })
       .addTo(_mapInstance);
   });
 
   // Member markers
   members.forEach(m => {
-    const [lat, lng]   = _effectiveLatLng(m);
+    const [lat, lng]   = _effectiveLatLng(m, vCenters);
     const fill         = statusFill[m.status] || statusFill.normal;
     const memberBills  = bills.filter(b => b.memberId === m.id);
     const latestBill   = [...memberBills].sort((a, b) => b.period.localeCompare(a.period))[0];
@@ -133,12 +141,13 @@ function _renderMapStats() {
   const el = document.getElementById('map-stats-body');
   if (!el) return;
   const { members, meterReadings } = appState;
+  const { colors } = _buildVillageMaps();
   const villages = [...new Set(members.map(m => m.village))].sort();
   el.innerHTML = villages.map(v => {
     const vm     = members.filter(x => x.village === v);
     const vUsage = meterReadings.filter(r => vm.some(x => x.id === r.memberId)).reduce((s, r) => s + r.usage, 0);
     const vOvd   = vm.filter(x => x.status === 'overdue').length;
-    const color  = villageColors[v] || '#94a3b8';
+    const color  = colors[v] || '#94a3b8';
     const badge  = vOvd > 0
       ? `<span style="background:#fee2e2;color:#dc2626;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;white-space:nowrap">ค้าง ${vOvd}</span>`
       : `<span style="background:#dcfce7;color:#16a34a;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px">ปกติ</span>`;

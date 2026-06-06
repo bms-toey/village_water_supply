@@ -29,41 +29,60 @@ function _matches(m) {
   return true;
 }
 
-// ─── Render Table ─────────────────────────────────────────────
+// ─── Render Cards ─────────────────────────────────────────────
 export function renderMembers() {
-  const tbody = document.getElementById('members-tbody');
-  if (!tbody) return;
+  const list = document.getElementById('members-card-list');
+  if (!list) return;
   const { members } = appState;
   const filtered = members.filter(_matches);
-  tbody.innerHTML = filtered.map(m => {
-    const st    = statusMap[m.status] || statusMap.normal;
-    const mt    = getMemberTypeDisplay(m.memberType);
-    const full  = esc(m.firstName + ' ' + m.lastName);
-    const msize = getMeterSizeDisplay(m.meterSize);
-    const actionBtn = m.status === 'overdue'
-      ? `<button class="btn-icon" data-mid="${m.id}" data-act="debtors" aria-label="ดูหนี้ ${full}" title="ดูหนี้"><i class="ti ti-alert-triangle"></i></button>`
-      : `<button class="btn-icon" data-mid="${m.id}" data-act="billing" aria-label="ดูบิล ${full}" title="ดูบิล"><i class="ti ti-receipt"></i></button>`;
-    return `<tr data-mid="${m.id}" data-meter="${esc(m.meter)}" data-name="${full}" class="member-row" tabindex="0" aria-label="${full} มิเตอร์ ${esc(m.meter)}">
-      <td><div style="display:flex;align-items:center;gap:11px">
-        <div class="mavatar" style="background:${getAvatarColor(m.id)}">${getInitials(m.firstName, m.lastName)}</div>
-        <div>
-          <div class="text-bold">${full}</div>
-          <div class="text-muted" style="font-size:11px">ID: ${m.id} · ${esc(m.houseNo||'—')}</div>
-          <span class="mtype-badge ${mt.cls}">${mt.label}</span>
+
+  if (!filtered.length) {
+    list.innerHTML = '<div style="text-align:center;color:var(--gray-500);padding:32px;font-size:13px"><i class="ti ti-users-group" style="font-size:36px;display:block;margin-bottom:10px;color:var(--gray-300)"></i>ไม่พบสมาชิก</div>';
+  } else {
+    list.innerHTML = filtered.map(m => {
+      const st    = statusMap[m.status] || statusMap.normal;
+      const mt    = getMemberTypeDisplay(m.memberType);
+      const full  = esc(m.firstName + ' ' + m.lastName);
+      const msize = getMeterSizeDisplay(m.meterSize);
+      const actionBtn = m.status === 'overdue'
+        ? `<button class="btn-icon" data-mid="${m.id}" data-act="debtors" title="ดูหนี้"><i class="ti ti-alert-triangle"></i></button>`
+        : `<button class="btn-icon" data-mid="${m.id}" data-act="billing" title="ดูบิล"><i class="ti ti-receipt"></i></button>`;
+      const lastDate = m.lastReadDate
+        ? new Date(m.lastReadDate).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })
+        : '—';
+      return `<div class="member-card-h" data-mid="${m.id}" data-meter="${esc(m.meter)}" data-name="${full}" tabindex="0" aria-label="${full} มิเตอร์ ${esc(m.meter)}">
+        <div class="mavatar" style="background:${getAvatarColor(m.id)};width:42px;height:42px;font-size:13px">${getInitials(m.firstName, m.lastName)}</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
+            <span class="text-bold" style="font-size:13.5px">${full}</span>
+            <span class="mtype-badge ${mt.cls}" style="font-size:10.5px">${mt.label}</span>
+          </div>
+          <div class="text-muted" style="font-size:11.5px;margin-top:2px">
+            ID: ${m.id}${m.houseNo?' · '+esc(m.houseNo):''}${m.village?' · '+esc(m.village):''}
+          </div>
+          ${m.phone?`<div style="font-size:11px;color:var(--gray-400);margin-top:1px"><i class="ti ti-phone" style="font-size:10px"></i> ${esc(m.phone)}</div>`:''}
         </div>
-      </div></td>
-      <td class="text-muted">${esc(m.village)}</td>
-      <td><div class="mono">${esc(m.meter)}</div><div class="text-muted" style="font-size:11px">${esc(msize)}${m.meterBrand?' · '+esc(m.meterBrand):''}</div></td>
-      <td>${Number(m.lastRead).toLocaleString()} m³</td>
-      <td><span class="pill ${st.cls}">${st.label}</span></td>
-      <td><div style="display:flex;gap:5px;justify-content:flex-end">
-        ${actionBtn}
-        <button class="btn-icon" data-mid="${m.id}" data-act="meter"  aria-label="จดมิเตอร์ ${full}" title="จดมิเตอร์"><i class="ti ti-gauge"></i></button>
-        <button class="btn-icon" data-mid="${m.id}" data-act="edit"   aria-label="แก้ไข ${full}" title="แก้ไข"><i class="ti ti-edit"></i></button>
-        <button class="btn-icon" data-mid="${m.id}" data-act="delete" aria-label="ลบ ${full}" title="ลบ" style="color:var(--red-700);border-color:var(--red-100)"><i class="ti ti-trash"></i></button>
-      </div></td>
-    </tr>`;
-  }).join('');
+        <div style="min-width:94px">
+          <div class="mono" style="font-size:12.5px;font-weight:600;color:var(--blue-900)">${esc(m.meter)}</div>
+          <div class="text-muted" style="font-size:11px">${esc(msize)}${m.meterBrand?' · '+esc(m.meterBrand):''}</div>
+        </div>
+        <div style="min-width:85px;text-align:right">
+          <div style="font-size:13px;font-weight:600">${Number(m.lastRead).toLocaleString()} <span style="font-size:10.5px;font-weight:400;color:var(--gray-500)">m³</span></div>
+          <div class="text-muted" style="font-size:11px">${lastDate}</div>
+        </div>
+        <div style="min-width:70px;text-align:center">
+          <span class="pill ${st.cls}" style="font-size:11px">${st.label}</span>
+        </div>
+        <div style="display:flex;gap:4px;flex-shrink:0">
+          ${actionBtn}
+          <button class="btn-icon" data-mid="${m.id}" data-act="meter"  title="จดมิเตอร์"><i class="ti ti-gauge"></i></button>
+          <button class="btn-icon" data-mid="${m.id}" data-act="edit"   title="แก้ไข"><i class="ti ti-edit"></i></button>
+          <button class="btn-icon" data-mid="${m.id}" data-act="delete" title="ลบ" style="color:var(--red-700);border-color:var(--red-100)"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
   const footer = document.getElementById('members-count-footer');
   if (footer) footer.textContent = `แสดง ${filtered.length} จาก ${members.length} รายการ`;
 }

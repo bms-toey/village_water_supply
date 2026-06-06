@@ -249,20 +249,10 @@
         <select class="fselect"><option>สถานะทั้งหมด</option><option>ปกติ</option><option>ค้างชำระ</option><option>ปิดมิเตอร์</option></select>
         <button class="btn btn-secondary btn-sm" onclick="exportMembersCSV()"><i class="ti ti-download"></i>Export CSV</button>
       </div>
-      <div class="card">
-        <div class="tbl-wrap">
-          <table>
-            <thead><tr><th>สมาชิก</th><th>หมู่บ้าน</th><th>มิเตอร์</th><th>อ่านล่าสุด</th><th>สถานะ</th><th style="text-align:right">จัดการ</th></tr></thead>
-            <tbody id="members-tbody"></tbody>
-          </table>
-        </div>
+      <div class="card" style="padding:0">
+        <div id="members-card-list" style="display:flex;flex-direction:column;gap:6px;padding:10px 10px 4px"></div>
         <div class="tbl-footer">
           <span id="members-count-footer">แสดง...</span>
-          <div class="tbl-pagination">
-            <div class="pg-btn"><i class="ti ti-chevron-left" style="font-size:13px"></i></div>
-            <div class="pg-btn active">1</div>
-            <div class="pg-btn"><i class="ti ti-chevron-right" style="font-size:13px"></i></div>
-          </div>
         </div>
       </div>
     </div>
