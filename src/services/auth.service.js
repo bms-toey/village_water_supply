@@ -111,6 +111,9 @@ export async function loadCurrentProfile() {
   if (bnavName)   bnavName.textContent   = data.full_name;
   if (bnavRole)   bnavRole.textContent   = roleLabels[data.role] || data.role;
   if (bnavAvatar) bnavAvatar.textContent = initials;
+
+  const topbarAvatar = document.getElementById('topbar-user-avatar');
+  if (topbarAvatar) topbarAvatar.textContent = initials;
 }
 
 // ─── App Init (called after auth) ────────────────────────────
