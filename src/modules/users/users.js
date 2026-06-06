@@ -19,7 +19,10 @@ export async function renderUsers() {
     document.getElementById('page-users')?.classList.remove('active');
     return;
   }
-  await _loadAllUsers();
+  const tbody = document.getElementById('users-tbody');
+  if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--gray-400);padding:24px"><i class="ti ti-loader-2" style="animation:spin .8s linear infinite"></i> กำลังโหลด...</td></tr>';
+  const ok = await _loadAllUsers();
+  if (!ok) return;
   _renderUserTable();
   _renderUserKPIs();
 }
@@ -30,9 +33,10 @@ async function _loadAllUsers() {
     console.error('[users] get_all_users:', error);
     const tbody = document.getElementById('users-tbody');
     if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--red-600);padding:24px">โหลดข้อมูลไม่ได้: ${esc(error.message)}</td></tr>`;
-    return;
+    return false;
   }
   _allUsers = data || [];
+  return true;
 }
 
 function _renderUserKPIs() {
