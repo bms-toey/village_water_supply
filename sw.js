@@ -15,8 +15,7 @@ self.addEventListener('install', event => {
       .then(cache => cache.addAll(['/', '/index.html', '/manifest.json']))
       .catch(() => {})
   );
-  // Take control immediately — client will reload to login on controllerchange
-  self.skipWaiting();
+  // Wait for all tabs to close before activating (no forced logout)
 });
 
 // ─── Activate ─────────────────────────────────────────────────

@@ -1599,19 +1599,9 @@ if ('serviceWorker' in navigator) {
 
     _swReg.addEventListener('updatefound', _onUpdateFound);
 
-    // Check for waiting SW on every page focus (catches updates that arrived while tab was open)
+    // Check for waiting SW on every page focus
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') _swReg.update().catch(() => {});
-    });
-
-    // ── When SW changes controller → sign out and reload to login ──
-    let _reloading = false;
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (_reloading) return;
-      _reloading = true;
-      // Flag tells auth.service to force sign-out on next checkSession()
-      sessionStorage.setItem('_sw_force_logout', '1');
-      window.location.reload();
     });
   });
 }

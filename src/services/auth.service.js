@@ -161,15 +161,6 @@ export async function _initApp() {
 
 // ─── Session Check ────────────────────────────────────────────
 export async function checkSession() {
-  // SW just updated — force sign out so user starts fresh with new code
-  if (sessionStorage.getItem('_sw_force_logout')) {
-    sessionStorage.removeItem('_sw_force_logout');
-    await _sb.auth.signOut().catch(() => {});
-    _hideLoadingOverlay();
-    document.getElementById('auth-overlay').style.display = 'flex';
-    return;
-  }
-
   const { data: { session } } = await _sb.auth.getSession();
   if (session) {
     currentUser = session.user;
