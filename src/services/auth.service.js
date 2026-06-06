@@ -116,9 +116,15 @@ export function registerRenderCallbacks(callbacks) {
 
 export async function _initApp() {
   _showLoadingOverlay('กำลังโหลดข้อมูล...');
-  await loadCurrentProfile();
-  const ok = await loadAllFromSupabase();
-  _hideLoadingOverlay();
+  let ok = false;
+  try {
+    await loadCurrentProfile();
+    ok = await loadAllFromSupabase();
+  } catch (e) {
+    console.error('[initApp] unexpected error:', e);
+  } finally {
+    _hideLoadingOverlay();
+  }
 
   if (!ok) {
     loadFromStorage();
@@ -141,7 +147,6 @@ export async function _initApp() {
 
   if (_renderCallbacks) {
     const r = _renderCallbacks;
-    // Populate all village dropdowns from DB first (before rendering forms)
     r.populateVillageDropdowns?.();
     r.renderDashboard();
     r.renderMembers();

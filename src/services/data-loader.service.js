@@ -25,7 +25,7 @@ function _sbErr(label, error) {
 // ─── Load All ────────────────────────────────────────────────
 export async function loadAllFromSupabase() {
   try {
-    const [rv, rm, rb, rp, rr, rt, rn, rwp, rwq, rmr] = await Promise.all([
+    const [rv, rm, rb, rp, rr, rt, rn, rwp, rwq] = await Promise.all([
       _sb.from('villages').select('*').order('moo_number'),
       _sb.from('members').select('*').eq('is_deleted', false).order('id'),
       _sb.from('bills').select('*').order('period_year', { ascending: false }).order('period_month', { ascending: false }),
@@ -35,7 +35,6 @@ export async function loadAllFromSupabase() {
       _sb.from('maintenance_jobs').select('*').order('created_at', { ascending: false }),
       _sb.from('water_production').select('*').order('period_year', { ascending: false }),
       _sb.from('water_quality').select('*').order('test_date', { ascending: false }),
-      _sb.from('meter_replacements').select('*').order('replaced_at', { ascending: false }),
     ]);
 
     if (rv.error || rm.error) {
@@ -48,21 +47,12 @@ export async function loadAllFromSupabase() {
     appState.bills           = (rb.data  || []).map(_bFromDB);
     appState.payments        = (rp.data  || []).map(_pFromDB);
     appState.meterReadings   = (rr.data  || []).map(_rFromDB);
-    appState.maintenance       = (rn.data  || []).map(_ntFromDB);
-    appState.waterProduction   = rwp.data  || [];
-    appState.waterQuality      = rwq.data  || [];
-    appState.meterReplacements = (rmr.data || []).map(r => ({
-      id:          r.id,
-      memberId:    r.member_id,
-      oldMeterNo:  r.old_meter_no,
-      newMeterNo:  r.new_meter_no,
-      oldReading:  parseFloat(r.old_reading) || 0,
-      newReading:  parseFloat(r.new_reading) || 0,
-      replacedAt:  r.replaced_at,
-      replacedBy:  r.replaced_by || '',
-      reason:      r.reason      || '',
-      note:        r.note        || '',
-    }));
+    appState.maintenance     = (rn.data  || []).map(_ntFromDB);
+    appState.waterProduction = rwp.data  || [];
+    appState.waterQuality    = rwq.data  || [];
+
+    // meter_replacements loaded separately (non-blocking) — table may not exist yet
+    _loadMeterReplacements();
 
     const tiers = rt.data || [];
     if (tiers.length) {
@@ -223,6 +213,29 @@ export function sbUpsertMaintenance(m) {
   _sb.from('maintenance_jobs').upsert(_ntToDB(m)).then(({ error }) => {
     if (error) _sbErr('upsertMaintenance', error);
   });
+}
+
+// ─── Meter Replacement Load (non-blocking) ───────────────────
+async function _loadMeterReplacements() {
+  try {
+    const { data, error } = await _sb.from('meter_replacements')
+      .select('*').order('replaced_at', { ascending: false });
+    if (error) { console.warn('[sb] meter_replacements:', error.message); return; }
+    appState.meterReplacements = (data || []).map(r => ({
+      id:         r.id,
+      memberId:   r.member_id,
+      oldMeterNo: r.old_meter_no,
+      newMeterNo: r.new_meter_no,
+      oldReading: parseFloat(r.old_reading) || 0,
+      newReading: parseFloat(r.new_reading) || 0,
+      replacedAt: r.replaced_at,
+      replacedBy: r.replaced_by || '',
+      reason:     r.reason      || '',
+      note:       r.note        || '',
+    }));
+  } catch (e) {
+    console.warn('[sb] meter_replacements load failed:', e);
+  }
 }
 
 // ─── Meter Replacement Write Helpers ─────────────────────────
