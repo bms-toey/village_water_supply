@@ -46,6 +46,16 @@
 .topbar-icon:hover{background:var(--gray-100);color:var(--blue-900)}
 .topbar-notif-dot{position:absolute;top:6px;right:6px;width:8px;height:8px;background:var(--red-700);border-radius:50%;border:2px solid #fff}
 .topbar-avatar{width:34px;height:34px;border-radius:50%;background:var(--blue-800);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;border:2px solid var(--gray-200)}
+/* ─── Realtime Status Indicator ─────────────── */
+.topbar-realtime{display:flex;align-items:center;gap:5px;cursor:pointer;padding:5px 10px;border-radius:20px;background:var(--gray-50);border:1px solid var(--gray-200);transition:var(--transition);white-space:nowrap;flex-shrink:0;user-select:none;-webkit-tap-highlight-color:transparent}
+.topbar-realtime:hover,.topbar-realtime:focus-visible{background:var(--blue-50);border-color:var(--blue-200);outline:none}
+.topbar-realtime:active{transform:scale(.97)}
+.rt-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;transition:background .4s}
+.rt-dot--on{background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.18)}
+.rt-dot--wait{background:#f59e0b}
+.rt-dot--off{background:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.18)}
+.rt-time{font-size:11px;color:var(--gray-500);font-family:'IBM Plex Mono',monospace;letter-spacing:.02em;min-width:52px;text-align:center}
+#rt-icon{font-size:13px;color:var(--gray-400)}
 
 /* โ”€โ”€โ”€ CONTENT AREA โ”€โ”€โ”€ */
 .content-area{flex:1;overflow-y:auto;overflow-x:hidden;background:var(--surface);padding:28px 32px 40px;max-width:100%}

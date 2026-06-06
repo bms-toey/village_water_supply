@@ -97,6 +97,11 @@
     </div>
     <div class="topbar-icon" role="button" aria-label="การแจ้งเตือน"><i class="ti ti-bell"></i><div class="topbar-notif-dot"></div></div>
     <div class="topbar-icon" role="button" aria-label="หมู่บ้าน"><i class="ti ti-building-community"></i></div>
+    <div class="topbar-realtime" id="topbar-realtime" role="button" tabindex="0" aria-label="รีเฟรชข้อมูล" title="คลิกเพื่อรีเฟรชข้อมูล" onclick="window._manualRefresh?.()" onkeydown="if(event.key==='Enter')window._manualRefresh?.()">
+      <span class="rt-dot rt-dot--wait" id="rt-dot"></span>
+      <span class="rt-time" id="rt-time">--:--:--</span>
+      <i class="ti ti-refresh" id="rt-icon"></i>
+    </div>
     <div class="topbar-avatar">AD</div>
   </div>
 

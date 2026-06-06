@@ -21,6 +21,7 @@ import { appState } from './state/app.state.js';
 
 // ─── Services ────────────────────────────────────────────────
 import { doSignIn, doSignOut, checkSession, registerRenderCallbacks, openChangePwdModal, closeChangePwdModal, doChangePassword } from './services/auth.service.js';
+import { initRealtime, manualRefresh } from './services/realtime.service.js';
 
 // ─── Navigation ───────────────────────────────────────────────
 import { goPage, setTab, initNavigation, closeMobileSidebar } from './components/navigation/navigation.js';
@@ -71,7 +72,7 @@ import { renderUsers, openAddUser, openEditUser, closeUserModal, saveUser, toggl
 import { portalSearch } from './modules/portal/portal.js';
 
 // ─── Register render callbacks with auth (avoid circular import) ───
-registerRenderCallbacks({
+const _renderCbs = {
   renderDashboard,
   renderMembers,
   populateBillingFilters,
@@ -82,7 +83,11 @@ registerRenderCallbacks({
   renderMaintenance,
   populateVillageDropdowns,
   renderSettings,
-});
+};
+registerRenderCallbacks(_renderCbs);
+
+// ─── Realtime subscription ────────────────────────────────────
+initRealtime(_renderCbs);
 
 // ─── goPage override — trigger renders on navigation ─────────
 const _origGoPage = goPage;
@@ -257,6 +262,8 @@ Object.assign(window, {
   portalSearch,
   // utils
   toast, showConfirm,
+  // realtime
+  _manualRefresh: manualRefresh,
 });
 
 // ─── Bootstrap ───────────────────────────────────────────────

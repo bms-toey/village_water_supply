@@ -114,6 +114,9 @@
   .topbar { padding: 0 16px; gap: 8px; }
   .topbar-search { display: none; }
   .topbar-breadcrumb { flex: 1; min-width: 0; }
+  /* Realtime indicator: show only dot + icon on mobile */
+  .rt-time { display: none; }
+  .topbar-realtime { padding: 6px 8px; gap: 4px; }
   .breadcrumb-page {
     overflow: hidden;
     text-overflow: ellipsis;

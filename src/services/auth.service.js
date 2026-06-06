@@ -165,6 +165,9 @@ export async function _initApp() {
     r.renderReports();
     r.renderMaintenance();
   }
+
+  // Signal realtime service to stamp last-updated time
+  window.dispatchEvent(new Event('aquaflow:data-ready'));
 }
 
 // ─── Session Check ────────────────────────────────────────────
