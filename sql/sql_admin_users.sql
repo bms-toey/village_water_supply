@@ -5,6 +5,9 @@
 -- รันทีละ block หรือรวดเดียวก็ได้
 -- ══════════════════════════════════════════════════════════════════
 
+-- ── pgcrypto สำหรับ crypt() / gen_salt() ─────────────────────────────
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
+
 -- ── 0. อัปเดต trigger สร้าง profile เมื่อ user ใหม่เข้าระบบ ──────────
 --    (version นี้รวม email + username + phone ครบถ้วน)
 CREATE OR REPLACE FUNCTION fn_handle_new_user()
@@ -123,7 +126,7 @@ BEGIN
     '00000000-0000-0000-0000-000000000000',
     'authenticated', 'authenticated',
     lower(trim(p_email)),
-    crypt(p_password, gen_salt('bf')),
+    extensions.crypt(p_password, extensions.gen_salt('bf')),
     now(),
     jsonb_build_object(
       'full_name', p_full_name,
@@ -178,7 +181,7 @@ BEGIN
   END IF;
 
   UPDATE auth.users
-  SET encrypted_password = crypt(p_password, gen_salt('bf')),
+  SET encrypted_password = extensions.crypt(p_password, extensions.gen_salt('bf')),
       updated_at         = now()
   WHERE id = p_user_id;
 
