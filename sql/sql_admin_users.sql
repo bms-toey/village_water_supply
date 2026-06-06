@@ -201,7 +201,7 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 BEGIN
-  IF (SELECT role FROM public.profiles WHERE id = auth.uid()) <> 'super_admin' THEN
+  IF (SELECT pr.role FROM public.profiles pr WHERE pr.id = auth.uid()) <> 'super_admin' THEN
     RAISE EXCEPTION 'Permission denied';
   END IF;
   RETURN QUERY
