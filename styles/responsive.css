@@ -341,9 +341,14 @@
     padding: 24px 20px calc(24px + env(safe-area-inset-bottom));
   }
 
-  /* ── KPI 1 column on very small ── */
-  .kpi-grid  { grid-template-columns: 1fr; }
-  .kpi-grid-3 { grid-template-columns: 1fr; }
+  /* ── KPI compact 2×2 on small screens (ทุกหน้า) ── */
+  .kpi-grid   { grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+  .kpi-grid-3 { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .kpi-card   { padding: 10px 12px; }
+  .kpi-icon   { display: none; }
+  .kpi-val    { font-size: 20px; }
+  .kpi-label  { font-size: 10px; margin-bottom: 3px; }
+  .kpi-footer { margin-top: 4px; }
   .report-grid { grid-template-columns: 1fr; }
 
   /* ── Payment channels: 2 column grid ── */
@@ -362,8 +367,8 @@
   .topbar { height: 46px; }
   .content-area { padding: 12px 10px calc(76px + env(safe-area-inset-bottom)); }
 
-  .kpi-grid    { grid-template-columns: 1fr; }
-  .kpi-grid-3  { grid-template-columns: 1fr; }
+  .kpi-grid    { grid-template-columns: 1fr 1fr; }
+  .kpi-grid-3  { grid-template-columns: 1fr 1fr; }
   .report-grid { grid-template-columns: 1fr; }
   .page-title  { font-size: 16px; }
 
@@ -385,23 +390,6 @@
    HAMBURGER: hide on desktop
 ════════════════════════════════════════════════════════════ */
 .btn-menu { display: none; }
-
-/* ═══════════════════════════════════════════════════════════
-   MEMBERS PAGE — KPI compact on mobile (ประหยัดพื้นที่หน้าจอ)
-════════════════════════════════════════════════════════════ */
-@media (max-width: 640px) {
-  /* 2×2 grid แทน 1×4 — ลดความสูงครึ่งหนึ่ง */
-  #page-members .kpi-grid {
-    grid-template-columns: 1fr 1fr !important;
-    gap: 8px;
-    margin-bottom: 14px;
-  }
-  #page-members .kpi-card  { padding: 10px 12px; }
-  #page-members .kpi-icon  { display: none; }
-  #page-members .kpi-val   { font-size: 20px; }
-  #page-members .kpi-label { font-size: 10px; margin-bottom: 3px; }
-  #page-members .kpi-footer{ margin-top: 4px; }
-}
 
 /* ═══════════════════════════════════════════════════════════
    MEMBER CARDS: responsive columns
