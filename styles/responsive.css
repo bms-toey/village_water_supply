@@ -428,6 +428,39 @@
 }
 
 /* ═══════════════════════════════════════════════════════════
+   GENERIC H-CARD: responsive columns
+════════════════════════════════════════════════════════════ */
+/* Payments: hide channel ≤1100px, hide time ≤768px */
+@media (max-width: 1100px) { .pch-channel { display: none; } }
+@media (max-width: 768px)  { .pch-time    { display: none; } }
+
+/* Debtors: hide rank number ≤768px */
+@media (max-width: 768px)  { .dch-rank { display: none; } }
+
+/* Maintenance: hide assigned ≤1100px, hide cost ≤768px */
+@media (max-width: 1100px) { .mnch-assigned { display: none; } }
+@media (max-width: 768px)  { .mnch-cost     { display: none; } }
+
+/* Meter replacements: hide note ≤1100px, hide replaced-by ≤768px */
+@media (max-width: 1100px) { .mrch-note { display: none; } }
+@media (max-width: 768px)  { .mrch-by   { display: none; } }
+
+/* Users: hide village ≤1100px */
+@media (max-width: 1100px) { .uch-village { display: none; } }
+
+/* All h-cards: wrap actions row on very narrow screens */
+@media (max-width: 560px) {
+  .h-card { flex-wrap: wrap; row-gap: 5px; }
+  .pch-info, .dch-info, .mnch-info, .mrch-info, .uch-info { flex: 1 1 0; min-width: 0; }
+  .pch-status, .dch-severity, .mnch-status, .uch-status { margin-left: auto; }
+  .pch-actions, .dch-actions, .mnch-actions, .uch-actions {
+    width: 100%; justify-content: flex-end;
+    border-top: 1px solid var(--gray-100); padding-top: 6px;
+  }
+  .mrch-reason, .mrch-meters { flex: 1 1 calc(50% - 6px); }
+}
+
+/* ═══════════════════════════════════════════════════════════
    MAP PAGE: responsive
 ════════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {

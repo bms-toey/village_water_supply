@@ -10,11 +10,11 @@ export function setDebtorSeverity(val) { _debtorSeverity = val; }
 
 export function renderDebtors() {
   const { bills, members } = appState;
-  const tbody = document.querySelector('#page-debtors .tbl-wrap table tbody');
-  if (!tbody) return;
+  const el = document.getElementById('debtors-card-list');
+  if (!el) return;
   const overdue = bills.filter(b => b.status === 'overdue');
   if (!overdue.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--gray-500);padding:24px">ไม่มีลูกหนี้</td></tr>';
+    el.innerHTML = `<div style="text-align:center;padding:48px 24px;color:var(--gray-400);font-size:14px"><i class="ti ti-circle-check" style="font-size:36px;margin-bottom:8px;display:block;color:var(--green-500)"></i>ไม่มีลูกหนี้ค้างชำระ</div>`;
     _updateDebtorKpis({});
     return;
   }
@@ -36,7 +36,7 @@ export function renderDebtors() {
       return true;
     });
   }
-  tbody.innerHTML = rows.map(([mid, info], idx) => {
+  el.innerHTML = rows.map(([mid, info], idx) => {
     const m        = members.find(x => x.id === parseInt(mid)) || {};
     const daysPast = Math.floor((today - new Date(info.oldest)) / 86400000);
     const months   = Math.ceil(daysPast / 30);
@@ -45,21 +45,24 @@ export function renderDebtors() {
     else if (months >= 2) { severityPill = 'pill-pending'; severityColor = '#d97706'; }
     else                  { severityPill = 'pill-normal';  severityColor = '#16a34a'; }
     const initials = getInitials(m.firstName || '', m.lastName || '');
-    return `<tr>
-      <td class="text-bold" style="color:${severityColor}">${String(idx+1).padStart(2,'0')}</td>
-      <td><div style="display:flex;align-items:center;gap:10px">
-        <div class="mavatar" style="width:32px;height:32px;font-size:10px;background:${severityColor}">${initials}</div>
-        <span class="text-bold">${esc(m.firstName||'')} ${esc(m.lastName||'')}</span>
-      </div></td>
-      <td class="text-muted">${esc(m.houseNo||'—')} ${esc(m.village||'')}</td>
-      <td class="${months>=3?'text-error':''} text-bold">฿${info.total.toLocaleString()}</td>
-      <td><span class="pill ${severityPill}">ค้าง ${months} เดือน</span></td>
-      <td><div style="display:flex;gap:5px;justify-content:flex-end">
+    return `<div class="h-card">
+      <div class="dch-rank" style="color:${severityColor}">${String(idx+1).padStart(2,'0')}</div>
+      <div class="mavatar" style="width:36px;height:36px;font-size:11px;background:${severityColor}">${initials}</div>
+      <div class="dch-info">
+        <div class="text-bold" style="font-size:13px">${esc(m.firstName||'')} ${esc(m.lastName||'')}</div>
+        <div class="text-muted" style="font-size:11.5px">${esc(m.houseNo||'—')} ${esc(m.village||'')}</div>
+      </div>
+      <div class="dch-debt">
+        <div class="${months>=3?'text-error':''} text-bold" style="font-size:16px">฿${info.total.toLocaleString()}</div>
+        <div class="text-muted" style="font-size:10.5px">${info.bills.length} บิล</div>
+      </div>
+      <div class="dch-severity"><span class="pill ${severityPill}" style="font-size:11px">ค้าง ${months} เดือน</span></div>
+      <div class="dch-actions">
         <button class="btn-icon" data-notify="${mid}" title="แจ้งเตือน"><i class="ti ti-bell-ringing"></i></button>
         <button class="btn-icon" title="ประวัติ" onclick="gotoMeter('${esc((m.firstName||'')+' '+(m.lastName||''))}','${esc(m.meter||'')}',${mid})"><i class="ti ti-history"></i></button>
         <button class="btn-icon" data-suspend="${mid}" title="ตัดน้ำ" style="color:var(--red-700);border-color:var(--red-100)"><i class="ti ti-droplet-off"></i></button>
-      </div></td>
-    </tr>`;
+      </div>
+    </div>`;
   }).join('');
   _updateDebtorKpis(grouped);
   document.querySelectorAll('#page-debtors [data-notify]').forEach(btn => {

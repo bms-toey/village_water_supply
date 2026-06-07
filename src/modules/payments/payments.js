@@ -22,34 +22,46 @@ const _channelMeta = {
 
 export function renderPayments() {
   const { payments, members, bills } = appState;
-  const tbody = document.querySelector('#page-payments .tbl-wrap table tbody');
-  if (!tbody) return;
+  const el = document.getElementById('payments-card-list');
+  if (!el) return;
   const sorted = [...payments].sort((a, b) => b.paidAt.localeCompare(a.paidAt));
   if (!sorted.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--gray-500);padding:24px">ไม่มีรายการ</td></tr>';
+    el.innerHTML = `<div style="text-align:center;padding:48px 24px;color:var(--gray-400);font-size:14px"><i class="ti ti-receipt-off" style="font-size:36px;margin-bottom:8px;display:block"></i>ไม่มีรายการ</div>`;
   } else {
-    tbody.innerHTML = sorted.map(p => {
+    el.innerHTML = sorted.map(p => {
       const m  = members.find(x => x.id === p.memberId) || {};
       const ch = channelMap[p.channel] || { label: p.channel, icon: 'ti-cash' };
       const st = payStatusMap[p.status] || payStatusMap.pending;
+      const [dateStr, timeStr] = p.paidAt.split(' ');
       let actionBtns;
       if (p.status === 'pending') {
         actionBtns = `<button class="btn btn-primary btn-xs" onclick="approvePayment('${p.id}')"><i class="ti ti-check"></i>อนุมัติ</button>
            <button class="btn btn-danger btn-xs" onclick="rejectPayment('${p.id}')">ปฏิเสธ</button>`;
       } else if (p.status === 'approved') {
-        actionBtns = `<button class="btn btn-secondary btn-xs" aria-label="พิมพ์ใบเสร็จ" onclick="printReceiptByPayment('${p.id}')" title="พิมพ์ใบเสร็จ"><i class="ti ti-printer"></i></button>
-           <button class="btn btn-xs" style="color:var(--red-600);border:1px solid var(--red-200);border-radius:var(--radius-sm);padding:3px 8px;background:#fff;cursor:pointer" aria-label="ยกเลิกใบเสร็จ" onclick="cancelPayment('${p.id}')" title="ยกเลิกใบเสร็จ"><i class="ti ti-ban"></i></button>`;
+        actionBtns = `<button class="btn btn-secondary btn-xs" onclick="printReceiptByPayment('${p.id}')" title="พิมพ์ใบเสร็จ"><i class="ti ti-printer"></i></button>
+           <button class="btn btn-xs" style="color:var(--red-600);border:1px solid var(--red-200);border-radius:var(--radius-sm);padding:3px 8px;background:#fff;cursor:pointer" onclick="cancelPayment('${p.id}')" title="ยกเลิก"><i class="ti ti-ban"></i></button>`;
       } else {
         actionBtns = `<span style="font-size:11px;color:var(--gray-400)">${p.status === 'cancelled' ? 'ยกเลิกแล้ว' : '—'}</span>`;
       }
-      return `<tr>
-        <td class="text-muted" style="font-size:12px">${p.paidAt}</td>
-        <td class="text-bold">${esc(m.firstName||'')} ${esc(m.lastName||'')}</td>
-        <td class="text-bold">฿${Number(p.amount).toLocaleString()}</td>
-        <td><span style="display:flex;align-items:center;gap:4px;font-size:12.5px"><i class="ti ${ch.icon}" style="color:var(--blue-500)"></i>${ch.label}</span></td>
-        <td><span class="pill ${st.cls}">${st.label}</span></td>
-        <td><div style="display:flex;gap:5px">${actionBtns}</div></td>
-      </tr>`;
+      return `<div class="h-card" style="opacity:${p.status==='cancelled'?.55:1}">
+        <div class="pch-time">
+          <div style="font-size:12px;font-weight:600;color:var(--gray-700)">${esc(dateStr||'—')}</div>
+          <div class="mono" style="font-size:10.5px;color:var(--gray-400)">${esc(timeStr||'')}</div>
+        </div>
+        <div class="pch-channel">
+          <i class="ti ${ch.icon}" style="font-size:20px;color:var(--blue-500)"></i>
+          <span>${esc(ch.label)}</span>
+        </div>
+        <div class="pch-info">
+          <div class="text-bold" style="font-size:13px">${esc(m.firstName||'')} ${esc(m.lastName||'')}</div>
+          <div class="text-muted" style="font-size:11px">${esc(p.billId||'—')}${p.receiptNo?' · <span class="mono">'+esc(p.receiptNo)+'</span>':''}</div>
+        </div>
+        <div class="pch-amount">
+          <div style="font-size:17px;font-weight:800;color:var(--blue-900)">฿${Number(p.amount).toLocaleString()}</div>
+        </div>
+        <div class="pch-status"><span class="pill ${st.cls}" style="font-size:11px">${st.label}</span></div>
+        <div class="pch-actions">${actionBtns}</div>
+      </div>`;
     }).join('');
   }
   const todayStr   = new Date().toISOString().split('T')[0];

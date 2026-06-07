@@ -28,8 +28,8 @@ export function setMntTab(tab) {
 
 export function renderMaintenance() {
   const { maintenance, members } = appState;
-  const tbody = document.querySelector('#page-maintenance .tbl-wrap table tbody');
-  if (!tbody) return;
+  const el = document.getElementById('mnt-jobs-card-list');
+  if (!el) return;
   const totalCost = maintenance.reduce((s, x) => s + (x.cost || 0), 0);
   const pending   = maintenance.filter(x => x.status === 'pending').length;
   const inProg    = maintenance.filter(x => x.status === 'in_progress').length;
@@ -41,31 +41,42 @@ export function renderMaintenance() {
   const badge = document.getElementById('mnt-badge');
   if (badge) badge.textContent = (pending + inProg) || '';
   if (!maintenance.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--gray-500);padding:24px">ไม่มีรายการซ่อมบำรุง</td></tr>';
+    el.innerHTML = `<div style="text-align:center;padding:48px 24px;color:var(--gray-400);font-size:14px"><i class="ti ti-tool" style="font-size:36px;margin-bottom:8px;display:block"></i>ไม่มีรายการซ่อมบำรุง</div>`;
+    const footer = document.getElementById('mnt-jobs-footer')?.querySelector('span');
+    if (footer) footer.textContent = 'ไม่มีรายการ';
     return;
   }
   const sorted = [...maintenance].sort((a, b) => {
     const order = { in_progress: 0, pending: 1, completed: 2, cancelled: 3 };
     return (order[a.status]??9) - (order[b.status]??9) || b.reportedDate.localeCompare(a.reportedDate);
   });
-  tbody.innerHTML = sorted.map(item => {
+  el.innerHTML = sorted.map(item => {
     const type     = getMaintenanceTypeDisplay(item.type);
     const status   = maintenanceStatusMap[item.status] || maintenanceStatusMap.pending;
     const reporter = item.reportedMemberId ? (members.find(m => m.id === item.reportedMemberId) || {}) : null;
-    const actionBtns = item.status !== 'completed' && item.status !== 'cancelled'
+    const isDone   = item.status === 'completed' || item.status === 'cancelled';
+    const doneBtn  = !isDone
       ? `<button class="btn btn-primary btn-xs" onclick="completeMaintenance('${esc(item.id)}')"><i class="ti ti-check"></i>เสร็จแล้ว</button>`
       : '';
-    return `<tr>
-      <td class="mono text-muted" style="font-size:10.5px">${esc(item.id)}</td>
-      <td><span class="pill ${type.cls}" style="font-size:10.5px;padding:2px 8px"><i class="ti ${type.icon}" style="font-size:11px;margin-right:3px"></i>${type.label}</span></td>
-      <td><div class="text-bold" style="font-size:13px">${esc(item.description)}</div><div class="text-muted" style="font-size:11px">${esc(item.location||'—')}${reporter?' · รายงานโดย '+esc((reporter.firstName||'')+' '+(reporter.lastName||''))  :''}</div></td>
-      <td class="text-muted" style="font-size:12px">${esc(item.assignedTo||'ยังไม่มอบหมาย')}</td>
-      <td><span class="pill ${status.cls}">${status.label}</span></td>
-      <td class="text-bold" style="font-size:13px">${item.cost?'฿'+item.cost.toLocaleString():'—'}</td>
-      <td><div style="display:flex;gap:5px;justify-content:flex-end">${actionBtns}<button class="btn-icon" title="แก้ไข" onclick="openEditMaintenance('${esc(item.id)}')"><i class="ti ti-edit"></i></button></div></td>
-    </tr>`;
+    return `<div class="h-card" style="opacity:${isDone?.65:1}">
+      <div class="mnch-type">
+        <span class="pill ${type.cls}" style="padding:2px 7px;white-space:nowrap"><i class="ti ${type.icon}" style="font-size:11px;margin-right:3px"></i>${type.label}</span>
+        <div class="mono text-muted" style="font-size:10px;margin-top:3px">${esc(item.id)}</div>
+      </div>
+      <div class="mnch-info">
+        <div class="text-bold" style="font-size:13px">${esc(item.description)}</div>
+        <div class="text-muted" style="font-size:11px">${esc(item.location||'—')}${item.reportedDate?' · '+item.reportedDate:''}${reporter?' · โดย '+esc((reporter.firstName||'')+' '+(reporter.lastName||''))  :''}</div>
+      </div>
+      <div class="mnch-assigned">${esc(item.assignedTo||'ยังไม่มอบหมาย')}</div>
+      <div class="mnch-status"><span class="pill ${status.cls}" style="font-size:11px">${status.label}</span></div>
+      <div class="mnch-cost">${item.cost?'฿'+item.cost.toLocaleString():'—'}</div>
+      <div class="mnch-actions">
+        ${doneBtn}
+        <button class="btn-icon" title="แก้ไข" onclick="openEditMaintenance('${esc(item.id)}')"><i class="ti ti-edit"></i></button>
+      </div>
+    </div>`;
   }).join('');
-  const footer = document.querySelector('#page-maintenance .tbl-footer span');
+  const footer = document.getElementById('mnt-jobs-footer')?.querySelector('span');
   if (footer) footer.textContent = `แสดง 1–${sorted.length} จาก ${maintenance.length} รายการ`;
 }
 
@@ -141,31 +152,37 @@ function _saveMaintenanceToStorage() {
 
 // ─── Meter Replacement Log ────────────────────────────────────
 function _renderReplacements() {
-  const tbody = document.querySelector('#mnt-replacements-section table tbody');
-  if (!tbody) return;
+  const el = document.getElementById('mnt-replace-card-list');
+  if (!el) return;
   const { meterReplacements, members } = appState;
   const sorted = [...meterReplacements].sort((a, b) => b.replacedAt.localeCompare(a.replacedAt));
   if (!sorted.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--gray-500);padding:24px">ยังไม่มีประวัติการเปลี่ยนมิเตอร์</td></tr>';
+    el.innerHTML = `<div style="text-align:center;padding:48px 24px;color:var(--gray-400);font-size:14px"><i class="ti ti-replace" style="font-size:36px;margin-bottom:8px;display:block"></i>ยังไม่มีประวัติการเปลี่ยนมิเตอร์</div>`;
+    const foot = document.getElementById('mnt-replace-footer')?.querySelector('span');
+    if (foot) foot.textContent = 'ไม่มีรายการ';
+    const kpi = document.getElementById('mnt-replace-count');
+    if (kpi) kpi.textContent = '0 ครั้ง';
     return;
   }
   const reasonLabel = { broken: 'ชำรุด', expired: 'ครบอายุการใช้งาน', stolen: 'ถูกขโมย', other: 'อื่น ๆ' };
-  tbody.innerHTML = sorted.map(r => {
+  el.innerHTML = sorted.map(r => {
     const m = members.find(x => x.id === r.memberId) || {};
-    return `<tr>
-      <td style="font-size:12px;color:var(--gray-500)">${esc(r.replacedAt)}</td>
-      <td>
-        <div class="text-bold" style="font-size:13px">${esc((m.firstName||''))} ${esc((m.lastName||''))}</div>
+    return `<div class="h-card">
+      <div class="mrch-date">${esc(r.replacedAt)}</div>
+      <div class="mrch-info">
+        <div class="text-bold" style="font-size:13px">${esc(m.firstName||'')} ${esc(m.lastName||'')}</div>
         <div class="text-muted" style="font-size:11px">${esc(m.houseNo||'')} ${esc(m.village||'')}</div>
-      </td>
-      <td><span class="mono" style="font-size:12px">${esc(r.oldMeterNo)}</span><div class="text-muted" style="font-size:11px">อ่าน: ${r.oldReading.toLocaleString()} m³</div></td>
-      <td><span class="mono" style="font-size:12px">${esc(r.newMeterNo)}</span><div class="text-muted" style="font-size:11px">เริ่ม: ${r.newReading.toLocaleString()} m³</div></td>
-      <td style="font-size:12.5px">${esc(reasonLabel[r.reason] || r.reason || '—')}</td>
-      <td style="font-size:12px;color:var(--gray-600)">${esc(r.replacedBy || '—')}</td>
-      <td style="font-size:11.5px;color:var(--gray-500)">${esc(r.note || '—')}</td>
-    </tr>`;
+      </div>
+      <div class="mrch-meters">
+        <div class="mono" style="font-size:12px">${esc(r.oldMeterNo)} <i class="ti ti-arrow-right" style="font-size:10px"></i> ${esc(r.newMeterNo)}</div>
+        <div class="text-muted" style="font-size:10.5px">${r.oldReading.toLocaleString()} → ${r.newReading.toLocaleString()} m³</div>
+      </div>
+      <div class="mrch-reason">${esc(reasonLabel[r.reason] || r.reason || '—')}</div>
+      <div class="mrch-by">${esc(r.replacedBy || '—')}</div>
+      <div class="mrch-note">${esc(r.note || '—')}</div>
+    </div>`;
   }).join('');
-  const foot = document.querySelector('#mnt-replacements-section .tbl-footer span');
+  const foot = document.getElementById('mnt-replace-footer')?.querySelector('span');
   if (foot) foot.textContent = `แสดง 1–${sorted.length} จาก ${sorted.length} รายการ`;
   const kpi = document.getElementById('mnt-replace-count');
   if (kpi) kpi.textContent = meterReplacements.length + ' ครั้ง';

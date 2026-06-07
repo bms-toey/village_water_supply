@@ -411,13 +411,8 @@
             <div class="card-title"><i class="ti ti-activity" style="color:var(--blue-500)"></i>รายการชำระเงินล่าสุด</div>
             <div style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;background:var(--green-700);border-radius:50%;display:inline-block;animation:pulse 1.5s infinite"></span><span class="text-muted" style="font-size:11.5px">Real-time</span></div>
           </div>
-          <div class="tbl-wrap">
-            <table>
-              <thead><tr><th>วัน/เวลา</th><th>ผู้ใช้น้ำ</th><th>ยอดเงิน</th><th>ช่องทาง</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
-              <tbody></tbody>
-            </table>
-          </div>
-          <div class="tbl-footer"><span>แสดง...</span><div class="tbl-pagination"><div class="pg-btn active">1</div></div></div>
+          <div id="payments-card-list" class="h-card-list"></div>
+          <div class="tbl-footer"><span>แสดง...</span></div>
         </div>
         <div style="display:flex;flex-direction:column;gap:14px">
           <div class="card" style="background:var(--blue-900);border-color:var(--blue-800)">
@@ -474,12 +469,7 @@
             <select id="debtor-severity-select" class="fselect" style="font-size:12px;padding:6px 10px"><option>ทุกสถานะ</option><option>ค้าง 1 เดือน</option><option>ค้าง 2 เดือน</option><option>ค้างเกิน 3 เดือน</option></select>
           </div>
         </div>
-        <div class="tbl-wrap">
-          <table>
-            <thead><tr><th>#</th><th>ชื่อ-นามสกุล</th><th>บ้านเลขที่</th><th>ยอดค้าง</th><th>ระยะเวลา</th><th style="text-align:right">การจัดการ</th></tr></thead>
-            <tbody></tbody>
-          </table>
-        </div>
+        <div id="debtors-card-list" class="h-card-list"></div>
         <div class="tbl-footer">
           <span>แสดง...</span>
           <span class="card-link" onclick="goPage('reports')">ออกรายงานลูกหนี้ <i class="ti ti-arrow-right"></i></span>
@@ -616,13 +606,8 @@
           <div class="kpi-card"><div class="kpi-icon" style="background:var(--cyan-50);color:var(--cyan-800)"><i class="ti ti-coin"></i></div><div class="kpi-label">ค่าใช้จ่ายรวม</div><div class="kpi-val" style="color:var(--cyan-800)">—</div></div>
         </div>
         <div class="card">
-          <div class="tbl-wrap">
-            <table>
-              <thead><tr><th>รหัส</th><th>ประเภท</th><th>รายละเอียด</th><th>ผู้รับผิดชอบ</th><th>สถานะ</th><th>ค่าใช้จ่าย</th><th style="text-align:right">จัดการ</th></tr></thead>
-              <tbody></tbody>
-            </table>
-          </div>
-          <div class="tbl-footer"><span>แสดง...</span></div>
+          <div id="mnt-jobs-card-list" class="h-card-list"></div>
+          <div class="tbl-footer" id="mnt-jobs-footer"><span>แสดง...</span></div>
         </div>
       </div>
 
@@ -632,21 +617,8 @@
           <div class="kpi-card"><div class="kpi-icon" style="background:var(--blue-50);color:var(--blue-700)"><i class="ti ti-replace"></i></div><div class="kpi-label">เปลี่ยนมิเตอร์ทั้งหมด</div><div class="kpi-val text-primary" id="mnt-replace-count">—</div></div>
         </div>
         <div class="card">
-          <div class="tbl-wrap">
-            <table>
-              <thead><tr>
-                <th>วันที่เปลี่ยน</th>
-                <th>สมาชิก</th>
-                <th>มิเตอร์เก่า</th>
-                <th>มิเตอร์ใหม่</th>
-                <th>เหตุผล</th>
-                <th>ผู้ดำเนินการ</th>
-                <th>หมายเหตุ</th>
-              </tr></thead>
-              <tbody></tbody>
-            </table>
-          </div>
-          <div class="tbl-footer"><span>แสดง...</span></div>
+          <div id="mnt-replace-card-list" class="h-card-list"></div>
+          <div class="tbl-footer" id="mnt-replace-footer"><span>แสดง...</span></div>
         </div>
       </div>
     </div>
@@ -669,12 +641,7 @@
         <div class="kpi-card" style="cursor:default"><div class="kpi-icon" style="background:var(--amber-100);color:var(--amber-700)"><i class="ti ti-circle-check"></i></div><div class="kpi-label">ใช้งานอยู่</div><div class="kpi-val" style="color:var(--amber-700)">—</div></div>
       </div>
       <div class="card">
-        <div class="tbl-wrap">
-          <table>
-            <thead><tr><th>ชื่อ-นามสกุล</th><th>Username</th><th>เบอร์โทร</th><th>บทบาท</th><th>หมู่บ้าน</th><th>สถานะ</th><th style="text-align:right">จัดการ</th></tr></thead>
-            <tbody id="users-tbody"></tbody>
-          </table>
-        </div>
+        <div id="users-card-list" class="h-card-list"></div>
         <div class="tbl-footer"><span></span></div>
       </div>
     </div>
