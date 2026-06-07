@@ -4,7 +4,7 @@ import { esc, toast } from '../../utils/dom.util.js';
 import { currentPeriod, nextBillNo } from '../../utils/date.util.js';
 import { calcWaterCharge, calcWaterBreakdown } from '../../config/rate.config.js';
 import { anomalyMap, methodMap } from '../../config/ui.config.js';
-import { sbUpsertReading, sbUpsertBill, sbUpdateMember } from '../../services/data-loader.service.js';
+import { sbUpsertReading, sbDeleteReading, sbUpsertBill, sbUpdateMember } from '../../services/data-loader.service.js';
 import { saveToStorage } from '../../services/storage.service.js';
 import { goPage } from '../../components/navigation/navigation.js';
 import { _dbVillages } from '../../services/db-mapper.service.js';
@@ -189,7 +189,12 @@ export function renderMeter(searchOverride) {
 
   const q         = _meterSearch.toLowerCase().trim();
   const allActive = members.filter(m => m.status !== 'closed');
-  const readSet   = new Set(meterReadings.filter(r => r.period === period).map(r => r.memberId));
+  const readSet   = new Set(
+    meterReadings
+      .filter(r => r.period === period)
+      .filter(r => { const b = appState.bills.find(x => x.id === r.billId); return b && b.status !== 'cancelled'; })
+      .map(r => r.memberId)
+  );
 
   // ── Global progress counts ──────────────────────────────────
   const totalAll   = allActive.length;
@@ -358,6 +363,7 @@ export function renderMeter(searchOverride) {
                 const seq     = villageSeqMap.get(m.id) || '—';
                 const reading = meterReadings.find(r => r.memberId === m.id && r.period === period);
                 const newRead = reading ? Number(reading.newRead).toLocaleString() : null;
+                const dispPrev = _effectivePrev(m.id);
                 const borderColor = done ? 'var(--green-400)' : 'var(--amber-400)';
                 return `
                 <div onclick="gotoMeter('${esc(m.firstName+' '+m.lastName)}','${esc(m.meter||'')}',${m.id})"
@@ -394,7 +400,7 @@ export function renderMeter(searchOverride) {
                       <span style="font-family:'IBM Plex Mono',monospace;color:var(--blue-600);font-size:11.5px">${esc(m.meter||'—')}</span>
                       ${done && newRead
                         ? `<span style="color:var(--green-700);font-weight:600">${Number(m.lastRead).toLocaleString()} → <b>${newRead}</b></span>`
-                        : `<span>ล่าสุด: <b style="color:var(--gray-700)">${Number(m.lastRead).toLocaleString()}</b></span>`
+                        : `<span>ล่าสุด: <b style="color:var(--gray-700)">${dispPrev.toLocaleString()}</b></span>`
                       }
                     </div>
                   </div>
@@ -415,25 +421,26 @@ export function renderMeter(searchOverride) {
   ${pendingAll > 0 ? `
   <button onclick="window._gotoNextPending()"
     onpointerdown="this.style.transform='scale(.93)'" onpointerup="this.style.transform=''" onpointercancel="this.style.transform=''"
-    style="position:fixed;bottom:20px;right:16px;z-index:800;
-      background:linear-gradient(135deg,var(--blue-600),var(--blue-500));
-      color:#fff;border:none;border-radius:24px;
-      padding:14px 22px;font-size:15px;font-weight:700;
-      display:flex;align-items:center;gap:9px;
-      box-shadow:0 4px 18px rgba(59,130,246,.5);
-      cursor:pointer;transition:transform .12s;-webkit-tap-highlight-color:transparent">
-    <i class="ti ti-player-skip-forward" style="font-size:17px"></i>
+    style="position:fixed;bottom:24px;right:18px;z-index:800;
+      background:#1d4ed8;
+      color:#fff;border:3px solid #fff;border-radius:32px;
+      padding:16px 26px;font-size:16px;font-weight:800;
+      display:flex;align-items:center;gap:10px;
+      box-shadow:0 6px 24px rgba(0,0,0,.35),0 2px 8px rgba(29,78,216,.6);
+      cursor:pointer;transition:transform .12s;-webkit-tap-highlight-color:transparent;
+      letter-spacing:.3px">
+    <i class="ti ti-player-skip-forward" style="font-size:20px"></i>
     จดถัดไป
-    <span style="background:rgba(255,255,255,.25);border-radius:16px;padding:2px 9px;font-size:12.5px">
+    <span style="background:#fff;color:#1d4ed8;border-radius:20px;padding:3px 11px;font-size:13px;font-weight:900">
       ${pendingAll}
     </span>
   </button>` : `
-  <div style="position:fixed;bottom:20px;right:16px;z-index:800;
-    background:var(--green-500);color:#fff;border-radius:24px;
-    padding:12px 20px;font-size:14px;font-weight:700;
-    display:flex;align-items:center;gap:8px;
-    box-shadow:0 4px 18px rgba(34,197,94,.4)">
-    <i class="ti ti-circle-check" style="font-size:18px"></i>
+  <div style="position:fixed;bottom:24px;right:18px;z-index:800;
+    background:#16a34a;color:#fff;border:3px solid #fff;border-radius:32px;
+    padding:15px 24px;font-size:15px;font-weight:800;
+    display:flex;align-items:center;gap:9px;
+    box-shadow:0 6px 24px rgba(0,0,0,.3),0 2px 8px rgba(22,163,74,.5)">
+    <i class="ti ti-circle-check" style="font-size:20px"></i>
     จดครบแล้ว!
   </div>`}
   `;
@@ -442,7 +449,12 @@ export function renderMeter(searchOverride) {
 // FAB: ข้ามไปสมาชิกถัดไปที่ยังไม่จด (เรียงตามลำดับหมู่บ้าน → บ้านเลขที่)
 window._gotoNextPending = function () {
   const period  = currentPeriod();
-  const readSet = new Set(appState.meterReadings.filter(r => r.period === period).map(r => r.memberId));
+  const readSet = new Set(
+    appState.meterReadings
+      .filter(r => r.period === period)
+      .filter(r => { const b = appState.bills.find(x => x.id === r.billId); return b && b.status !== 'cancelled'; })
+      .map(r => r.memberId)
+  );
   const pending = appState.members.filter(m => m.status !== 'closed' && !readSet.has(m.id));
   if (!pending.length) return;
   const villMooMap = {};
@@ -464,9 +476,8 @@ export function gotoMeter(name, meterId, memberId) {
   if (inp) { inp.value = ''; calcMeter(''); }
   _resetMeterPhoto();
   if (memberId) {
-    const m = appState.members.find(x => x.id === memberId);
     const prevEl = document.getElementById('m-prev');
-    if (prevEl && m) prevEl.textContent = Number(m.lastRead).toLocaleString();
+    if (prevEl) prevEl.textContent = _effectivePrev(memberId).toLocaleString();
     renderMeterHistory(memberId);
   }
   const listEl    = document.getElementById('meter-member-list');
@@ -499,7 +510,7 @@ export function resetMeterSelection() {
 export function calcMeter(val) {
   const { currentMeterMemberId, members } = appState;
   const member = currentMeterMemberId ? members.find(m => m.id === currentMeterMemberId) : null;
-  const prev   = member ? Number(member.lastRead) : 0;
+  const prev   = member ? _effectivePrev(member.id) : 0;
   const curr   = parseFloat(val);
   const uEl    = document.getElementById('m-usage');
   const eEl    = document.getElementById('m-est');
@@ -548,6 +559,17 @@ export function calcMeter(val) {
   }
 }
 
+// คืนค่า "เลขอ่านครั้งก่อน" ที่ถูกต้อง — ถ้าบิลปัจจุบันถูกยกเลิก ให้ใช้ prevReading ของ reading นั้นแทน lastRead
+function _effectivePrev(memberId) {
+  const m = appState.members.find(x => x.id === memberId);
+  if (!m) return 0;
+  const period = currentPeriod();
+  const dr = appState.meterReadings.find(r => r.memberId === memberId && r.period === period);
+  if (!dr) return Number(m.lastRead);
+  const bill = dr.billId ? appState.bills.find(b => b.id === dr.billId) : null;
+  return (!bill || bill.status === 'cancelled') ? Number(dr.prevReading) : Number(m.lastRead);
+}
+
 function _detectAnomaly(usage, member, allReadings) {
   if (usage === 0) return 'meter_fault';
 
@@ -573,12 +595,12 @@ export async function saveMeter() {
   if (!currentMeterMemberId) { toast('ไม่พบข้อมูลสมาชิก', 'error'); return; }
   const member = members.find(m => m.id === currentMeterMemberId);
   if (!member) { toast('ไม่พบข้อมูลสมาชิก', 'error'); return; }
-  if (curr <= Number(member.lastRead)) { toast('เลขมิเตอร์ต้องมากกว่าค่าเดิม', 'error'); return; }
 
   const period = currentPeriod();
   const today  = new Date().toISOString().split('T')[0];
 
   // ── Duplicate reading check ──────────────────────────────────
+  // (ตรวจก่อน validate curr เพื่อ restore lastRead ถ้าบิลเดิมถูกยกเลิก)
   const dupReading = meterReadings.find(r =>
     r.memberId === currentMeterMemberId && r.period === period
   );
@@ -592,36 +614,24 @@ export async function saveMeter() {
       );
       return;
     }
-    // Bill was cancelled — reuse reading, create new bill only
-    const charges  = calcWaterCharge(dupReading.usage, member.meterSize || '0.5');
-    const newBillId = nextBillNo();
-    const dueDate   = new Date(); dueDate.setDate(dueDate.getDate() + 15);
-    const rebill = {
-      id: newBillId, memberId: currentMeterMemberId, period,
-      issueDate: today, dueDate: dueDate.toISOString().split('T')[0],
-      usage: dupReading.usage, waterCharge: charges.waterCharge,
-      serviceCharge: charges.serviceCharge, lateFee: 0, discount: 0,
-      total: charges.total, status: 'pending', sentVia: '', issuedBy: 'admin',
-    };
-    bills.push(rebill);
-    dupReading.billId = newBillId;
-    await sbUpsertBill(rebill);
-    sbUpsertReading(dupReading);
-    saveToStorage();
-    window.populateBillingFilters?.();
-    window.renderBilling?.();
-    toast(`ออกบิลใหม่รอบ ${period} — ฿${charges.total.toLocaleString()} (ใช้ข้อมูลมิเตอร์เดิม)`, 'success');
-    window._afterReceiptClose = resetMeterSelection;
-    window.openBillReceipt?.(newBillId);
-    return;
+    // Bill was cancelled — restore lastRead to pre-read value, delete old reading
+    member.lastRead = dupReading.prevReading;
+    const idx = appState.meterReadings.indexOf(dupReading);
+    if (idx !== -1) appState.meterReadings.splice(idx, 1);
+    sbDeleteReading(dupReading.id);
   }
+
+  if (curr <= Number(member.lastRead)) { toast('เลขมิเตอร์ต้องมากกว่าค่าเดิม', 'error'); return; }
 
   const prev    = Number(member.lastRead);
   const usage   = Math.round(curr - prev);
   const charges = calcWaterCharge(usage, member.meterSize || '0.5');
 
-  const existingBill = bills.find(b => b.memberId === currentMeterMemberId && b.period === period && b.status !== 'cancelled');
-  const billId = existingBill ? existingBill.id : nextBillNo();
+  // ── Bill: reactivate cancelled, update existing, or create new ─
+  const existingBill   = bills.find(b => b.memberId === currentMeterMemberId && b.period === period && b.status !== 'cancelled');
+  const cancelledBill  = !existingBill ? bills.find(b => b.memberId === currentMeterMemberId && b.period === period && b.status === 'cancelled') : null;
+  const targetBill     = existingBill || cancelledBill;
+  const billId         = targetBill ? targetBill.id : nextBillNo();
 
   const newReading = {
     id: 'MR-'+Date.now(), memberId: currentMeterMemberId, meter: member.meter,
@@ -632,12 +642,16 @@ export async function saveMeter() {
   };
   meterReadings.push(newReading);
 
-  if (existingBill) {
-    existingBill.usage = usage;
-    existingBill.waterCharge   = charges.waterCharge;
-    existingBill.serviceCharge = charges.serviceCharge;
-    existingBill.total         = charges.total;
-    existingBill.issueDate     = today;
+  if (targetBill) {
+    targetBill.status        = 'pending';
+    targetBill.usage         = usage;
+    targetBill.waterCharge   = charges.waterCharge;
+    targetBill.serviceCharge = charges.serviceCharge;
+    targetBill.total         = charges.total;
+    targetBill.issueDate     = today;
+    targetBill.cancelReason  = null;
+    targetBill.cancelledBy   = null;
+    targetBill.cancelledAt   = null;
   } else {
     const dueDate = new Date(); dueDate.setDate(dueDate.getDate() + 15);
     bills.push({

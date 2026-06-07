@@ -75,6 +75,7 @@ import { portalSearch } from './modules/portal/portal.js';
 const _renderCbs = {
   renderDashboard,
   renderMembers,
+  renderMeter,
   populateBillingFilters,
   renderBilling,
   renderDebtors,

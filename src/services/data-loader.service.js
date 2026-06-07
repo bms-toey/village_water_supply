@@ -177,6 +177,12 @@ export function sbUpsertReading(r) {
   });
 }
 
+export function sbDeleteReading(id) {
+  _sb.from('meter_readings').delete().eq('id', id).then(({ error }) => {
+    if (error) _sbErr('deleteReading', error);
+  });
+}
+
 // ─── Rate Tier Write Helpers ──────────────────────────────────
 export async function sbSaveRateTier(fromUnit, newRate) {
   const { error } = await _sb.from('rate_tiers')

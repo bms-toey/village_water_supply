@@ -1,6 +1,6 @@
-// ─── Authentication Service ────────────────────────────────────
-// Handles sign-in, sign-out, profile loading, and app initialisation
-// after a successful auth event.
+// ─── Authentication Service (Simple Mode) ──────────────────────
+// Login ตรวจจาก profiles.password_hash ไม่ผ่าน Supabase Auth
+// Session เก็บใน localStorage key 'aquaflow_session'
 // ──────────────────────────────────────────────────────────────
 import { _sb } from './supabase.service.js';
 import { loadAllFromSupabase, sbUpdateBillFees } from './data-loader.service.js';
@@ -9,13 +9,13 @@ import { syncOverdueStatus, applyLateFees } from '../utils/date.util.js';
 import { saveToStorage } from './storage.service.js';
 import { toast } from '../utils/dom.util.js';
 import { roleLabels } from '../config/ui.config.js';
-import { _dbVillages } from './db-mapper.service.js';
-import { esc } from '../utils/dom.util.js';
+
+const SESSION_KEY = 'aquaflow_session';
 
 export let currentUser    = null;
 export let currentProfile = null;
 
-// ─── Sign In ─────────────────────────────────────────────────
+// ─── Sign In ──────────────────────────────────────────────────
 export async function doSignIn() {
   const idEl   = document.getElementById('login-identifier');
   const passEl = document.getElementById('login-password');
@@ -42,58 +42,44 @@ export async function doSignIn() {
     errEl.style.display = 'block';
   };
 
-  let email = identifier;
-
-  if (!identifier.includes('@')) {
-    const { data, error: rpcErr } = await _sb.rpc('get_email_by_identifier', { p_identifier: identifier });
-    if (rpcErr) {
-      console.error('[login] get_email_by_identifier error:', rpcErr);
-      showErr('ระบบไม่สามารถค้นหาผู้ใช้ได้ กรุณาใช้อีเมลแทน');
-      return;
-    }
-    if (!data) { showErr('ไม่พบเบอร์โทร/Username นี้ในระบบ'); return; }
-    email = data;
-  }
-
-  const { data, error } = await _sb.auth.signInWithPassword({ email, password });
+  const { data, error } = await _sb.rpc('verify_login', {
+    p_identifier: identifier,
+    p_password:   password,
+  });
 
   btn.disabled  = false;
   btn.innerHTML = '<i class="ti ti-login"></i> เข้าสู่ระบบ';
 
-  if (error) { showErr('รหัสผ่านไม่ถูกต้อง'); return; }
+  if (error) {
+    showErr(error.message || 'เข้าสู่ระบบไม่ได้ กรุณาลองใหม่');
+    return;
+  }
 
-  currentUser = data.user;
+  if (!data || data.length === 0) {
+    showErr('ไม่พบข้อมูลผู้ใช้');
+    return;
+  }
+
+  const profile = data[0];
+  currentProfile = profile;
+  currentUser    = profile;
+  localStorage.setItem(SESSION_KEY, JSON.stringify(profile));
+
   await _initApp();
 }
 
-// ─── Sign Out ────────────────────────────────────────────────
+// ─── Sign Out ─────────────────────────────────────────────────
 export async function doSignOut() {
-  await _sb.auth.signOut();
+  localStorage.removeItem(SESSION_KEY);
   currentUser    = null;
   currentProfile = null;
   document.getElementById('auth-overlay').style.display = 'flex';
 }
 
-// ─── Load Profile ─────────────────────────────────────────────
+// ─── Load Profile — อัปเดต UI จาก session ที่เก็บไว้ ────────
 export async function loadCurrentProfile() {
-  if (!currentUser) return;
-  let { data, error } = await _sb.from('profiles').select('*').eq('id', currentUser.id).single();
-  if (error) console.warn('[profile]', error.message);
-
-  if (!data) {
-    const { data: inserted } = await _sb.from('profiles').upsert({
-      id:        currentUser.id,
-      full_name: currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || 'Admin',
-      email:     currentUser.email,
-      username:  currentUser.email?.split('@')[0] || 'admin',
-      role:      'super_admin',
-      is_active: true,
-    }, { onConflict: 'id' }).select().single();
-    data = inserted;
-  }
-
-  if (!data) return;
-  currentProfile = data;
+  if (!currentProfile) return;
+  const data = currentProfile;
 
   const initials = (data.full_name || '?').substring(0, 2).toUpperCase();
   const el = {
@@ -116,9 +102,7 @@ export async function loadCurrentProfile() {
   if (topbarAvatar) topbarAvatar.textContent = initials;
 }
 
-// ─── App Init (called after auth) ────────────────────────────
-// Imported by app.js which passes render callbacks to avoid
-// circular imports between this service and module files.
+// ─── App Init (เรียกหลัง login สำเร็จ) ───────────────────────
 let _renderCallbacks = null;
 
 export function registerRenderCallbacks(callbacks) {
@@ -129,7 +113,7 @@ export async function _initApp() {
   _showLoadingOverlay('กำลังโหลดข้อมูล...');
   let ok = false;
   try {
-    await loadCurrentProfile();
+    loadCurrentProfile();
     ok = await loadAllFromSupabase();
   } catch (e) {
     console.error('[initApp] unexpected error:', e);
@@ -169,37 +153,56 @@ export async function _initApp() {
     r.renderMaintenance();
   }
 
-  // Signal realtime service to stamp last-updated time
   window.dispatchEvent(new Event('aquaflow:data-ready'));
 
-  // Handle PWA shortcut ?page= query param (e.g. from manifest shortcuts)
   const startPage = new URLSearchParams(window.location.search).get('page');
   if (startPage && window.goPage) window.goPage(startPage);
 }
 
-// ─── Session Check ────────────────────────────────────────────
+// ─── Check Session — อ่าน localStorage แล้ว re-verify ───────
 export async function checkSession() {
-  const { data: { session } } = await _sb.auth.getSession();
-  if (session) {
-    currentUser = session.user;
+  const stored = localStorage.getItem(SESSION_KEY);
+  if (!stored) {
+    _hideLoadingOverlay();
+    document.getElementById('auth-overlay').style.display = 'flex';
+    return;
+  }
+
+  try {
+    const saved = JSON.parse(stored);
+    // Re-verify ว่า account ยังใช้งานอยู่
+    const { data, error } = await _sb
+      .from('profiles')
+      .select('id, full_name, email, username, phone, role, village_id, is_active')
+      .eq('id', saved.id)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (error || !data) {
+      localStorage.removeItem(SESSION_KEY);
+      _hideLoadingOverlay();
+      document.getElementById('auth-overlay').style.display = 'flex';
+      return;
+    }
+
+    currentProfile = data;
+    currentUser    = data;
+    localStorage.setItem(SESSION_KEY, JSON.stringify(data));
     await _initApp();
-  } else {
+  } catch (e) {
+    console.error('[checkSession] error:', e);
+    localStorage.removeItem(SESSION_KEY);
     _hideLoadingOverlay();
     document.getElementById('auth-overlay').style.display = 'flex';
   }
-
-  _sb.auth.onAuthStateChange((event) => {
-    if (event === 'SIGNED_OUT') {
-      currentUser    = null;
-      currentProfile = null;
-      document.getElementById('auth-overlay').style.display = 'flex';
-    }
-  });
 }
 
-// ─── Change Password ──────────────────────────────────────
+// ─── Change Password ──────────────────────────────────────────
 export function openChangePwdModal() {
-  ['cpwd-new','cpwd-confirm'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  ['cpwd-new', 'cpwd-confirm'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
   const errEl = document.getElementById('cpwd-error');
   if (errEl) errEl.style.display = 'none';
   document.getElementById('change-pwd-modal').style.display = 'flex';
@@ -237,7 +240,10 @@ export async function doChangePassword() {
   btn.disabled  = true;
   btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin .8s linear infinite"></i> กำลังบันทึก...';
 
-  const { error } = await _sb.auth.updateUser({ password: newPwd });
+  const { error } = await _sb.rpc('set_profile_password', {
+    p_user_id: currentProfile.id,
+    p_password: newPwd,
+  });
 
   btn.disabled  = false;
   btn.innerHTML = '<i class="ti ti-check"></i> บันทึก';
@@ -252,7 +258,7 @@ export async function doChangePassword() {
   toast('เปลี่ยนรหัสผ่านสำเร็จ', 'success');
 }
 
-// ─── Loading Overlay ─────────────────────────────────────────
+// ─── Loading Overlay ──────────────────────────────────────────
 export function _showLoadingOverlay(msg) {
   const el  = document.getElementById('loading-overlay');
   const txt = document.getElementById('loading-text');

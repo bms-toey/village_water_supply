@@ -123,7 +123,9 @@ export function _bToDB(b) {
     // total is a GENERATED column — omit from inserts
     status:         b.status         || 'pending',
     sent_via:       b.sentVia        || 'none',
-    // cancel fields only included when cancelling — handled by sbCancelBill separately
+    cancel_reason:  b.cancelReason   || null,
+    cancelled_by:   b.cancelledBy    || null,
+    cancelled_at:   b.cancelledAt    || null,
   };
 }
 

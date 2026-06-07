@@ -163,7 +163,7 @@ export async function saveUser() {
       if (password.length < 8 || !/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
         reset(); toast('รหัสผ่านต้องมีอย่างน้อย 8 ตัว และมีทั้งตัวอักษรและตัวเลข', 'error'); return;
       }
-      const { error: pwErr } = await _sb.rpc('admin_set_user_password', {
+      const { error: pwErr } = await _sb.rpc('set_profile_password', {
         p_user_id:  _editUserId,
         p_password: password,
       });
@@ -176,7 +176,7 @@ export async function saveUser() {
     if (!password || password.length < 8 || !/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
       reset(); toast('รหัสผ่านต้องมีอย่างน้อย 8 ตัว และมีทั้งตัวอักษรและตัวเลข', 'error'); return;
     }
-    const { error } = await _sb.rpc('admin_create_user', {
+    const { error } = await _sb.rpc('create_profile_user', {
       p_email:     email,
       p_password:  password,
       p_full_name: fullName,

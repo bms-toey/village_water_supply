@@ -120,16 +120,23 @@ export function openCashModal(channel) {
   const select = document.getElementById('cp-bill');
   select.innerHTML = '<option value="">-- เลือกบิล --</option>' +
     unpaid.map(b => { const m = members.find(x => x.id === b.memberId) || {}; return `<option value="${b.id}">${b.id} — ${m.firstName||''} ${m.lastName||''} (฿${b.total})</option>`; }).join('');
-  const refRow  = document.getElementById('cp-ref-row');
-  const slipRow = document.getElementById('cp-slip-row');
-  const refInp  = document.getElementById('cp-ref');
-  if (refRow)  refRow.style.display  = meta.showRef ? '' : 'none';
-  if (slipRow) slipRow.style.display = meta.showRef ? '' : 'none';
+  const refRow      = document.getElementById('cp-ref-row');
+  const slipRow     = document.getElementById('cp-slip-row');
+  const cashSection = document.getElementById('cp-cash-section');
+  const refInp      = document.getElementById('cp-ref');
+  const isCash      = channel === 'cash';
+  if (refRow)      refRow.style.display      = meta.showRef ? '' : 'none';
+  if (slipRow)     slipRow.style.display      = meta.showRef ? '' : 'none';
+  if (cashSection) cashSection.style.display  = isCash ? '' : 'none';
   if (refInp)  { refInp.placeholder = meta.refPlaceholder; refInp.value = ''; }
   document.getElementById('cp-name').value   = '';
   document.getElementById('cp-amount').value = '';
   document.getElementById('cp-note').value   = '';
+  const recvEl = document.getElementById('cp-received');
+  if (recvEl) recvEl.value = '';
+  _resetChangeDisplay();
   document.getElementById('cash-modal').style.display = 'flex';
+  if (isCash) setTimeout(() => document.getElementById('cp-received')?.focus(), 80);
 }
 
 export function closeCashModal() { document.getElementById('cash-modal').style.display = 'none'; }
@@ -168,6 +175,54 @@ window._selectPayType = function(channel) {
   document.getElementById('cp-amount').value = b.total;
   const m = appState.members.find(x => x.id === b.memberId);
   if (m) document.getElementById('cp-name').value = m.firstName + ' ' + m.lastName;
+  _calcChange();
+};
+
+window._onBillSelect = function(billId) {
+  if (!billId) return;
+  const b = appState.bills.find(x => x.id === billId);
+  if (!b) return;
+  const amtEl = document.getElementById('cp-amount');
+  if (amtEl) amtEl.value = b.total;
+  _calcChange();
+};
+
+function _resetChangeDisplay() {
+  const due  = document.getElementById('cp-due-display');
+  const chg  = document.getElementById('cp-change-display');
+  const box  = document.getElementById('cp-change-box');
+  if (due) due.textContent = '฿0';
+  if (chg) chg.textContent = '฿0';
+  if (box) { box.style.background = 'var(--green-50)'; }
+  const chgLabel = box?.querySelector('div:first-child');
+  if (chgLabel) chgLabel.style.color = 'var(--green-600)';
+  if (chg) chg.style.color = 'var(--green-700)';
+}
+
+window._calcChange = function() {
+  const channel = document.getElementById('cp-channel')?.value;
+  if (channel !== 'cash') return;
+  const amount   = parseFloat(document.getElementById('cp-amount')?.value) || 0;
+  const received = parseFloat(document.getElementById('cp-received')?.value) || 0;
+  const change   = received - amount;
+  const due      = document.getElementById('cp-due-display');
+  const chg      = document.getElementById('cp-change-display');
+  const box      = document.getElementById('cp-change-box');
+  if (due) due.textContent = '฿' + amount.toLocaleString('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  if (!chg || !box) return;
+  if (received <= 0) {
+    chg.textContent = '฿0';
+    box.style.background = 'var(--green-50)';
+    chg.style.color = 'var(--green-700)';
+  } else if (change < 0) {
+    chg.textContent = '฿' + Math.abs(change).toLocaleString('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' (ขาด)';
+    box.style.background = '#fff1f1';
+    chg.style.color = 'var(--red-600)';
+  } else {
+    chg.textContent = '฿' + change.toLocaleString('th-TH', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    box.style.background = 'var(--green-50)';
+    chg.style.color = 'var(--green-700)';
+  }
 };
 
 export function notifyBillDebtor(memberId) {
@@ -225,6 +280,15 @@ export function saveCashPayment() {
   if (!amount || amount <= 0) { toast('กรุณากรอกจำนวนเงิน', 'error'); return; }
   const b = bills.find(x => x.id === billId);
   if (!b) { toast('ไม่พบบิล', 'error'); return; }
+  if (channel === 'cash') {
+    const received = parseFloat(document.getElementById('cp-received')?.value);
+    if (!received || received <= 0) {
+      const el = document.getElementById('cp-received');
+      if (el) { el.style.borderColor = 'var(--red-500)'; el.focus(); setTimeout(() => el.style.borderColor = '', 1500); }
+      toast('กรุณากรอกเงินที่ได้รับ', 'error'); return;
+    }
+    if (received < amount) { toast(`เงินที่ได้รับ (฿${received.toLocaleString()}) น้อยกว่ายอดที่ต้องชำระ (฿${amount.toLocaleString()})`, 'error'); return; }
+  }
   const now       = new Date().toISOString().replace('T',' ').substring(0,16);
   const isCash    = channel === 'cash';
   const receiptNo = isCash ? nextReceiptNo() : null;

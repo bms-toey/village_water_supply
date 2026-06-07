@@ -19,14 +19,14 @@ import { toast }               from '../utils/dom.util.js';
 
 // ── Render map: table → callback names ──────────────────────
 const _RENDER_MAP = {
-  members:          ['renderMembers', 'renderDashboard', 'renderDebtors'],
-  bills:            ['renderBilling', 'renderDashboard', 'renderDebtors', 'renderReports'],
+  members:          ['renderMembers', 'renderMeter', 'renderDashboard', 'renderDebtors'],
+  bills:            ['renderBilling', 'renderMeter', 'renderDashboard', 'renderDebtors', 'renderReports'],
   payments:         ['renderPayments', 'renderDashboard', 'renderBilling', 'renderReports'],
-  meter_readings:   ['renderDashboard', 'renderReports'],
+  meter_readings:   ['renderMeter', 'renderBilling', 'renderDashboard', 'renderReports'],
   maintenance_jobs: ['renderMaintenance', 'renderDashboard'],
   water_production: ['renderDashboard', 'renderReports'],
   water_quality:    ['renderDashboard', 'renderReports'],
-  villages:         ['renderMembers', 'renderSettings', 'populateVillageDropdowns'],
+  villages:         ['renderMembers', 'renderMeter', 'renderSettings', 'populateVillageDropdowns'],
   rate_tiers:       ['renderSettings'],
   master_data:      ['renderSettings'],
 };
@@ -127,103 +127,87 @@ function _onEvent(table, payload) {
     switch (table) {
 
       case 'members': {
-        if (eventType === 'INSERT') {
-          if (!newRec.is_deleted) appState.members.push(_mFromDB(newRec));
-        } else if (eventType === 'UPDATE') {
-          if (newRec.is_deleted) {
-            appState.members = appState.members.filter(m => m.id !== newRec.id);
-          } else {
-            const idx = appState.members.findIndex(m => m.id === newRec.id);
-            const mapped = _mFromDB(newRec);
-            if (idx >= 0) appState.members[idx] = mapped;
-            else appState.members.push(mapped);
-          }
-          if (appState.members.length)
-            appState.nextMemberId = Math.max(...appState.members.map(m => m.id)) + 1;
-        } else if (eventType === 'DELETE') {
+        const midx = appState.members.findIndex(m => m.id === newRec.id);
+        if (eventType === 'DELETE') {
           appState.members = appState.members.filter(m => m.id !== (oldRec.id ?? newRec.id));
+        } else if (newRec.is_deleted) {
+          appState.members = appState.members.filter(m => m.id !== newRec.id);
+        } else {
+          const mapped = _mFromDB(newRec);
+          if (midx >= 0) appState.members[midx] = mapped;
+          else appState.members.push(mapped);
         }
+        if (appState.members.length)
+          appState.nextMemberId = Math.max(...appState.members.map(m => m.id)) + 1;
         break;
       }
 
       case 'bills': {
-        if (eventType === 'INSERT') {
-          appState.bills.unshift(_bFromDB(newRec));
-        } else if (eventType === 'UPDATE') {
-          const idx = appState.bills.findIndex(b => b.id === newRec.id);
-          const mapped = _bFromDB(newRec);
-          if (idx >= 0) appState.bills[idx] = mapped;
-          else appState.bills.unshift(mapped);
-        } else if (eventType === 'DELETE') {
+        const bidx = appState.bills.findIndex(b => b.id === newRec.id);
+        if (eventType === 'DELETE') {
           appState.bills = appState.bills.filter(b => b.id !== (oldRec.id ?? newRec.id));
+        } else {
+          const mapped = _bFromDB(newRec);
+          if (bidx >= 0) appState.bills[bidx] = mapped;
+          else appState.bills.unshift(mapped);
         }
         break;
       }
 
       case 'payments': {
-        if (eventType === 'INSERT') {
-          appState.payments.unshift(_pFromDB(newRec));
-        } else if (eventType === 'UPDATE') {
-          const idx = appState.payments.findIndex(p => p.id === newRec.id);
-          const mapped = _pFromDB(newRec);
-          if (idx >= 0) appState.payments[idx] = mapped;
-          else appState.payments.unshift(mapped);
-        } else if (eventType === 'DELETE') {
+        const pidx = appState.payments.findIndex(p => p.id === newRec.id);
+        if (eventType === 'DELETE') {
           appState.payments = appState.payments.filter(p => p.id !== (oldRec.id ?? newRec.id));
+        } else {
+          const mapped = _pFromDB(newRec);
+          if (pidx >= 0) appState.payments[pidx] = mapped;
+          else appState.payments.unshift(mapped);
         }
         break;
       }
 
       case 'meter_readings': {
-        if (eventType === 'INSERT') {
-          appState.meterReadings.unshift(_rFromDB(newRec));
-        } else if (eventType === 'UPDATE') {
-          const idx = appState.meterReadings.findIndex(r => r.id === newRec.id);
-          const mapped = _rFromDB(newRec);
-          if (idx >= 0) appState.meterReadings[idx] = mapped;
-          else appState.meterReadings.unshift(mapped);
-        } else if (eventType === 'DELETE') {
+        const ridx = appState.meterReadings.findIndex(r => r.id === newRec.id);
+        if (eventType === 'DELETE') {
           appState.meterReadings = appState.meterReadings.filter(r => r.id !== (oldRec.id ?? newRec.id));
+        } else {
+          const mapped = _rFromDB(newRec);
+          if (ridx >= 0) appState.meterReadings[ridx] = mapped;
+          else appState.meterReadings.unshift(mapped);
         }
         break;
       }
 
       case 'maintenance_jobs': {
-        if (eventType === 'INSERT') {
-          appState.maintenance.unshift(_ntFromDB(newRec));
-        } else if (eventType === 'UPDATE') {
-          const idx = appState.maintenance.findIndex(m => m.id === newRec.id);
-          const mapped = _ntFromDB(newRec);
-          if (idx >= 0) appState.maintenance[idx] = mapped;
-          else appState.maintenance.unshift(mapped);
-        } else if (eventType === 'DELETE') {
+        const nidx = appState.maintenance.findIndex(m => m.id === newRec.id);
+        if (eventType === 'DELETE') {
           appState.maintenance = appState.maintenance.filter(m => m.id !== (oldRec.id ?? newRec.id));
+        } else {
+          const mapped = _ntFromDB(newRec);
+          if (nidx >= 0) appState.maintenance[nidx] = mapped;
+          else appState.maintenance.unshift(mapped);
         }
         break;
       }
 
       case 'water_production': {
-        if (eventType === 'INSERT') {
-          appState.waterProduction.unshift(newRec);
-        } else if (eventType === 'UPDATE') {
-          const idx = appState.waterProduction.findIndex(r => r.id === newRec.id);
-          if (idx >= 0) appState.waterProduction[idx] = newRec;
-          else appState.waterProduction.unshift(newRec);
-        } else if (eventType === 'DELETE') {
+        const wpidx = appState.waterProduction.findIndex(r => r.id === newRec.id);
+        if (eventType === 'DELETE') {
           appState.waterProduction = appState.waterProduction.filter(r => r.id !== (oldRec.id ?? newRec.id));
+        } else {
+          if (wpidx >= 0) appState.waterProduction[wpidx] = newRec;
+          else appState.waterProduction.unshift(newRec);
         }
         break;
       }
 
       case 'water_quality': {
-        if (eventType === 'INSERT') {
-          appState.waterQuality.unshift(newRec);
-        } else if (eventType === 'UPDATE') {
-          const idx = appState.waterQuality.findIndex(r => r.id === newRec.id);
-          if (idx >= 0) appState.waterQuality[idx] = newRec;
-          else appState.waterQuality.unshift(newRec);
-        } else if (eventType === 'DELETE') {
+        const wqidx = appState.waterQuality.findIndex(r => r.id === newRec.id);
+        if (eventType === 'DELETE') {
           appState.waterQuality = appState.waterQuality.filter(r => r.id !== (oldRec.id ?? newRec.id));
+        } else {
+          if (wqidx >= 0) appState.waterQuality[wqidx] = newRec;
+          else appState.waterQuality.unshift(newRec);
         }
         break;
       }
