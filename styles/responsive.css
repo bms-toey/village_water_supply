@@ -111,14 +111,33 @@
   .main { width: 100%; }
 
   /* ── Topbar ── */
-  .topbar { padding: 0 16px; gap: 8px; }
+  .topbar { padding: 0 14px; gap: 6px; }
   .topbar-search { display: none; }
   .topbar-breadcrumb { flex: 1; min-width: 0; }
-  /* Realtime indicator: show only dot + icon on mobile */
-  .rt-time { display: none; }
-  .topbar-realtime { padding: 6px 8px; gap: 4px; }
   /* Mobile search button */
   #topbar-search-btn { display: flex !important; }
+  /* Village icon: ซ่อนบนมือถือ — ใช้พื้นที่โดยไม่จำเป็น */
+  #topbar-village { display: none; }
+  /* Realtime: เปลี่ยนจาก pill → icon กลมเหมือน topbar-icon ตัวอื่น */
+  .rt-time { display: none; }
+  .topbar-realtime {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    padding: 0;
+    position: relative;
+    justify-content: center;
+    gap: 0;
+  }
+  .topbar-realtime:hover { background: var(--gray-100); border: none; }
+  /* dot เปลี่ยนเป็น badge มุมขวาบน เหมือน notif-dot */
+  #rt-dot {
+    position: absolute;
+    top: 7px; right: 7px;
+    width: 7px; height: 7px;
+  }
+  #rt-icon { font-size: 17px; color: var(--gray-500); }
   /* Topbar panels: full width on small screens */
   .tbar-drop { right: 8px; left: 8px; width: auto; }
   .breadcrumb-page {
