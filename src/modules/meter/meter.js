@@ -271,14 +271,24 @@ export function renderMeter(searchOverride) {
     ? '<span style="font-size:28px">🎉</span><br>จดมิเตอร์ครบทุกรายในรอบนี้แล้ว!'
     : 'ไม่พบสมาชิกตามเงื่อนไขที่เลือก';
 
+  const _searchWasFocused = document.activeElement?.id === 'meter-search-inp';
+
+  const _tabColors = {
+    pending: { bg: '#d97706', text: '#fff' },  // amber
+    done:    { bg: '#16a34a', text: '#fff' },  // green
+    all:     { bg: '#1d4ed8', text: '#fff' },  // blue
+  };
   const _tab = (label, status) => {
     const active = _meterStatusFilter === status;
+    const c = _tabColors[status];
     return `<button
-      style="background:${active ? 'var(--blue-600)' : 'transparent'};
-             color:${active ? '#fff' : 'var(--gray-600)'};
-             border:none;border-radius:8px;padding:5px 12px;
-             font-size:12px;font-weight:${active ? '700' : '500'};
-             cursor:pointer;white-space:nowrap;flex-shrink:0"
+      style="background:${active ? c.bg : 'transparent'};
+             color:${active ? c.text : 'var(--gray-500)'};
+             border:none;border-radius:8px;padding:6px 14px;
+             font-size:12.5px;font-weight:${active ? '800' : '500'};
+             cursor:pointer;white-space:nowrap;flex-shrink:0;
+             box-shadow:${active ? '0 2px 6px rgba(0,0,0,.2)' : 'none'};
+             transition:all .15s"
       onclick="window._setMeterStatus('${status}')">${label}</button>`;
   };
 
@@ -325,10 +335,10 @@ export function renderMeter(searchOverride) {
         <option value="">ทุกหมู่บ้าน</option>
         ${villageOpts}
       </select>
-      <div style="display:flex;gap:2px;background:var(--gray-100);border-radius:10px;padding:3px;flex-shrink:0;white-space:nowrap">
-        ${_tab(`ยังไม่จด&nbsp;(${filtPending})`, 'pending')}
-        ${_tab(`จดแล้ว&nbsp;(${filtDone})`, 'done')}
-        ${_tab(`ทั้งหมด&nbsp;(${filtTotal})`, 'all')}
+      <div style="display:flex;gap:3px;background:#d1d5db;border-radius:11px;padding:4px;flex-shrink:0;white-space:nowrap">
+        ${_tab(`ยังไม่จด (${filtPending})`, 'pending')}
+        ${_tab(`จดแล้ว (${filtDone})`, 'done')}
+        ${_tab(`ทั้งหมด (${filtTotal})`, 'all')}
       </div>
     </div>
   </div>
@@ -444,6 +454,11 @@ export function renderMeter(searchOverride) {
     จดครบแล้ว!
   </div>`}
   `;
+
+  if (_searchWasFocused) {
+    const inp = document.getElementById('meter-search-inp');
+    if (inp) { inp.focus(); const len = inp.value.length; inp.setSelectionRange(len, len); }
+  }
 }
 
 // FAB: ข้ามไปสมาชิกถัดไปที่ยังไม่จด (เรียงตามลำดับหมู่บ้าน → บ้านเลขที่)

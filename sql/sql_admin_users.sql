@@ -140,18 +140,18 @@ BEGIN
   );
 
   -- Insert identity (จำเป็นสำหรับ signInWithPassword)
+  -- ไม่ระบุ id → ให้ auto-generate ป้องกัน "Database error querying schema"
   INSERT INTO auth.identities (
-    id, provider_id, user_id,
+    user_id, provider_id,
     identity_data, provider,
     last_sign_in_at, created_at, updated_at
   ) VALUES (
     v_uid,
     lower(trim(p_email)),
-    v_uid,
     jsonb_build_object('sub', v_uid::text, 'email', lower(trim(p_email))),
     'email',
     now(), now(), now()
-  ) ON CONFLICT DO NOTHING;
+  ) ON CONFLICT (provider_id, provider) DO NOTHING;
 
   -- อัปเดต profile ที่ trigger สร้างไว้ ให้ครบถ้วน
   UPDATE public.profiles SET
