@@ -51,29 +51,30 @@ export function renderMembers() {
         ? new Date(m.lastReadDate).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })
         : '—';
       return `<div class="member-card-h" data-mid="${m.id}" data-meter="${esc(m.meter)}" data-name="${full}" tabindex="0" aria-label="${full} มิเตอร์ ${esc(m.meter)}">
-        <div class="mavatar" style="background:${getAvatarColor(m.id)};width:42px;height:42px;font-size:13px">${getInitials(m.firstName, m.lastName)}</div>
-        <div style="flex:1;min-width:0">
+        <div class="mavatar mch-av" style="background:${getAvatarColor(m.id)};width:42px;height:42px;font-size:13px">${getInitials(m.firstName, m.lastName)}</div>
+        <div class="mch-info">
           <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
             <span class="text-bold" style="font-size:13.5px">${full}</span>
             <span class="mtype-badge ${mt.cls}" style="font-size:10.5px">${mt.label}</span>
           </div>
           <div class="text-muted" style="font-size:11.5px;margin-top:2px">
             ID: ${m.id}${m.houseNo?' · '+esc(m.houseNo):''}${m.village?' · '+esc(m.village):''}
+            <span class="mch-meter-mini mono"> · ${esc(m.meter)}</span>
           </div>
           ${m.phone?`<div style="font-size:11px;color:var(--gray-400);margin-top:1px"><i class="ti ti-phone" style="font-size:10px"></i> ${esc(m.phone)}</div>`:''}
         </div>
-        <div style="min-width:94px">
+        <div class="mch-meter">
           <div class="mono" style="font-size:12.5px;font-weight:600;color:var(--blue-900)">${esc(m.meter)}</div>
           <div class="text-muted" style="font-size:11px">${esc(msize)}${m.meterBrand?' · '+esc(m.meterBrand):''}</div>
         </div>
-        <div style="min-width:85px;text-align:right">
+        <div class="mch-reading">
           <div style="font-size:13px;font-weight:600">${Number(m.lastRead).toLocaleString()} <span style="font-size:10.5px;font-weight:400;color:var(--gray-500)">m³</span></div>
           <div class="text-muted" style="font-size:11px">${lastDate}</div>
         </div>
-        <div style="min-width:70px;text-align:center">
+        <div class="mch-status">
           <span class="pill ${st.cls}" style="font-size:11px">${st.label}</span>
         </div>
-        <div style="display:flex;gap:4px;flex-shrink:0">
+        <div class="mch-actions">
           ${actionBtn}
           <button class="btn-icon" data-mid="${m.id}" data-act="meter"  title="จดมิเตอร์"><i class="ti ti-gauge"></i></button>
           <button class="btn-icon" data-mid="${m.id}" data-act="edit"   title="แก้ไข"><i class="ti ti-edit"></i></button>

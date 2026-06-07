@@ -99,6 +99,13 @@ td{padding:12px 18px;font-size:13.5px;color:var(--gray-900);vertical-align:middl
 /* โ”€โ”€โ”€ MEMBER HORIZONTAL CARD โ”€โ”€โ”€ */
 .member-card-h{display:flex;align-items:center;gap:13px;padding:11px 15px;border:1px solid var(--gray-100);border-radius:var(--radius-md);background:var(--white);transition:var(--transition);cursor:pointer}
 .member-card-h:hover{border-color:var(--blue-200);background:rgba(0,35,111,.02);box-shadow:0 2px 8px rgba(0,35,111,.06)}
+.mch-av{flex-shrink:0}
+.mch-info{flex:1;min-width:0}
+.mch-meter{min-width:90px;flex-shrink:0}
+.mch-meter-mini{display:none;font-size:11px}
+.mch-reading{min-width:84px;text-align:right;flex-shrink:0}
+.mch-status{min-width:68px;text-align:center;flex-shrink:0}
+.mch-actions{display:flex;gap:4px;flex-shrink:0;align-items:center}
 
 /* โ”€โ”€โ”€ FILTER BAR โ”€โ”€โ”€ */
 .filter-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center}

@@ -387,6 +387,30 @@
 .btn-menu { display: none; }
 
 /* ═══════════════════════════════════════════════════════════
+   MEMBER CARDS: responsive columns
+════════════════════════════════════════════════════════════ */
+
+/* ≤1100px — ซ่อนคอลัมน์ "อ่านล่าสุด" */
+@media (max-width: 1100px) {
+  .mch-reading { display: none; }
+}
+
+/* ≤768px — ซ่อนคอลัมน์ "มิเตอร์" แต่แสดงเลขมิเตอร์ใน info แทน */
+@media (max-width: 768px) {
+  .mch-meter      { display: none; }
+  .mch-meter-mini { display: inline; }
+}
+
+/* ≤560px — wrap ปุ่มไปแถวใหม่ สถานะชิดขวาแถวแรก */
+@media (max-width: 560px) {
+  .member-card-h  { flex-wrap: wrap; row-gap: 5px; }
+  .mch-info       { flex: 1 1 0; min-width: 0; }
+  .mch-status     { margin-left: auto; }
+  .mch-actions    { width: 100%; justify-content: flex-end;
+                    border-top: 1px solid var(--gray-100); padding-top: 6px; }
+}
+
+/* ═══════════════════════════════════════════════════════════
    MAP PAGE: responsive
 ════════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
