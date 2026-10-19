@@ -4,6 +4,7 @@ import { appState } from '../../state/app.state.js';
 import { esc, toast } from '../../utils/dom.util.js';
 import { currentPeriod } from '../../utils/date.util.js';
 import { anomalyMap, methodMap, statusMap, memberTypeMap, meterSizeMap } from '../../config/ui.config.js';
+import { ACCT_REPORTS, injectAccountingCards, renderAccounting, hideAccounting, exportAccountingExcel } from './accounting.js';
 
 let _currentReport = 'income';
 
@@ -12,10 +13,13 @@ export function switchReport(type) {
   document.querySelectorAll('#page-reports .rpt-card').forEach(c => {
     c.classList.toggle('active-rpt', c.dataset.report === type);
   });
+  if (ACCT_REPORTS[type]) { renderAccounting(type); return; }   // รายงานบัญชี — คำนวณที่ server
+  hideAccounting();
   renderReports();
 }
 
 export function renderReports() {
+  injectAccountingCards();
   const { bills, meterReadings, members } = appState;
   const curPeriod       = currentPeriod();
   const thisMonthPaid   = bills.filter(b => b.status === 'paid' && b.period === curPeriod);
@@ -28,6 +32,7 @@ export function renderReports() {
   if (rkpis[1]) rkpis[1].textContent = '฿' + overdueTotal.toLocaleString();
   if (rkpis[2]) rkpis[2].textContent = totalUsage.toLocaleString() + ' m³';
   if (rkpis[3]) rkpis[3].textContent = anomalyCount + ' เคส';
+  if (ACCT_REPORTS[_currentReport]) return;   // รายงานบัญชีแสดงอยู่ — ไม่ต้องวาดตารางเดิมทับ
   const titles = { income: 'รายรับรายเดือน', daily: 'รายงานรับเงินประจำวัน', debtors: 'ลูกหนี้ค้างชำระ', usage: 'การใช้น้ำรายสมาชิก', anomaly: 'AI ตรวจจับความผิดปกติ', newmembers: 'ผู้ใช้น้ำใหม่', history: 'ประวัติจดมิเตอร์', village: 'สรุปแต่ละหมู่บ้าน', billing: 'รายงานบิลรวม' };
   const cardTitle = document.querySelector('#page-reports .card .card-title');
   if (cardTitle) cardTitle.innerHTML = `<i class="ti ti-table" style="color:var(--blue-500)"></i>พรีวิวข้อมูล: ${titles[_currentReport]||''}`;
@@ -134,6 +139,7 @@ function _rptBilling(tbody, thead, rfoot) {
 
 // ─── CSV Export ───────────────────────────────────────────────
 export function exportCurrentReport() {
+  if (ACCT_REPORTS[_currentReport]) { exportAccountingExcel(); return; }
   const map = { income: _csvIncome, daily: _csvDaily, debtors: _csvDebtors, usage: _csvUsage, anomaly: _csvAnomaly, newmembers: exportMembersCSV, history: _csvHistory, village: _csvVillage, billing: exportBillingCSV };
   (map[_currentReport] || exportBillingCSV)();
 }

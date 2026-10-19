@@ -9,6 +9,7 @@
 | 2 | `sql_phase0_finance.sql` | เลขเอกสารจาก server, ปิดงวด, ใบลดหนี้/เพิ่มหนี้, ค่าปรับอัตโนมัติ, audit, backup | เปิด extension `pg_cron` ก่อนจะดีที่สุด |
 | 3 | `sql_phase1_documents.sql` | ผู้รับเงินจาก JWT, ต้นฉบับ/สำเนาใบเสร็จ, ปิดยอดประจำวัน, Storage สลิป+รูปมิเตอร์ | สร้าง bucket ให้อัตโนมัติ |
 | 4 | `sql_phase2_notify.sql` | แจ้งเตือนเจ้าหน้าที่, Portal ผู้ใช้น้ำ, คิว LINE/SMS, เพิ่มตารางเข้า Realtime | LINE OA ทำทีหลังได้ — ดู `docs/LINE_SETUP.md` |
+| 5 | `sql_phase3_accounting.sql` | สมุดเงินสด (รายรับอื่น/รายจ่าย), บันทึกการผลิตน้ำ, รายงานกรรมการ | ตั้งยอดยกมาใน ตั้งค่าทั่วไป → บัญชีกองทุน |
 
 หลังรัน SQL แล้วให้ deploy frontend เวอร์ชันเดียวกันทันที
 

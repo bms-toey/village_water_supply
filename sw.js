@@ -4,7 +4,7 @@
 //   CDN resources    → Cache-first    (fonts/icons rarely change, saves bandwidth)
 //   Supabase API     → Network-only   (never cache live data)
 
-const CACHE_APP = 'aquaflow-app-v7';
+const CACHE_APP = 'aquaflow-app-v8';
 const CACHE_CDN = 'aquaflow-cdn-v1';
 
 // ─── Install ──────────────────────────────────────────────────

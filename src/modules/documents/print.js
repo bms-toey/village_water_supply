@@ -57,8 +57,9 @@ table{width:100%;border-collapse:collapse}
 .meter .lbl{font-size:.75em;color:#555}.meter .val{font-weight:700;font-size:1.1em}
 .lines td{padding:.8mm 0;border-bottom:1px dotted #bbb;vertical-align:top}
 .lines .total td{font-weight:800;font-size:1.1em;border-top:1.5px solid #111;border-bottom:3px double #111}
-.lines.bordered td{border:1px solid #999;padding:1mm 1.5mm}
-.lines .head td{font-weight:700;background:#f0f0f0}
+.lines.bordered td,.lines.bordered th{border:1px solid #999;padding:1mm 1.5mm}
+.lines .head td,.lines .head th{font-weight:700;background:#f0f0f0}
+.lines tfoot td{font-weight:800}
 .words{text-align:right;font-size:.85em;margin:1mm 0 2mm}
 .pay{display:flex;gap:3mm;align-items:center;margin:2mm 0;border:1px solid #bbb;border-radius:2mm;padding:2mm}
 .qr{text-align:center}.qr svg{width:34mm;height:34mm;display:block;margin:0 auto}
