@@ -14,6 +14,7 @@ import {
   _ntFromDB, _ntToDB,
 } from './db-mapper.service.js';
 import { toast } from '../utils/dom.util.js';
+import { localToISO } from '../utils/time.util.js';
 import { loadMasterData } from './master-data.service.js';
 
 // Show Supabase write errors as toast so the user can see them
@@ -23,8 +24,21 @@ function _sbErr(label, error) {
 }
 
 // ─── Load All ────────────────────────────────────────────────
+// ให้ server อัปเดตสถานะค้างชำระ/ค่าปรับก่อนโหลดบิล (สำรองกรณีไม่มี pg_cron)
+// เรียกไม่เกินชั่วโมงละครั้ง — poll ทุก 5 นาทีไม่ต้องสั่งซ้ำ
+const BILLING_REFRESH_MS = 60 * 60 * 1000;
+let _lastBillingRefresh = 0;
+
+async function _refreshBillingStatus() {
+  if (Date.now() - _lastBillingRefresh < BILLING_REFRESH_MS) return;
+  const { error } = await _sb.rpc('refresh_billing_status');
+  if (error) console.warn('[sb] refresh_billing_status:', error.message);
+  else _lastBillingRefresh = Date.now();
+}
+
 export async function loadAllFromSupabase() {
   try {
+    await _refreshBillingStatus();
     const [rv, rm, rb, rp, rr, rt, rn, rwp, rwq] = await Promise.all([
       _sb.from('villages').select('*').order('moo_number'),
       _sb.from('members').select('*').eq('is_deleted', false).order('id'),
@@ -53,6 +67,7 @@ export async function loadAllFromSupabase() {
 
     // meter_replacements loaded separately (non-blocking) — table may not exist yet
     _loadMeterReplacements();
+    await loadBillingPeriods();
 
     const tiers = rt.data || [];
     if (tiers.length) {
@@ -132,11 +147,14 @@ export async function sbUpsertBill(b) {
   return !error;
 }
 
-export function sbUpsertBills(list) {
-  if (!list.length) return;
-  _sb.from('bills').upsert(list.map(_bToDB)).then(({ error }) => {
-    if (error) _sbErr('upsertBills', error);
-  });
+// บิลใหม่: server ออกเลขบิลให้ (trigger) — คืนบิลที่บันทึกแล้ว หรือ null ถ้าล้มเหลว
+// ใช้ insert ไม่ใช่ upsert เพื่อไม่ให้เขียนทับบิลเดิมโดยไม่รู้ตัว
+export async function sbInsertBills(list) {
+  if (!list.length) return [];
+  const rows = list.map(b => ({ ..._bToDB(b), id: null }));
+  const { data, error } = await _sb.from('bills').insert(rows).select();
+  if (error) { _sbErr('insertBills', error); return null; }
+  return (data || []).map(_bFromDB);
 }
 
 export function sbUpdateBillStatus(billId, status) {
@@ -145,24 +163,80 @@ export function sbUpdateBillStatus(billId, status) {
   });
 }
 
-// total is a GENERATED column — DB recalculates it from late_fee
-export function sbUpdateBillFees(billId, lateFee) {
-  _sb.from('bills').update({ late_fee: lateFee }).eq('id', billId).then(({ error }) => {
-    if (error) _sbErr('updateBillFees', error);
-  });
+export async function sbCancelBill(billId, cancelReason, cancelledAt) {
+  const { error } = await _sb.from('bills')
+    .update({ status: 'cancelled', cancel_reason: cancelReason, cancelled_at: localToISO(cancelledAt) })
+    .eq('id', billId);
+  if (error) _sbErr('cancelBill', error);
+  return !error;
 }
 
-export function sbCancelBill(billId, cancelReason, cancelledAt) {
-  _sb.from('bills').update({ status: 'cancelled', cancel_reason: cancelReason, cancelled_at: cancelledAt }).eq('id', billId).then(({ error }) => {
-    if (error) _sbErr('cancelBill', error);
-  });
+// ─── Billing Periods + Adjustments ───────────────────────────
+export async function loadBillingPeriods() {
+  const [rp, ra] = await Promise.all([
+    _sb.from('billing_periods').select('period_year, period_month, status'),
+    _sb.from('bill_adjustments').select('*').order('created_at'),
+  ]);
+  if (rp.error) console.warn('[sb] billing_periods:', rp.error.message);
+  if (ra.error) console.warn('[sb] bill_adjustments:', ra.error.message);
+  appState.closedPeriods = new Set((rp.data || [])
+    .filter(p => p.status === 'closed')
+    .map(p => `${p.period_year}-${p.period_month}`));
+  appState.billAdjustments = (ra.data || []).map(a => ({
+    id:        a.id,
+    docNo:     a.doc_no,
+    billId:    a.bill_id,
+    amount:    parseFloat(a.amount) || 0,
+    reason:    a.reason,
+    createdAt: (a.created_at || '').replace('T', ' ').substring(0, 16),
+  }));
+}
+
+export async function sbGetBillingPeriods() {
+  const { data, error } = await _sb.rpc('get_billing_periods');
+  if (error) { _sbErr('getBillingPeriods', error); return null; }
+  return data || [];
+}
+
+export async function sbCloseBillingPeriod(year, month, note) {
+  const { error } = await _sb.rpc('close_billing_period', { p_year: year, p_month: month, p_note: note || null });
+  if (error) { _sbErr('closeBillingPeriod', error); return false; }
+  return true;
+}
+
+export async function sbReopenBillingPeriod(year, month, reason) {
+  const { error } = await _sb.rpc('reopen_billing_period', { p_year: year, p_month: month, p_reason: reason });
+  if (error) { _sbErr('reopenBillingPeriod', error); return false; }
+  return true;
+}
+
+// amount > 0 เพิ่มหนี้, < 0 ลดหนี้ — คืน { doc_no, bill: { id, discount, total } }
+export async function sbAdjustBill(billId, amount, reason) {
+  const { data, error } = await _sb.rpc('adjust_bill', { p_bill_id: billId, p_amount: amount, p_reason: reason });
+  if (error) { _sbErr('adjustBill', error); return null; }
+  return data;
+}
+
+export async function sbExportBackup() {
+  const { data, error } = await _sb.rpc('export_backup');
+  if (error) { _sbErr('exportBackup', error); return null; }
+  return data;
 }
 
 // ─── Payment Write Helpers ────────────────────────────────────
-export function sbUpsertPayment(p) {
-  _sb.from('payments').upsert(_pToDB(p)).then(({ error }) => {
-    if (error) _sbErr('upsertPayment', error);
-  });
+// server ออกเลขใบเสร็จเมื่อสถานะเป็น approved — คืนรายการที่บันทึกแล้ว หรือ null
+export async function sbInsertPayment(p) {
+  const { data, error } = await _sb.from('payments')
+    .insert({ ..._pToDB(p), receipt_no: null }).select().single();
+  if (error) { _sbErr('insertPayment', error); return null; }
+  return _pFromDB(data);
+}
+
+export async function sbApprovePayment(id, approvedAt) {
+  const { data, error } = await _sb.from('payments')
+    .update({ status: 'approved', approved_at: localToISO(approvedAt) }).eq('id', id).select().single();
+  if (error) { _sbErr('approvePayment', error); return null; }
+  return _pFromDB(data);
 }
 
 export function sbUpdatePayment(id, patch) {

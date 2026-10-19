@@ -6,10 +6,10 @@
 // ──────────────────────────────────────────────────────────────
 import { _sb, syncRealtimeAuth } from './supabase.service.js';
 import { getSession, setSession, clearSession, secondsLeft } from './session.service.js';
-import { loadAllFromSupabase, sbUpdateBillFees } from './data-loader.service.js';
+import { loadAllFromSupabase } from './data-loader.service.js';
 import { loadFromStorage, loadRateConfig, loadMaintenanceFromStorage } from './storage.service.js';
-import { syncOverdueStatus, applyLateFees } from '../utils/date.util.js';
-import { saveToStorage } from './storage.service.js';
+import { syncOverdueStatus } from '../utils/date.util.js';
+import { saveToStorage, clearOfflineCache } from './storage.service.js';
 import { toast } from '../utils/dom.util.js';
 import { roleLabels } from '../config/ui.config.js';
 
@@ -18,6 +18,11 @@ const RETRY_SEC          = 5 * 60;
 
 export let currentUser    = null;
 export let currentProfile = null;
+
+/** ผู้ใช้ปัจจุบันมี role ใด role หนึ่งที่ระบุ (ใช้ซ่อน/แสดงปุ่ม — สิทธิ์จริงบังคับที่ server) */
+export function hasRole(...roles) {
+  return roles.includes(currentProfile?.role);
+}
 
 let _refreshTimer = null;
 
@@ -132,6 +137,7 @@ export async function doSignIn() {
 // ─── Sign Out ─────────────────────────────────────────────────
 export async function doSignOut() {
   _endSession();
+  clearOfflineCache();
   _showLogin();
 }
 
@@ -180,10 +186,13 @@ export async function _initApp() {
     _hideLoadingOverlay();
   }
 
-  if (!ok) {
+  if (ok) {
+    saveToStorage();   // cache ไว้ใช้ตอนออฟไลน์
+  } else {
     loadFromStorage();
     loadRateConfig();
     loadMaintenanceFromStorage();
+    syncOverdueStatus();   // ออฟไลน์: ปรับสถานะค้างชำระเพื่อแสดงผลเท่านั้น
     toast('ใช้ข้อมูล local (offline mode)', 'warn');
   }
 
@@ -191,13 +200,6 @@ export async function _initApp() {
 
   const usersNav = document.getElementById('nav-users');
   if (usersNav) usersNav.style.display = currentProfile?.role === 'super_admin' ? '' : 'none';
-
-  const overdueChanged = syncOverdueStatus();
-  const feeChanges     = applyLateFees();
-  if (overdueChanged || feeChanges.length) {
-    saveToStorage();
-    feeChanges.forEach(b => sbUpdateBillFees(b.id, b.lateFee));
-  }
 
   if (_renderCallbacks) {
     const r = _renderCallbacks;

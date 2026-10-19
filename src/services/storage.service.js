@@ -25,6 +25,12 @@ export function loadFromStorage() {
   } catch (_) {}
 }
 
+// เรียกตอนออกจากระบบ — ไม่ทิ้งข้อมูลสมาชิก/การเงินไว้ในเครื่องที่ใช้ร่วมกัน
+export function clearOfflineCache() {
+  ['aq_members', 'aq_bills', 'aq_payments', 'aq_meterReadings', 'aq_nextMemberId', 'aq_maintenance']
+    .forEach(k => { try { localStorage.removeItem(k); } catch (_) {} });
+}
+
 export function saveRateConfig() {
   try { localStorage.setItem('aq_rateConfig', JSON.stringify(rateConfig)); } catch (_) {}
 }

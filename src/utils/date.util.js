@@ -1,13 +1,19 @@
 // ─── Date & Sync Utilities ─────────────────────────────────────
 // Thai Buddhist Era date helpers and overdue status sync.
 // ──────────────────────────────────────────────────────────────
+import { todayISO } from './time.util.js';
 import { appState } from '../state/app.state.js';
-import { rateConfig } from '../config/rate.config.js';
+import { _periodYM } from '../services/db-mapper.service.js';
 
 const _MONTHS_TH = [
   'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
   'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.',
 ];
+
+/** ป้ายงวดจากปี พ.ศ. + เดือน เช่น (2569, 10) → "ต.ค. 2569" */
+export function periodLabel(year, month) {
+  return _MONTHS_TH[month - 1] + ' ' + year;
+}
 
 /** Returns current billing period label, e.g. "ต.ค. 2566" (Buddhist Era). */
 export function currentPeriod() {
@@ -15,38 +21,22 @@ export function currentPeriod() {
   return _MONTHS_TH[d.getMonth()] + ' ' + (d.getFullYear() + 543);
 }
 
-/**
- * Sequential bill number: B-{BE-YY}{MM}-{NNNN}
- * e.g. B-6906-0001 (มิถุนายน 2569, บิลที่ 1)
- * Uses bills array length so each call returns the next unused number.
- */
-export function nextBillNo() {
-  const d   = new Date();
-  const yy  = String(d.getFullYear() + 543).slice(-2);
-  const mm  = String(d.getMonth() + 1).padStart(2, '0');
-  const seq = String(appState.bills.length + 1).padStart(4, '0');
-  return `B-${yy}${mm}-${seq}`;
-}
+// เลขบิล (B-YYMM-NNNN) และเลขใบเสร็จ (R-YYMM-NNNN) ออกโดย server
+// ดู sql/sql_phase0_finance.sql
 
-/**
- * Sequential receipt number: R-{BE-YY}{MM}-{NNNN}
- * e.g. R-6906-0001 (มิถุนายน 2569, ใบเสร็จที่ 1)
- * Uses payments array length so each call returns the next unused number.
- */
-export function nextReceiptNo() {
-  const d   = new Date();
-  const yy  = String(d.getFullYear() + 543).slice(-2);
-  const mm  = String(d.getMonth() + 1).padStart(2, '0');
-  const seq = String(appState.payments.length + 1).padStart(4, '0');
-  return `R-${yy}${mm}-${seq}`;
+/** งวดของบิลนี้ถูกปิดแล้วหรือไม่ (แก้ยอด/ยกเลิกไม่ได้ ต้องปรับผ่านใบลดหนี้/เพิ่มหนี้) */
+export function isPeriodClosed(periodLabel) {
+  const { year, month } = _periodYM(periodLabel);
+  return appState.closedPeriods.has(`${year}-${month}`);
 }
 
 /**
  * Sync overdue status for bills and members based on today's date.
+ * ใช้ตอนออฟไลน์เท่านั้น — ปกติ server อัปเดตสถานะให้ (refresh_billing_status)
  * @returns {boolean} true if any data was changed
  */
 export function syncOverdueStatus() {
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayISO();
   let changed = false;
 
   appState.bills.forEach(b => {
@@ -66,31 +56,4 @@ export function syncOverdueStatus() {
   return changed;
 }
 
-/**
- * Apply late fees to all overdue bills based on months past due date.
- * Idempotent — safe to call on every load.
- * @returns {object[]} bills that had their lateFee updated
- */
-export function applyLateFees() {
-  const today    = new Date();
-  const feeRate  = rateConfig.lateFeePerMonth || 50;
-  const changed  = [];
-
-  appState.bills.forEach(b => {
-    if (b.status !== 'overdue') return;
-    const dueDate = new Date(b.dueDate);
-    if (isNaN(dueDate.getTime())) return;
-
-    const daysOverdue   = Math.max(0, Math.floor((today - dueDate) / 86400000));
-    const monthsOverdue = Math.max(1, Math.ceil(daysOverdue / 30));
-    const newLateFee    = monthsOverdue * feeRate;
-
-    if (newLateFee !== (b.lateFee || 0)) {
-      b.lateFee = newLateFee;
-      b.total   = Math.round((b.waterCharge || 0) + (b.serviceCharge || 0) + newLateFee - (b.discount || 0));
-      changed.push(b);
-    }
-  });
-
-  return changed;
-}
+// ค่าปรับล่าช้าคำนวณที่ server ทุกวัน (app_private.run_daily_billing)

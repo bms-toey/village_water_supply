@@ -15,6 +15,8 @@ export const appState = {
   meterReadings: [],
   bills:         [],
   payments:      [],
+  billAdjustments: [],         // ใบลดหนี้/เพิ่มหนี้
+  closedPeriods:   new Set(),  // "2569-10" = งวดที่ปิดแล้ว
 
   // Operations data
   waterProduction:   [],

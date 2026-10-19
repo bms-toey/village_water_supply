@@ -88,6 +88,7 @@ export function showConfirm({ title, message, okText = 'ยืนยัน', okC
   cancelBtn.onclick = close;
   modal.onclick    = (e) => { if (e.target === modal) close(); };
 
+  modal.style.zIndex  = '1100';   // อยู่เหนือ modal ที่สร้างจาก JS (components/modal)
   modal.style.display = 'flex';
   okBtn.focus();
 }

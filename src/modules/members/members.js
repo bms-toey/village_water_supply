@@ -1,4 +1,5 @@
 // ─── Members Module ────────────────────────────────────────────
+import { toLocalDate, todayISO } from '../../utils/time.util.js';
 import { appState } from '../../state/app.state.js';
 import { esc, toast, getAvatarColor, getInitials } from '../../utils/dom.util.js';
 import { statusMap, memberTypeMap, meterSizeMap, getMemberTypeDisplay, getMeterSizeDisplay } from '../../config/ui.config.js';
@@ -116,11 +117,11 @@ export function openAddMember() {
   document.getElementById('f-household').value   = '1';
   document.getElementById('f-metersize').value   = '0.5';
   document.getElementById('f-status').value      = 'normal';
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayISO();
   document.getElementById('f-regdate').value      = today;
   document.getElementById('f-meterinstall').value = today;
   const exp = new Date(); exp.setFullYear(exp.getFullYear() + 10);
-  document.getElementById('f-meterexpire').value  = exp.toISOString().split('T')[0];
+  document.getElementById('f-meterexpire').value  = toLocalDate(exp);
   _resetModalTabs();
   document.getElementById('member-modal').style.display = 'flex';
   setTimeout(() => document.getElementById('f-firstname').focus(), 80);

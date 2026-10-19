@@ -70,6 +70,9 @@ import {
 import { renderMap, closeMemberMapPopup, filterMapByVillage, filterMapByStatus } from './modules/map/map.js';
 import { renderUsers, openAddUser, openEditUser, closeUserModal, saveUser, toggleUserActive } from './modules/users/users.js';
 import { portalSearch } from './modules/portal/portal.js';
+import { openBillingPeriods, closeBillingPeriod, reopenBillingPeriod, openAdjustBill } from './modules/billing/periods.js';
+import { downloadBackup, backupOverdue, daysSinceBackup } from './modules/settings/backup.js';
+import { closeAllDynamicModals } from './components/modal/modal.js';
 
 // ─── Register render callbacks with auth (avoid circular import) ───
 const _renderCbs = {
@@ -193,6 +196,7 @@ document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
   ['member-modal','cash-modal','confirm-modal','app-confirm-modal','rate-modal','add-tier-modal','receipt-modal','mnt-modal','mr-modal','member-qv-modal','user-modal','cancel-bill-modal','md-modal','village-modal','bnav-more-sheet','change-pwd-modal','pay-type-modal']
     .forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  closeAllDynamicModals();
   _closeAllPanels();
 });
 
@@ -224,7 +228,8 @@ function _updateNotifBadge() {
   if (!badge) return;
   const n = (appState.payments?.filter(p => p.status === 'pending').length || 0)
           + (appState.members?.filter(m => m.status === 'overdue').length || 0)
-          + (appState.maintenance?.filter(m => !['completed','cancelled'].includes(m.status)).length || 0);
+          + (appState.maintenance?.filter(m => !['completed','cancelled'].includes(m.status)).length || 0)
+          + (backupOverdue() ? 1 : 0);
   badge.style.display = n > 0 ? 'block' : 'none';
 }
 
@@ -252,6 +257,12 @@ function _fillNotifPanel() {
       count: appState.maintenance?.filter(m => !['completed','cancelled'].includes(m.status)).length || 0,
       page: 'maintenance',
     },
+    {
+      icon: 'ti-database-export', cls: 'tbd-cnt--amber',
+      label: daysSinceBackup() === null ? 'ยังไม่เคยสำรองข้อมูล' : `ไม่ได้สำรองข้อมูล ${daysSinceBackup()} วัน`,
+      count: backupOverdue() ? 1 : 0,
+      page: 'settings', settingsTab: 'backup',
+    },
   ];
 
   const active = rows.filter(r => r.count > 0);
@@ -260,7 +271,7 @@ function _fillNotifPanel() {
     return;
   }
   list.innerHTML = active.map(r => `
-    <div class="tbd-item" onclick="window._closeAllPanels?.();window.goPage('${r.page}')">
+    <div class="tbd-item" onclick="window._closeAllPanels?.();window.goPage('${r.page}')${r.settingsTab ? `;window.setSettingsTab('${r.settingsTab}')` : ''}">
       <i class="ti ${r.icon}" style="font-size:18px;flex-shrink:0;color:${r.icon==='ti-credit-card'?'var(--blue-600)':r.icon==='ti-alert-triangle'?'var(--red-600)':'#d97706'}"></i>
       <span class="tbd-item-label">${esc(r.label)}</span>
       <span class="tbd-cnt ${r.cls}">${r.count}</span>
@@ -459,6 +470,9 @@ Object.assign(window, {
   // billing
   autoBill, openBillReceipt, closeReceiptModal, printReceipt,
   cancelBill, closeCancelBillModal, confirmCancelBill,
+  openBillingPeriods, closeBillingPeriod, reopenBillingPeriod, openAdjustBill,
+  // backup
+  downloadBackup,
   // payments
   openCashModal, closeCashModal, openCashModalForBill, closePayTypeModal, notifyBillDebtor, saveCashPayment,
   approvePayment, rejectPayment, cancelPayment, printReceiptByPayment,

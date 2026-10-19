@@ -17,15 +17,21 @@ export const rateConfig = {
 };
 
 /**
+ * ค่าบริการรายเดือนตามขนาดมิเตอร์: ½" ¾" = svcSmall, 1" ขึ้นไป = svcLarge
+ * ฐานข้อมูลเก็บขนาดเป็น '1.0' (enum meter_size_type) จึงเทียบเป็นตัวเลข ไม่ใช่ข้อความ '1'
+ */
+export function serviceCharge(meterSize) {
+  return parseFloat(meterSize) >= 1 ? rateConfig.svcLarge : rateConfig.svcSmall;
+}
+
+/**
  * Calculate water charge and service charge for a given usage.
  * @param {number} usage     - Units consumed this period
  * @param {string} meterSize - Meter size ('0.5', '0.75', '1', '1.5')
  * @returns {{ waterCharge: number, serviceCharge: number, total: number }}
  */
 export function calcWaterCharge(usage, meterSize) {
-  const svc = (meterSize === '1' || meterSize === '1.5')
-    ? rateConfig.svcLarge
-    : rateConfig.svcSmall;
+  const svc = serviceCharge(meterSize);
 
   let wc = 0, remaining = usage;
   for (const t of rateConfig.tiers) {

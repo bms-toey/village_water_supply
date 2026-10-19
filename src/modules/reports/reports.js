@@ -1,4 +1,5 @@
 // ─── Reports Module ────────────────────────────────────────────
+import { todayISO } from '../../utils/time.util.js';
 import { appState } from '../../state/app.state.js';
 import { esc, toast } from '../../utils/dom.util.js';
 import { currentPeriod } from '../../utils/date.util.js';
@@ -42,7 +43,7 @@ export function renderReports() {
 function _rptDaily(tbody, thead, rfoot) {
   thead.innerHTML = '<th>เวลา</th><th>สมาชิก</th><th>เลขใบเสร็จ</th><th>ช่องทาง</th><th style="text-align:right">ยอด (บาท)</th>';
   const { payments, members } = appState;
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = todayISO();
   const todayPays = payments
     .filter(p => p.status === 'approved' && p.paidAt.startsWith(todayStr))
     .sort((a, b) => b.paidAt.localeCompare(a.paidAt));
@@ -143,7 +144,7 @@ function _exportCSV(rows, filename) {
   a.click(); URL.revokeObjectURL(a.href);
 }
 function _csvDaily() {
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = todayISO();
   const chLabels = { cash: 'เงินสด', promptpay: 'PromptPay', bank: 'โอนธนาคาร', mobile: 'Mobile App' };
   const rows = [['เวลา','สมาชิก','เลขใบเสร็จ','ช่องทาง','ยอดเงิน']];
   appState.payments

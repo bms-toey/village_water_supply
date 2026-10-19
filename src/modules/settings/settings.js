@@ -15,6 +15,7 @@ import {
   saveVillage, deleteVillage, toggleVillage,
   saveSystemConfig, loadAuditLogs,
 } from '../../services/master-data.service.js';
+import { buildBackupPanel, canBackup } from './backup.js';
 
 // ─── Tab Configuration ─────────────────────────────────────────
 const TABS = [
@@ -28,6 +29,7 @@ const TABS = [
   { id: 'reading_method',   label: 'วิธีจดมิเตอร์',          icon: 'ti-pencil',         type: 'master' },
   { id: 'system_config',    label: 'ตั้งค่าทั่วไป',          icon: 'ti-settings',       type: 'custom' },
   { id: 'audit_log',        label: 'บันทึกกิจกรรม',          icon: 'ti-history',        type: 'custom' },
+  { id: 'backup',           label: 'สำรองข้อมูล',            icon: 'ti-database-export', type: 'custom', visible: canBackup },
 ];
 
 const SYSTEM_CONFIG_FIELDS = [
@@ -64,7 +66,7 @@ export function setSettingsTab(tabId) {
 function _renderTabsBar() {
   const bar = document.getElementById('settings-tabs-bar');
   if (!bar) return;
-  bar.innerHTML = TABS.map(t => `
+  bar.innerHTML = TABS.filter(t => !t.visible || t.visible()).map(t => `
     <button class="stab-btn${_activeTab === t.id ? ' active' : ''}" onclick="setSettingsTab('${t.id}')">
       <i class="ti ${t.icon}"></i>${esc(t.label)}
     </button>`).join('');
@@ -88,6 +90,8 @@ function _renderPanel(tabId) {
   } else if (tabId === 'audit_log') {
     el.innerHTML = _buildAuditPanel();
     _loadAndRenderAudit();
+  } else if (tabId === 'backup') {
+    el.innerHTML = buildBackupPanel();
   }
 }
 
@@ -745,6 +749,9 @@ function _buildAuditPanel() {
         <option value="villages">หมู่บ้าน</option>
         <option value="system_config">ตั้งค่าระบบ</option>
         <option value="bills">บิล</option>
+        <option value="payments">การชำระเงิน</option>
+        <option value="bill_adjustments">ใบลดหนี้/เพิ่มหนี้</option>
+        <option value="billing_periods">งวดบิล</option>
         <option value="members">สมาชิก</option>
       </select>
     </div>
@@ -788,9 +795,32 @@ async function _loadAndRenderAudit(tableFilter = '') {
   }).join('');
 }
 
+const _AUDIT_STATUS = { pending: 'รอชำระ', overdue: 'ค้างชำระ', paid: 'ชำระแล้ว', cancelled: 'ยกเลิก',
+  approved: 'อนุมัติ', rejected: 'ปฏิเสธ', open: 'เปิดงวด', closed: 'ปิดงวด' };
+
 function _auditSummary(log) {
   const d = log.new_data || log.old_data;
   if (!d) return `ID: ${esc(log.record_id || '—')}`;
+  const o = log.old_data || {};
+  const baht = v => '฿' + Number(v || 0).toLocaleString();
+  if (log.table_name === 'bills') {
+    const parts = [`<span class="mono">${esc(d.id)}</span> ${esc(d.period_label || '')}`];
+    if (o.status && o.status !== d.status) parts.push(`${esc(_AUDIT_STATUS[o.status] || o.status)} → ${esc(_AUDIT_STATUS[d.status] || d.status)}`);
+    if (o.total !== undefined && Number(o.total) !== Number(d.total)) parts.push(`${baht(o.total)} → ${baht(d.total)}`);
+    else if (!log.old_data) parts.push(baht(d.total));
+    if (d.cancel_reason && o.status !== 'cancelled' && d.status === 'cancelled') parts.push(`เหตุผล: ${esc(d.cancel_reason)}`);
+    return parts.join(' · ');
+  }
+  if (log.table_name === 'payments') {
+    return [`<span class="mono">${esc(d.receipt_no || d.id)}</span>`, `บิล ${esc(d.bill_id)}`, baht(d.amount),
+      esc(_AUDIT_STATUS[d.status] || d.status)].join(' · ');
+  }
+  if (log.table_name === 'bill_adjustments') {
+    return `<span class="mono">${esc(d.doc_no)}</span> บิล ${esc(d.bill_id)} · ${Number(d.amount) < 0 ? 'ลด' : 'เพิ่ม'} ${baht(Math.abs(d.amount))} · ${esc(d.reason)}`;
+  }
+  if (log.table_name === 'billing_periods') {
+    return `งวด ${esc(d.period_month)}/${esc(d.period_year)} · ${esc(_AUDIT_STATUS[d.status] || d.status)}${d.note ? ' · ' + esc(d.note) : ''}`;
+  }
   if (d.name_th)  return esc(d.name_th);
   if (d.nameTh)   return esc(d.nameTh);
   if (d.name)     return esc(d.name);

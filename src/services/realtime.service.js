@@ -13,7 +13,7 @@ import {
   _mFromDB, _bFromDB, _pFromDB, _rFromDB, _ntFromDB,
   setVillages,
 } from './db-mapper.service.js';
-import { loadAllFromSupabase } from './data-loader.service.js';
+import { loadAllFromSupabase, loadBillingPeriods } from './data-loader.service.js';
 import { loadMasterData }      from './master-data.service.js';
 import { toast }               from '../utils/dom.util.js';
 
@@ -108,6 +108,10 @@ function _subscribe() {
         e => _onEvent('rate_tiers', e))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'master_data' },
         e => _onEvent('master_data', e))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'billing_periods' },
+        e => _onEvent('billing_periods', e))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'bill_adjustments' },
+        e => _onEvent('bill_adjustments', e))
     .subscribe(status => {
       _setStatusDot(status);
       if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
@@ -210,6 +214,13 @@ function _onEvent(table, payload) {
           else appState.waterQuality.unshift(newRec);
         }
         break;
+      }
+
+      // งวดบิล / ใบลดหนี้-เพิ่มหนี้ — โหลดชุดเล็กใหม่ทั้งหมด
+      case 'billing_periods':
+      case 'bill_adjustments': {
+        loadBillingPeriods().then(() => { markUpdated(); _scheduleRender('bills'); });
+        return;
       }
 
       // Config tables — full reload to keep derived values consistent

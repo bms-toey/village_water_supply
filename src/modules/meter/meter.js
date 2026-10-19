@@ -1,10 +1,11 @@
 // ─── Meter Module ──────────────────────────────────────────────
+import { toLocalDate, todayISO } from '../../utils/time.util.js';
 import { appState } from '../../state/app.state.js';
 import { esc, toast } from '../../utils/dom.util.js';
-import { currentPeriod, nextBillNo } from '../../utils/date.util.js';
+import { currentPeriod, isPeriodClosed } from '../../utils/date.util.js';
 import { calcWaterCharge, calcWaterBreakdown } from '../../config/rate.config.js';
 import { anomalyMap, methodMap } from '../../config/ui.config.js';
-import { sbUpsertReading, sbDeleteReading, sbUpsertBill, sbUpdateMember } from '../../services/data-loader.service.js';
+import { sbUpsertReading, sbDeleteReading, sbUpsertBill, sbInsertBills, sbUpdateMember } from '../../services/data-loader.service.js';
 import { saveToStorage } from '../../services/storage.service.js';
 import { goPage } from '../../components/navigation/navigation.js';
 import { _dbVillages } from '../../services/db-mapper.service.js';
@@ -13,6 +14,7 @@ import { _dbVillages } from '../../services/db-mapper.service.js';
 
 const _OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const _OPENROUTER_MODEL = 'qwen/qwen2.5-vl-72b-instruct';
+let _saving = false;   // กันกดบันทึกซ้ำระหว่างรอ server ออกเลขบิล
 
 function _getFileInput(id, capture) {
   let inp = document.getElementById(id);
@@ -612,7 +614,13 @@ export async function saveMeter() {
   if (!member) { toast('ไม่พบข้อมูลสมาชิก', 'error'); return; }
 
   const period = currentPeriod();
-  const today  = new Date().toISOString().split('T')[0];
+  const today  = todayISO();
+
+  if (isPeriodClosed(period)) {
+    toast(`งวด ${period} ปิดแล้ว — บันทึกมิเตอร์/ออกบิลในงวดนี้ไม่ได้`, 'error');
+    return;
+  }
+  if (_saving) return;
 
   // ── Duplicate reading check ──────────────────────────────────
   // (ตรวจก่อน validate curr เพื่อ restore lastRead ถ้าบิลเดิมถูกยกเลิก)
@@ -646,7 +654,37 @@ export async function saveMeter() {
   const existingBill   = bills.find(b => b.memberId === currentMeterMemberId && b.period === period && b.status !== 'cancelled');
   const cancelledBill  = !existingBill ? bills.find(b => b.memberId === currentMeterMemberId && b.period === period && b.status === 'cancelled') : null;
   const targetBill     = existingBill || cancelledBill;
-  const billId         = targetBill ? targetBill.id : nextBillNo();
+
+  // ── บันทึกบิลที่ server ก่อน — ได้เลขบิลจริงแล้วจึงบันทึกการอ่านมิเตอร์ ──
+  _saving = true;
+  let billId;
+  try {
+    if (targetBill) {
+      const before = { ...targetBill };
+      Object.assign(targetBill, {
+        status: 'pending', usage,
+        waterCharge: charges.waterCharge, serviceCharge: charges.serviceCharge,
+        total: charges.total, issueDate: today,
+        cancelReason: null, cancelledBy: null, cancelledAt: null,
+      });
+      if (!(await sbUpsertBill(targetBill))) { Object.assign(targetBill, before); return; }
+      billId = targetBill.id;
+    } else {
+      const dueDays = parseInt(appState.systemConfig?.billing_due_days) || 15;
+      const dueDate = new Date(); dueDate.setDate(dueDate.getDate() + dueDays);
+      const saved = await sbInsertBills([{
+        memberId: currentMeterMemberId, period,
+        issueDate: today, dueDate: toLocalDate(dueDate),
+        usage, waterCharge: charges.waterCharge, serviceCharge: charges.serviceCharge,
+        lateFee: 0, discount: 0, status: 'pending', sentVia: '',
+      }]);
+      if (!saved?.length) return;
+      bills.push(saved[0]);
+      billId = saved[0].id;
+    }
+  } finally {
+    _saving = false;
+  }
 
   const newReading = {
     id: 'MR-'+Date.now(), memberId: currentMeterMemberId, meter: member.meter,
@@ -656,31 +694,8 @@ export async function saveMeter() {
     anomaly: _detectAnomaly(usage, member, meterReadings), billId,
   };
   meterReadings.push(newReading);
-
-  if (targetBill) {
-    targetBill.status        = 'pending';
-    targetBill.usage         = usage;
-    targetBill.waterCharge   = charges.waterCharge;
-    targetBill.serviceCharge = charges.serviceCharge;
-    targetBill.total         = charges.total;
-    targetBill.issueDate     = today;
-    targetBill.cancelReason  = null;
-    targetBill.cancelledBy   = null;
-    targetBill.cancelledAt   = null;
-  } else {
-    const dueDate = new Date(); dueDate.setDate(dueDate.getDate() + 15);
-    bills.push({
-      id: billId, memberId: currentMeterMemberId, period,
-      issueDate: today, dueDate: dueDate.toISOString().split('T')[0],
-      usage, waterCharge: charges.waterCharge, serviceCharge: charges.serviceCharge,
-      lateFee: 0, discount: 0, total: charges.total,
-      status: 'pending', sentVia: '', issuedBy: 'admin',
-    });
-  }
   member.lastRead = curr; member.lastReadDate = today;
 
-  const savedBill = bills.find(b => b.id === billId);
-  if (savedBill) await sbUpsertBill(savedBill);
   sbUpsertReading(newReading);
   sbUpdateMember(member);
   saveToStorage();

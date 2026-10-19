@@ -3,6 +3,8 @@
 // and the in-memory app object format used across all modules.
 // ──────────────────────────────────────────────────────────────
 
+import { fmtLocalDateTime, localToISO } from '../utils/time.util.js';
+
 // ─── Village Cache ───────────────────────────────────────────
 export let _dbVillages = [];
 export function _vId(name)  { return (_dbVillages.find(v => v.name === name) || {}).id   || null; }
@@ -44,7 +46,7 @@ export function _mFromDB(r) {
     gpsLat:           r.gps_lat            || null,
     gpsLng:           r.gps_lng            || null,
     meter:            r.meter_no,
-    meterSize:        r.meter_size         || '0.5',
+    meterSize:        r.meter_size === '1.0' ? '1' : (r.meter_size || '0.5'),   // ให้ตรงรหัสใน master_data
     meterBrand:       r.meter_brand        || '',
     meterInstallDate: r.meter_install_date || '',
     meterExpireDate:  r.meter_expire_date  || '',
@@ -89,6 +91,8 @@ export function _bFromDB(r) {
     id:            r.id,
     memberId:      r.member_id,
     period:        r.period_label,
+    periodYear:    r.period_year,
+    periodMonth:   r.period_month,
     issueDate:     r.issue_date,
     dueDate:       r.due_date,
     usage:         parseFloat(r.usage)          || 0,
@@ -102,7 +106,7 @@ export function _bFromDB(r) {
     issuedBy:      'admin',
     cancelReason:  r.cancel_reason || null,
     cancelledBy:   r.cancelled_by  || null,
-    cancelledAt:   r.cancelled_at  ? r.cancelled_at.substring(0, 16).replace('T', ' ') : null,
+    cancelledAt:   r.cancelled_at  ? fmtLocalDateTime(r.cancelled_at) : null,
   };
 }
 export function _bToDB(b) {
@@ -125,7 +129,7 @@ export function _bToDB(b) {
     sent_via:       b.sentVia        || 'none',
     cancel_reason:  b.cancelReason   || null,
     cancelled_by:   b.cancelledBy    || null,
-    cancelled_at:   b.cancelledAt    || null,
+    cancelled_at:   localToISO(b.cancelledAt),
   };
 }
 
@@ -135,7 +139,7 @@ export function _pFromDB(r) {
     id:           r.id,
     billId:       r.bill_id,
     memberId:     r.member_id,
-    paidAt:       (r.paid_at || '').replace('T', ' ').substring(0, 16),
+    paidAt:       fmtLocalDateTime(r.paid_at),
     amount:       parseFloat(r.amount) || 0,
     channel:      r.channel,
     txRef:        r.tx_ref        || '',
@@ -144,7 +148,7 @@ export function _pFromDB(r) {
     receiptNo:    r.receipt_no    || null,
     status:       r.status,
     approvedBy:   r.approved_by   || null,
-    approvedAt:   r.approved_at ? r.approved_at.replace('T', ' ').substring(0, 16) : null,
+    approvedAt:   r.approved_at ? fmtLocalDateTime(r.approved_at) : null,
     rejectReason: r.reject_reason || null,
   };
 }
@@ -153,7 +157,7 @@ export function _pToDB(p) {
     id:            p.id,
     bill_id:       p.billId,
     member_id:     p.memberId,
-    paid_at:       p.paidAt,
+    paid_at:       localToISO(p.paidAt),
     amount:        p.amount,
     channel:       p.channel,
     tx_ref:        p.txRef        || null,
@@ -163,7 +167,7 @@ export function _pToDB(p) {
     // After running the SQL migration, uncomment the line below:
     receipt_no: p.receiptNo || null,
     status:        p.status,
-    approved_at:   p.approvedAt   || null,
+    approved_at:   localToISO(p.approvedAt),
     reject_reason: p.rejectReason || null,
   };
 }

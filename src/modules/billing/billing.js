@@ -1,12 +1,14 @@
 // ─── Billing Module ────────────────────────────────────────────
+import { nowLocal, toLocalDate, todayISO } from '../../utils/time.util.js';
 import { appState } from '../../state/app.state.js';
 import { esc, toast } from '../../utils/dom.util.js';
-import { currentPeriod, nextBillNo } from '../../utils/date.util.js';
-import { rateConfig } from '../../config/rate.config.js';
+import { currentPeriod, isPeriodClosed } from '../../utils/date.util.js';
+import { serviceCharge } from '../../config/rate.config.js';
 import { channelMap } from '../../config/ui.config.js';
-import { sbUpsertBills, sbCancelBill, sbGetBilledMemberIds } from '../../services/data-loader.service.js';
+import { sbInsertBills, sbCancelBill, sbGetBilledMemberIds } from '../../services/data-loader.service.js';
 import { saveToStorage } from '../../services/storage.service.js';
 import { currentUser } from '../../services/auth.service.js';
+import { isBillLocked, canAdjustBill } from './periods.js';
 
 let _billSearch    = '';
 let _billPeriod    = '';
@@ -67,7 +69,8 @@ export function renderBilling(filterStatus) {
         ? `<button class="btn btn-secondary btn-sm" aria-label="แจ้งเตือนลูกหนี้" onclick="notifyBillDebtor(${b.memberId})" title="แจ้งเตือน">
              <i class="ti ti-bell-exclamation" style="color:var(--red-700)"></i>
            </button>` : '';
-      const cancelBtn = unpaid
+      const locked = isBillLocked(b);
+      const cancelBtn = unpaid && !locked
         ? `<button class="btn btn-secondary btn-sm" aria-label="ยกเลิกบิล ${b.id}" onclick="cancelBill('${esc(b.id)}')" title="ยกเลิกบิล">
              <i class="ti ti-ban" style="color:var(--red-500)"></i>
            </button>` : '';
@@ -81,7 +84,7 @@ export function renderBilling(filterStatus) {
         <!-- Top: bill ID + status -->
         <div style="display:flex;justify-content:space-between;align-items:center;
           padding:10px 14px;background:var(--gray-50);border-bottom:1px solid var(--gray-100)">
-          <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--gray-500)">${esc(b.id)}</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--gray-500)">${esc(b.id)}${locked ? ' <i class="ti ti-lock" title="งวดปิดแล้ว" style="color:var(--gray-400)"></i>' : ''}</span>
           <span class="pill ${st.cls}" style="font-size:11px;padding:2px 10px">${st.label}</span>
         </div>
 
@@ -169,23 +172,25 @@ export async function autoBill() {
   const billedInMem = new Set(bills.filter(b => b.period === period && b.status !== 'cancelled').map(b => b.memberId));
   const billed      = new Set([...billedInDB, ...billedInMem]);
 
+  if (isPeriodClosed(period)) { toast(`งวด ${period} ปิดแล้ว — ออกบิลเพิ่มไม่ได้`, 'error'); return; }
+
   const unbilled = members.filter(m => m.status !== 'closed' && !billed.has(m.id));
   if (!unbilled.length) { toast('ทุกสมาชิกมีบิลสำหรับรอบนี้แล้ว', 'info'); return; }
 
-  const today   = new Date().toISOString().split('T')[0];
-  const due     = new Date(); due.setDate(due.getDate() + 15);
-  const dueDate = due.toISOString().split('T')[0];
-  const newBills = [];
-  unbilled.forEach(m => {
-    const svc = (m.meterSize === '1' || m.meterSize === '1.5') ? rateConfig.svcLarge : rateConfig.svcSmall;
-    const b = { id: nextBillNo(), memberId: m.id, period, issueDate: today, dueDate, usage: 0, waterCharge: 0, serviceCharge: svc, lateFee: 0, discount: 0, total: svc, status: 'pending', sentVia: '', issuedBy: 'admin', cancelReason: null, cancelledBy: null, cancelledAt: null };
-    bills.push(b);
-    newBills.push(b);
+  const today   = todayISO();
+  const due     = new Date(); due.setDate(due.getDate() + (parseInt(appState.systemConfig?.billing_due_days) || 15));
+  const dueDate = toLocalDate(due);
+  const drafts = unbilled.map(m => {
+    const svc = serviceCharge(m.meterSize);
+    return { memberId: m.id, period, issueDate: today, dueDate, usage: 0, waterCharge: 0, serviceCharge: svc, lateFee: 0, discount: 0, status: 'pending', sentVia: '' };
   });
-  sbUpsertBills(newBills);
+  // server ออกเลขบิลให้ทุกใบ — ล้มเหลวทั้งชุดถ้ามีปัญหา (ไม่มีบิลครึ่งๆ กลางๆ)
+  const saved = await sbInsertBills(drafts);
+  if (!saved) return;
+  bills.push(...saved);
   saveToStorage();
   renderBilling();
-  toast(`สร้างบิล ${unbilled.length} รายการ สำหรับรอบ ${period}`, 'success');
+  toast(`สร้างบิล ${saved.length} รายการ สำหรับรอบ ${period}`, 'success');
 }
 
 // ─── Cancel Bill Modal ────────────────────────────────────────
@@ -200,6 +205,10 @@ export function cancelBill(billId) {
   }
   if (b.status === 'cancelled') {
     toast('บิลนี้ถูกยกเลิกแล้ว', 'warn');
+    return;
+  }
+  if (isBillLocked(b)) {
+    toast(`งวด ${b.period} ปิดแล้ว — ยกเลิกบิลไม่ได้ ให้ใช้ "ปรับปรุงยอด" (ใบลดหนี้) แทน`, 'error');
     return;
   }
   _cancelBillId = billId;
@@ -222,7 +231,7 @@ export function closeCancelBillModal() {
 
 let _cancelInProgress = false;
 
-export function confirmCancelBill() {
+export async function confirmCancelBill() {
   if (_cancelInProgress) return;
 
   const reason = document.getElementById('cancel-bill-reason')?.value.trim();
@@ -254,12 +263,17 @@ export function confirmCancelBill() {
   const btn = document.getElementById('cancel-bill-confirm-btn');
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin .8s linear infinite"></i> กำลังยกเลิก...'; }
 
-  const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
+  const now = nowLocal();
+  const ok  = await sbCancelBill(billId, reason, now);
+  if (!ok) {
+    _cancelInProgress = false;
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-ban"></i>ยืนยันยกเลิกบิล'; }
+    return;
+  }
   b.status       = 'cancelled';
   b.cancelReason = reason;
   b.cancelledBy  = currentUser?.id || 'admin';
   b.cancelledAt  = now;
-  sbCancelBill(billId, reason, now);
   saveToStorage();
   closeCancelBillModal();
   closeReceiptModal();
@@ -291,10 +305,25 @@ export function openBillReceipt(billId) {
   if (titleEl) titleEl.textContent = isPaid ? 'ใบเสร็จรับเงิน' : isCancelled ? 'ใบแจ้งหนี้ (ยกเลิก)' : 'ใบแจ้งหนี้';
   if (iconEl)  iconEl.className    = isPaid ? 'ti ti-receipt' : 'ti ti-receipt-2';
   if (printLabel) printLabel.textContent = isPaid ? 'พิมพ์ใบเสร็จ' : 'พิมพ์';
+  const locked = isBillLocked(b);
   if (cancelModalBtn) {
-    cancelModalBtn.style.display = isUnpaid ? '' : 'none';
+    cancelModalBtn.style.display = isUnpaid && !locked ? '' : 'none';
     cancelModalBtn.onclick = () => cancelBill(billId);
   }
+
+  // ── ใบลดหนี้/เพิ่มหนี้ ของบิลนี้ ──
+  const adjustments = (appState.billAdjustments || []).filter(a => a.billId === billId);
+  const adjustRows = adjustments.map(a => `
+    <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12.5px">
+      <span class="text-muted">${a.amount < 0 ? 'ลดหนี้' : 'เพิ่มหนี้'} <span class="mono">${esc(a.docNo)}</span> — ${esc(a.reason)}</span>
+      <span style="color:${a.amount < 0 ? 'var(--green-700)' : 'var(--red-700)'};white-space:nowrap">${a.amount < 0 ? '-' : '+'}฿${Math.abs(a.amount).toLocaleString()}</span>
+    </div>`).join('');
+  const adjustBtn = isUnpaid && canAdjustBill()
+    ? `<button class="btn btn-secondary btn-sm no-print" style="margin-top:8px" onclick="openAdjustBill('${esc(b.id)}')"><i class="ti ti-adjustments-dollar"></i>ปรับปรุงยอด</button>`
+    : '';
+  const lockNote = locked
+    ? `<div class="no-print" style="font-size:11.5px;color:var(--gray-500);margin-top:8px"><i class="ti ti-lock"></i> งวด ${esc(b.period)} ปิดแล้ว — แก้ยอดได้ผ่านการปรับปรุงยอดเท่านั้น</div>`
+    : '';
 
   // ── Channel helper ──
   const chLabel = pay ? (channelMap[pay.channel]?.label || pay.channel) : '';
@@ -322,11 +351,13 @@ export function openBillReceipt(billId) {
     <div style="display:flex;justify-content:space-between;padding:5px 0;color:var(--gray-700)"><span>ค่าน้ำ (${b.usage} m³)</span><span>฿${(b.waterCharge||0).toLocaleString()}</span></div>
     <div style="display:flex;justify-content:space-between;padding:5px 0;color:var(--gray-700)"><span>ค่าบริการรายเดือน</span><span>฿${(b.serviceCharge||0).toLocaleString()}</span></div>
     ${b.lateFee  ? `<div style="display:flex;justify-content:space-between;padding:5px 0"><span class="text-muted">ค่าปรับล่าช้า</span><span class="text-error">+฿${b.lateFee.toLocaleString()}</span></div>` : ''}
-    ${b.discount ? `<div style="display:flex;justify-content:space-between;padding:5px 0"><span class="text-muted">ส่วนลด</span><span style="color:var(--green-700)">-฿${b.discount.toLocaleString()}</span></div>` : ''}
+    ${adjustments.length ? adjustRows
+      : b.discount ? `<div style="display:flex;justify-content:space-between;padding:5px 0"><span class="text-muted">ส่วนลด</span><span style="color:var(--green-700)">-฿${b.discount.toLocaleString()}</span></div>` : ''}
     <div style="display:flex;justify-content:space-between;padding:10px 0;border-top:2px solid var(--gray-200);margin-top:5px">
       <span class="text-bold" style="font-size:15px">รวมสุทธิ</span>
       <span class="text-bold" style="font-size:20px;color:var(--blue-900)">฿${b.total.toLocaleString()}</span>
     </div>
+    ${adjustBtn}${lockNote}
   </div>`;
 
   // ── Receipt-specific section (shown only when paid) ──
@@ -404,7 +435,7 @@ export function printReceipt() {
   .text-bold{font-weight:700}.text-muted{color:#666}.text-error{color:#ba1a1a}.text-primary{color:#00236f}.op-50{opacity:.5}
   .mono{font-family:'IBM Plex Mono',monospace;font-size:12px}.pill{display:inline-block;padding:4px 16px;border-radius:20px;font-weight:700;font-size:12px}
   .pill-paid{background:#dcfce7;color:#15803d}.pill-overdue{background:#ffdad6;color:#ba1a1a}.pill-pending{background:#fef3c7;color:#b45309}.pill-closed{background:#f1f5f9;color:#475569}
-  i[class*="ti"]{display:none}</style></head><body>${body.innerHTML}</body></html>`);
+  i[class*="ti"]{display:none}.no-print,button{display:none!important}</style></head><body>${body.innerHTML}</body></html>`);
   w.document.close();
   setTimeout(() => { w.focus(); w.print(); }, 400);
 }

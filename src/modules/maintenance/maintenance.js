@@ -1,4 +1,5 @@
 // ─── Maintenance Module ────────────────────────────────────────
+import { todayISO } from '../../utils/time.util.js';
 import { appState } from '../../state/app.state.js';
 import { esc, toast } from '../../utils/dom.util.js';
 import { sbUpsertMaintenance, sbInsertMeterReplacement } from '../../services/data-loader.service.js';
@@ -83,7 +84,7 @@ export function renderMaintenance() {
 export function completeMaintenance(id) {
   const item = appState.maintenance.find(x => x.id === id); if (!item) return;
   item.status        = 'completed';
-  item.completedDate = new Date().toISOString().split('T')[0];
+  item.completedDate = todayISO();
   sbUpsertMaintenance(item);
   _saveMaintenanceToStorage();
   renderMaintenance();
@@ -136,7 +137,7 @@ export function saveMaintenance() {
     if (item) { Object.assign(item, data); sbUpsertMaintenance(item); }
     toast('แก้ไขรายการแล้ว', 'success');
   } else {
-    const newItem = { id: 'MNT-'+Date.now(), reportedBy: 'staff', reportedMemberId: null, reportedDate: new Date().toISOString().split('T')[0], startDate: null, completedDate: null, materials: '', approvedBy: null, ...data };
+    const newItem = { id: 'MNT-'+Date.now(), reportedBy: 'staff', reportedMemberId: null, reportedDate: todayISO(), startDate: null, completedDate: null, materials: '', approvedBy: null, ...data };
     appState.maintenance.push(newItem);
     sbUpsertMaintenance(newItem);
     toast('เพิ่มงานซ่อมบำรุงแล้ว', 'success');
@@ -203,7 +204,7 @@ export function openMeterReplaceModal() {
   document.getElementById('mr-new-read').value   = '0';
   document.getElementById('mr-reason').value     = 'broken';
   document.getElementById('mr-note').value       = '';
-  document.getElementById('mr-date').value       = new Date().toISOString().split('T')[0];
+  document.getElementById('mr-date').value       = todayISO();
   document.getElementById('mr-modal').style.display = 'flex';
 }
 

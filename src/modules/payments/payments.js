@@ -1,9 +1,9 @@
 // ─── Payments Module ───────────────────────────────────────────
+import { nowLocal, todayISO, localToISO } from '../../utils/time.util.js';
 import { appState } from '../../state/app.state.js';
 import { esc, toast, showConfirm } from '../../utils/dom.util.js';
 import { channelMap } from '../../config/ui.config.js';
-import { sbUpsertPayment, sbUpdatePayment, sbUpdateBillStatus } from '../../services/data-loader.service.js';
-import { nextReceiptNo } from '../../utils/date.util.js';
+import { sbInsertPayment, sbApprovePayment, sbUpdatePayment, sbUpdateBillStatus } from '../../services/data-loader.service.js';
 import { saveToStorage } from '../../services/storage.service.js';
 import { currentUser } from '../../services/auth.service.js';
 
@@ -64,7 +64,7 @@ export function renderPayments() {
       </div>`;
     }).join('');
   }
-  const todayStr   = new Date().toISOString().split('T')[0];
+  const todayStr   = todayISO();
   const todayAmt   = payments.filter(p => p.paidAt.startsWith(todayStr) && p.status === 'approved').reduce((s, p) => s + p.amount, 0);
   const pendingPay = payments.filter(p => p.status === 'pending');
   const overdueB   = bills.filter(b => b.status === 'overdue');
@@ -78,18 +78,21 @@ export function renderPayments() {
   if (foot) foot.textContent = `แสดง 1–${sorted.length} จาก ${payments.length} รายการ`;
 }
 
-export function approvePayment(pid) {
+const _busy = new Set();   // payment id / bill id ที่กำลังบันทึก — กันกดซ้ำ
+
+export async function approvePayment(pid) {
   const { payments, bills } = appState;
   const p = payments.find(x => x.id === pid); if (!p) return;
-  const now       = new Date().toISOString().replace('T',' ').substring(0,16);
-  const receiptNo = p.receiptNo || nextReceiptNo();
-  p.status     = 'approved';
-  p.approvedBy = currentUser?.id || 'admin';
-  p.approvedAt = now;
-  p.receiptNo  = receiptNo;
+  if (_busy.has(pid)) return;
+  _busy.add(pid);
+  const now   = nowLocal();
+  const saved = await sbApprovePayment(pid, now);   // server ออกเลขใบเสร็จให้
+  _busy.delete(pid);
+  if (!saved) return;
+  Object.assign(p, saved, { approvedBy: currentUser?.id || 'admin' });
+  const receiptNo = saved.receiptNo;
   const b = bills.find(x => x.id === p.billId);
   if (b) b.status = 'paid';
-  sbUpdatePayment(pid, { status: 'approved', approved_at: now, receipt_no: receiptNo });
   if (b) sbUpdateBillStatus(b.id, 'paid');
   saveToStorage();
   renderPayments();
@@ -242,16 +245,16 @@ export function cancelPayment(pid) {
     okText:  'ยืนยันยกเลิก',
     icon:    'ti-ban',
     onOk() {
-      const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
+      const now = nowLocal();
       p.status      = 'cancelled';
       p.cancelledAt = now;
       const b = bills.find(x => x.id === p.billId);
       if (b && b.status === 'paid') {
-        const today = new Date().toISOString().split('T')[0];
+        const today = todayISO();
         b.status = b.dueDate < today ? 'overdue' : 'pending';
         sbUpdateBillStatus(b.id, b.status);
       }
-      sbUpdatePayment(pid, { status: 'cancelled', cancelled_at: now });
+      sbUpdatePayment(pid, { status: 'cancelled', cancelled_at: localToISO(now) });
       saveToStorage();
       renderPayments();
       window.renderBilling?.();
@@ -270,7 +273,7 @@ export function printReceiptByPayment(pid) {
   setTimeout(() => window.printReceipt?.(), 350);
 }
 
-export function saveCashPayment() {
+export async function saveCashPayment() {
   const { bills, payments } = appState;
   const billId  = document.getElementById('cp-bill').value;
   const amount  = parseFloat(document.getElementById('cp-amount').value);
@@ -280,6 +283,11 @@ export function saveCashPayment() {
   if (!amount || amount <= 0) { toast('กรุณากรอกจำนวนเงิน', 'error'); return; }
   const b = bills.find(x => x.id === billId);
   if (!b) { toast('ไม่พบบิล', 'error'); return; }
+  if (b.status !== 'pending' && b.status !== 'overdue') { toast('บิลนี้ไม่อยู่ในสถานะรอชำระ', 'error'); return; }
+  // ยังไม่รองรับชำระบางส่วน — ยอดต้องตรงกับบิล ไม่งั้นบิลจะถูกตีว่าชำระครบทั้งที่ยังขาด
+  if (Math.abs(amount - b.total) > 0.009) {
+    toast(`ยอดชำระต้องเท่ากับยอดบิล ฿${b.total.toLocaleString()}`, 'error'); return;
+  }
   if (channel === 'cash') {
     const received = parseFloat(document.getElementById('cp-received')?.value);
     if (!received || received <= 0) {
@@ -289,21 +297,26 @@ export function saveCashPayment() {
     }
     if (received < amount) { toast(`เงินที่ได้รับ (฿${received.toLocaleString()}) น้อยกว่ายอดที่ต้องชำระ (฿${amount.toLocaleString()})`, 'error'); return; }
   }
-  const now       = new Date().toISOString().replace('T',' ').substring(0,16);
-  const isCash    = channel === 'cash';
-  const receiptNo = isCash ? nextReceiptNo() : null;
-  const newPay = {
+  if (_busy.has(billId)) return;
+  const now    = nowLocal();
+  const isCash = channel === 'cash';
+  const draft  = {
     id: 'PAY-'+Date.now(), billId, memberId: b.memberId, paidAt: now, amount, channel, txRef,
     payerName: document.getElementById('cp-name').value.trim(),
-    slipPath: null, receiptNo,
+    slipPath: null, receiptNo: null,
     status: isCash ? 'approved' : 'pending',
     approvedBy: isCash ? (currentUser?.id || 'admin') : null,
     approvedAt: isCash ? now : null,
     rejectReason: null,
   };
+  _busy.add(billId);
+  const saved = await sbInsertPayment(draft);   // เงินสด: server ออกเลขใบเสร็จทันที
+  _busy.delete(billId);
+  if (!saved) return;
+  const newPay    = { ...draft, ...saved };
+  const receiptNo = newPay.receiptNo;
   payments.push(newPay);
   if (isCash) b.status = 'paid';
-  sbUpsertPayment(newPay);
   if (isCash) sbUpdateBillStatus(billId, 'paid');
   closeCashModal();
   saveToStorage();
