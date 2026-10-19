@@ -1,4 +1,5 @@
 // ─── Members Module ────────────────────────────────────────────
+import { renderPortalAccess } from '../notify/notify.js';
 import { toLocalDate, todayISO } from '../../utils/time.util.js';
 import { appState } from '../../state/app.state.js';
 import { esc, toast, getAvatarColor, getInitials } from '../../utils/dom.util.js';
@@ -269,10 +270,10 @@ export function openMemberQuickView(id) {
   const billStatusMap = { paid:{cls:'pill-paid',label:'ชำระแล้ว'}, overdue:{cls:'pill-overdue',label:'ค้างชำระ'}, pending:{cls:'pill-pending',label:'รอยืนยัน'}, cancelled:{cls:'pill-closed',label:'ยกเลิก'} };
   const memberBills = bills.filter(b => b.memberId === id).sort((a, b) => b.period.localeCompare(a.period));
   const body = document.getElementById('mqv-body');
-  if (!memberBills.length) { body.innerHTML = '<div style="text-align:center;color:var(--gray-500);padding:28px;font-size:13px"><i class="ti ti-receipt-off" style="font-size:32px;margin-bottom:8px;display:block"></i>ยังไม่มีบิล</div>'; }
+  if (!memberBills.length) { body.innerHTML = '<div id="mqv-portal"></div><div style="text-align:center;color:var(--gray-500);padding:28px;font-size:13px"><i class="ti ti-receipt-off" style="font-size:32px;margin-bottom:8px;display:block"></i>ยังไม่มีบิล</div>'; }
   else {
     const totalDebt = memberBills.filter(b => b.status === 'overdue').reduce((s, b) => s + b.total, 0);
-    body.innerHTML = (totalDebt > 0 ? `<div class="warning-box" style="margin-bottom:14px"><i class="ti ti-alert-triangle"></i><div><span class="text-bold text-error">ยอดค้างชำระรวม: ฿${totalDebt.toLocaleString()}</span></div></div>` : '') +
+    body.innerHTML = '<div id="mqv-portal"></div>' + (totalDebt > 0 ? `<div class="warning-box" style="margin-bottom:14px"><i class="ti ti-alert-triangle"></i><div><span class="text-bold text-error">ยอดค้างชำระรวม: ฿${totalDebt.toLocaleString()}</span></div></div>` : '') +
       memberBills.map(b => {
         const st2 = billStatusMap[b.status] || billStatusMap.pending;
         const payBtn = (b.status === 'overdue' || b.status === 'pending') ? `<button class="btn btn-primary btn-xs" onclick="openCashModalForBill('${esc(b.id)}');closeMemberQV()"><i class="ti ti-cash"></i>รับชำระ</button>` : '';
@@ -280,6 +281,7 @@ export function openMemberQuickView(id) {
       }).join('');
   }
   document.getElementById('member-qv-modal').style.display = 'flex';
+  renderPortalAccess(m, document.getElementById('mqv-portal'));
 }
 
 export function closeMemberQV() { document.getElementById('member-qv-modal').style.display = 'none'; _mqvMemberId = null; }

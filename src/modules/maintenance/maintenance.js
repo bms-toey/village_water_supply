@@ -1,4 +1,6 @@
 // ─── Maintenance Module ────────────────────────────────────────
+import { signedImageUrl } from '../../services/files.service.js';
+import { openModal } from '../../components/modal/modal.js';
 import { todayISO } from '../../utils/time.util.js';
 import { appState } from '../../state/app.state.js';
 import { esc, toast } from '../../utils/dom.util.js';
@@ -63,6 +65,7 @@ export function renderMaintenance() {
       <div class="mnch-type">
         <span class="pill ${type.cls}" style="padding:2px 7px;white-space:nowrap"><i class="ti ${type.icon}" style="font-size:11px;margin-right:3px"></i>${type.label}</span>
         <div class="mono text-muted" style="font-size:10px;margin-top:3px">${esc(item.id)}</div>
+        ${item.reportedBy === 'member' ? '<span class="pill pill-pending" style="font-size:10px;padding:1px 6px;margin-top:3px;display:inline-block"><i class="ti ti-world" style="font-size:10px"></i> ผู้ใช้น้ำแจ้ง</span>' : ''}
       </div>
       <div class="mnch-info">
         <div class="text-bold" style="font-size:13px">${esc(item.description)}</div>
@@ -73,12 +76,22 @@ export function renderMaintenance() {
       <div class="mnch-cost">${item.cost?'฿'+item.cost.toLocaleString():'—'}</div>
       <div class="mnch-actions">
         ${doneBtn}
+        ${item.photos?.length ? `<button class="btn-icon" title="ดูรูป" aria-label="ดูรูป" onclick="viewJobPhoto('${esc(item.id)}')"><i class="ti ti-photo"></i></button>` : ''}
         <button class="btn-icon" title="แก้ไข" onclick="openEditMaintenance('${esc(item.id)}')"><i class="ti ti-edit"></i></button>
       </div>
     </div>`;
   }).join('');
   const footer = document.getElementById('mnt-jobs-footer')?.querySelector('span');
   if (footer) footer.textContent = `แสดง 1–${sorted.length} จาก ${maintenance.length} รายการ`;
+}
+
+export async function viewJobPhoto(id) {
+  const item = appState.maintenance.find(x => x.id === id);
+  const url = item?.photos?.[0] && await signedImageUrl('meter-photos', item.photos[0]);
+  if (!url) return;
+  openModal({ id: 'job-photo-modal', title: `รูปประกอบ ${item.id}`, icon: 'ti-photo', width: 520,
+    body: `<img src="${esc(url)}" alt="รูปประกอบงานซ่อม" style="width:100%;border-radius:var(--radius-md)"/>
+      <div style="margin-top:8px;font-size:13px">${esc(item.description)}</div>` });
 }
 
 export function completeMaintenance(id) {

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<title>ค่าน้ำประปา — สำหรับผู้ใช้น้ำ</title>
+<meta name="theme-color" content="#00236f"/>
+<meta name="description" content="ดูบิลค่าน้ำ จ่ายด้วย QR พร้อมเพย์ ส่งสลิป และแจ้งซ่อม"/>
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png"/>
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.0.0/dist/tabler-icons.min.css"/>
+<link rel="stylesheet" href="styles/variables.css"/>
+<link rel="stylesheet" href="styles/portal.css"/>
+</head>
+<body>
+<header class="pt-hd">
+  <div class="pt-hd-inner">
+    <div class="pt-brand"><i class="ti ti-droplet-filled"></i><span id="pt-org">ประปาหมู่บ้าน</span></div>
+    <button class="pt-logout" id="pt-logout" hidden aria-label="ออกจากระบบ"><i class="ti ti-logout"></i></button>
+  </div>
+  <div class="pt-hd-sub" id="pt-hd-sub">บริการผู้ใช้น้ำออนไลน์</div>
+</header>
+
+<main class="pt-main">
+  <!-- Login -->
+  <section id="pt-login" class="pt-card" hidden>
+    <h1 class="pt-title">เข้าดูบิลค่าน้ำ</h1>
+    <p class="pt-muted">ใช้เลขมิเตอร์และรหัส 6 หลักที่พิมพ์อยู่บนใบแจ้งค่าน้ำ</p>
+    <form id="pt-login-form" novalidate>
+      <label class="pt-label" for="pt-meter">เลขมิเตอร์</label>
+      <input class="pt-input" id="pt-meter" autocomplete="username" autocapitalize="characters" placeholder="เช่น WM-0012" required/>
+      <label class="pt-label" for="pt-code">รหัส 6 หลัก</label>
+      <input class="pt-input pt-mono" id="pt-code" autocomplete="one-time-code" autocapitalize="characters" maxlength="8" placeholder="AB12CD" required/>
+      <div class="pt-error" id="pt-login-error" role="alert" hidden></div>
+      <button class="pt-btn pt-btn-primary" type="submit" id="pt-login-btn"><i class="ti ti-login"></i>เข้าสู่ระบบ</button>
+    </form>
+    <p class="pt-muted pt-small">ไม่มีรหัส หรือรหัสหาย ติดต่อเจ้าหน้าที่ประปาหมู่บ้าน</p>
+  </section>
+
+  <!-- App -->
+  <section id="pt-app" hidden>
+    <div class="pt-card pt-me" id="pt-me"></div>
+    <div id="pt-unpaid"></div>
+    <nav class="pt-tabs" role="tablist">
+      <button class="pt-tab active" data-tab="bills" role="tab"><i class="ti ti-receipt"></i>บิล</button>
+      <button class="pt-tab" data-tab="usage" role="tab"><i class="ti ti-chart-bar"></i>การใช้น้ำ</button>
+      <button class="pt-tab" data-tab="issue" role="tab"><i class="ti ti-tool"></i>แจ้งซ่อม</button>
+    </nav>
+    <div id="pt-tab-bills"></div>
+    <div id="pt-tab-usage" hidden></div>
+    <div id="pt-tab-issue" hidden></div>
+  </section>
+
+  <div id="pt-loading" class="pt-loading"><i class="ti ti-loader-2"></i></div>
+</main>
+
+<div id="pt-sheet" class="pt-sheet" hidden>
+  <div class="pt-sheet-card" role="dialog" aria-modal="true" aria-labelledby="pt-sheet-title">
+    <div class="pt-sheet-hd"><b id="pt-sheet-title"></b><button class="pt-close" id="pt-sheet-close" aria-label="ปิด"><i class="ti ti-x"></i></button></div>
+    <div id="pt-sheet-body"></div>
+  </div>
+</div>
+<div id="pt-toast" class="pt-toast" role="status" hidden></div>
+
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script type="module" src="src/portal/portal-app.js"></script>
+</body>
+</html>

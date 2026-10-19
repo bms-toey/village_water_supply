@@ -7,6 +7,7 @@
 //   OR SQL: ALTER PUBLICATION supabase_realtime ADD TABLE tablename;
 // ──────────────────────────────────────────────────────────────
 import { _sb }         from './supabase.service.js';
+import { getSession }  from './session.service.js';
 import { appState }    from '../state/app.state.js';
 import { rateConfig }  from '../config/rate.config.js';
 import {
@@ -41,10 +42,25 @@ let _refreshing     = false;
 // ── Public API ────────────────────────────────────────────────
 export function initRealtime(callbacks) {
   _callbacks = callbacks;
-  _subscribe();
-  _startFallback();
+  // สิทธิ์อ่านแต่ละตารางถูกตรวจตอน subscribe — ต้อง subscribe ใหม่ทุกครั้งที่ login/ออก
+  // (ถ้า subscribe ตอนยังไม่ login จะได้สิทธิ์ของ anon และไม่ได้รับข้อมูลใดๆ เลย)
+  window.addEventListener('aquaflow:session', _onSessionChange);
+  if (getSession()) _start();
   // Set initial timestamp once data is loaded
   window.addEventListener('aquaflow:data-ready', markUpdated, { once: false });
+}
+
+function _onSessionChange(e) {
+  if (e.detail?.loggedIn) { if (!_channel || e.detail.relogin) _start(); }
+  else stopRealtime();
+}
+
+async function _start() {
+  // ต้องรอให้ socket ได้ token ของผู้ใช้ก่อน — ถ้า subscribe ก่อน subscription จะผูกกับสิทธิ์ anon
+  // และการเปลี่ยน token ภายหลังไม่ได้เปลี่ยนสิทธิ์ของ subscription เดิม
+  try { await _sb.realtime.setAuth(); } catch (e) { console.warn('[RT] setAuth:', e); }
+  _subscribe();
+  _startFallback();
 }
 
 export function stopRealtime() {
@@ -108,11 +124,16 @@ function _subscribe() {
         e => _onEvent('rate_tiers', e))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'master_data' },
         e => _onEvent('master_data', e))
+    // Realtime แจ้งปัญหาผ่าน system message (เช่น ตารางไม่อยู่ใน publication) — สถานะยังเป็น SUBSCRIBED
+    .on('system', {}, m => { if (m?.status === 'error') console.warn('[RT] system:', m.message); })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' },
+        e => _callbacks?.onNotification?.(e.eventType, e.new))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'billing_periods' },
         e => _onEvent('billing_periods', e))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'bill_adjustments' },
         e => _onEvent('bill_adjustments', e))
-    .subscribe(status => {
+    .subscribe((status, err) => {
+      if (err) console.warn('[RT] subscribe error:', err.message);
       _setStatusDot(status);
       if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
         console.warn('[RT] subscription error:', status, '— retrying in 8s');

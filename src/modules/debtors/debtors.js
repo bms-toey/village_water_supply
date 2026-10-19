@@ -4,6 +4,7 @@ import { esc, toast, showConfirm } from '../../utils/dom.util.js';
 import { getInitials } from '../../utils/dom.util.js';
 import { saveToStorage } from '../../services/storage.service.js';
 import { sbSaveMember, sbLogAudit } from '../../services/data-loader.service.js';
+import { sendOverdueReminders } from '../notify/notify.js';
 
 let _debtorSeverity = '';
 
@@ -123,16 +124,14 @@ export function suspendMember(mid) {
   });
 }
 
+// ส่งเตือนค้างชำระผ่านคิว LINE/SMS (ส่งซ้ำได้วันละครั้งต่อราย)
 export function notifyDebtor(mid) {
-  const m = appState.members.find(x => x.id === mid); if (!m) return;
-  toast(`ส่งแจ้งเตือน LINE/SMS ถึง: ${m.firstName} ${m.lastName} (${m.phone || 'ไม่มีเบอร์'})`, 'info');
+  sendOverdueReminders([mid]);
 }
 
 export function notifyAllDebtors() {
-  const mids = [...new Set(appState.bills.filter(b => b.status === 'overdue').map(b => b.memberId))];
-  if (!mids.length) { toast('ไม่มีลูกหนี้ค้างชำระ', 'info'); return; }
-  mids.forEach(mid => notifyDebtor(mid));
-  toast(`ส่งแจ้งเตือนถึง ${mids.length} ราย`, 'success');
+  if (!appState.bills.some(b => b.status === 'overdue')) { toast('ไม่มีลูกหนี้ค้างชำระ', 'info'); return; }
+  sendOverdueReminders(null);
 }
 
 export function suspendAllOverdue3Months() {

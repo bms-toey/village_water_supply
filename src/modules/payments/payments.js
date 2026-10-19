@@ -10,6 +10,7 @@ import { uploadImage, signedImageUrl } from '../../services/files.service.js';
 import { promptPaySvg } from '../../utils/promptpay.js';
 import { openModal, closeModal, busyButton } from '../../components/modal/modal.js';
 import { printPaymentReceipt } from '../documents/documents.js';
+import { sendOverdueReminders } from '../notify/notify.js';
 
 const payStatusMap = {
   approved:  { cls: 'pill-paid',    label: 'อนุมัติแล้ว' },
@@ -301,9 +302,7 @@ window._calcChange = function() {
 };
 
 export function notifyBillDebtor(memberId) {
-  const m = appState.members.find(x => x.id === memberId);
-  if (!m) return;
-  toast(`ส่งแจ้งเตือนถึง: ${m.firstName} ${m.lastName} (${m.phone||'ไม่มีเบอร์'})`, 'info');
+  sendOverdueReminders([memberId]);
 }
 
 export function cancelPayment(pid) {

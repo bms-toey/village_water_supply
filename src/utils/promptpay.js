@@ -61,15 +61,19 @@ export function promptPayPayload(id, amount) {
 }
 
 /**
- * SVG ของ QR (ต้องโหลด qrcode-generator จาก CDN ใน index.html แล้ว)
+ * SVG ของ QR สำหรับข้อความใดๆ (ต้องโหลด qrcode-generator จาก CDN แล้ว)
  * @returns {string} SVG markup หรือข้อความว่างถ้าสร้างไม่ได้
  */
-export function promptPaySvg(id, amount, sizePx = 160) {
-  const payload = promptPayPayload(id, amount);
-  if (!payload || typeof window === 'undefined' || typeof window.qrcode !== 'function') return '';
+export function qrSvg(text, sizePx = 160, label = 'QR code') {
+  if (!text || typeof window === 'undefined' || typeof window.qrcode !== 'function') return '';
   const qr = window.qrcode(0, 'M');
-  qr.addData(payload);
+  qr.addData(text);
   qr.make();
   return qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true })
-    .replace('<svg ', `<svg width="${sizePx}" height="${sizePx}" role="img" aria-label="QR พร้อมเพย์" `);
+    .replace('<svg ', `<svg width="${sizePx}" height="${sizePx}" role="img" aria-label="${label}" `);
+}
+
+/** SVG ของ QR พร้อมเพย์ระบุยอด */
+export function promptPaySvg(id, amount, sizePx = 160) {
+  return qrSvg(promptPayPayload(id, amount), sizePx, 'QR พร้อมเพย์');
 }

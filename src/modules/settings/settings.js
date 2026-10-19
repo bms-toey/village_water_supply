@@ -16,6 +16,7 @@ import {
   saveSystemConfig, loadAuditLogs,
 } from '../../services/master-data.service.js';
 import { buildBackupPanel, canBackup } from './backup.js';
+import { buildNotifyPanel } from '../notify/notify.js';
 import { PAPERS } from '../documents/print.js';
 import { isValidPromptPayId } from '../../utils/promptpay.js';
 
@@ -31,6 +32,7 @@ const TABS = [
   { id: 'reading_method',   label: 'วิธีจดมิเตอร์',          icon: 'ti-pencil',         type: 'master' },
   { id: 'system_config',    label: 'ตั้งค่าทั่วไป',          icon: 'ti-settings',       type: 'custom' },
   { id: 'audit_log',        label: 'บันทึกกิจกรรม',          icon: 'ti-history',        type: 'custom' },
+  { id: 'notify',           label: 'แจ้งเตือน & LINE',       icon: 'ti-brand-line',     type: 'custom' },
   { id: 'backup',           label: 'สำรองข้อมูล',            icon: 'ti-database-export', type: 'custom', visible: canBackup },
 ];
 
@@ -104,6 +106,8 @@ function _renderPanel(tabId) {
   } else if (tabId === 'audit_log') {
     el.innerHTML = _buildAuditPanel();
     _loadAndRenderAudit();
+  } else if (tabId === 'notify') {
+    el.innerHTML = buildNotifyPanel();
   } else if (tabId === 'backup') {
     el.innerHTML = buildBackupPanel();
   }

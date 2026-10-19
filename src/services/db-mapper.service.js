@@ -234,6 +234,7 @@ export function _ntFromDB(r) {
     cost:             parseFloat(r.cost) || 0,
     status:           r.status,
     approvedBy:       r.approved_by    || null,
+    photos:           r.photos         || [],
   };
 }
 export function _ntToDB(m) {

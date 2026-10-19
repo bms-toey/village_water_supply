@@ -280,6 +280,52 @@ export async function sbListCashClosings(limit = 60) {
   return data || [];
 }
 
+// ─── Notifications (staff) ───────────────────────────────────
+export async function sbLoadNotifications(limit = 30) {
+  const { data, error } = await _sb.from('notifications').select('*')
+    .order('created_at', { ascending: false }).limit(limit);
+  if (error) { console.warn('[sb] notifications:', error.message); return []; }
+  return data || [];
+}
+
+export async function sbMarkNotificationsRead(ids = null) {
+  const { error } = await _sb.rpc('mark_notifications_read', { p_ids: ids });
+  if (error) console.warn('[sb] mark read:', error.message);
+}
+
+// ─── Member portal / outbox ──────────────────────────────────
+/** { memberId: { code, lineLinked } } */
+export async function sbGetPortalCodes(memberIds) {
+  if (!memberIds.length) return {};
+  const { data, error } = await _sb.rpc('get_portal_codes', { p_member_ids: memberIds });
+  if (error) { console.warn('[sb] portal codes:', error.message); return {}; }
+  return Object.fromEntries((data || []).map(r => [r.member_id, { code: r.portal_code, lineLinked: r.line_linked }]));
+}
+
+export async function sbRegeneratePortalCode(memberId) {
+  const { data, error } = await _sb.rpc('regenerate_portal_code', { p_member_id: memberId });
+  if (error) { _sbErr('regeneratePortalCode', error); return null; }
+  return data;
+}
+
+export async function sbSendOverdueReminders(memberIds = null) {
+  const { data, error } = await _sb.rpc('send_overdue_reminders', { p_member_ids: memberIds });
+  if (error) { _sbErr('sendOverdueReminders', error); return null; }
+  return data;
+}
+
+export async function sbBroadcast(title, message, villageId = null) {
+  const { data, error } = await _sb.rpc('broadcast_announcement', { p_title: title, p_message: message, p_village_id: villageId });
+  if (error) { _sbErr('broadcast', error); return null; }
+  return data;
+}
+
+export async function sbOutboxStats() {
+  const { data, error } = await _sb.rpc('get_outbox_stats');
+  if (error) { _sbErr('outboxStats', error); return null; }
+  return data;
+}
+
 // ─── Audit (server กำหนดผู้ทำรายการเอง) ──────────────────────
 export function sbLogAudit(tableName, recordId, action, oldData, newData) {
   _sb.from('audit_logs').insert({

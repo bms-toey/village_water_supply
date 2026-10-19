@@ -4,7 +4,7 @@
 // ──────────────────────────────────────────────────────────────
 import { esc } from '../../utils/dom.util.js';
 import { bahtText } from '../../utils/thai-baht.js';
-import { promptPaySvg } from '../../utils/promptpay.js';
+import { promptPaySvg, qrSvg } from '../../utils/promptpay.js';
 
 const TH_MONTHS = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
   'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
@@ -95,8 +95,20 @@ function payBlock(org, amount) {
     </div>`;
 }
 
+// ดูบิลออนไลน์: รหัส portal + QR ไปหน้า portal (เข้าสู่ระบบอัตโนมัติ)
+function portalBlock(portal) {
+  if (!portal?.code) return '';
+  return `
+    <div class="pay portal">
+      <div class="qr">${qrSvg(portal.link, 110, 'QR ดูบิลออนไลน์')}</div>
+      <div class="bank"><b>ดูบิล / ส่งสลิป / แจ้งซ่อม ออนไลน์</b><br>สแกน QR นี้ หรือเข้า ${esc(portal.url)}<br>
+        เลขมิเตอร์ <span class="mono">${esc(portal.meter)}</span> รหัส <b class="mono" style="letter-spacing:1.5px">${esc(portal.code)}</b>
+        ${portal.lineOa ? `<br>รับแจ้งเตือนทาง LINE: เพิ่มเพื่อน ${esc(portal.lineOa)} แล้วพิมพ์ "ผูก ${esc(portal.meter)} ${esc(portal.code)}"` : ''}</div>
+    </div>`;
+}
+
 // ─── ใบแจ้งค่าน้ำ ─────────────────────────────────────────────
-export function invoiceHtml({ bill, member, reading, adjustments, otherUnpaid = [], org }) {
+export function invoiceHtml({ bill, member, reading, adjustments, otherUnpaid = [], org, portal }) {
   const prevDebt = otherUnpaid.reduce((s, b) => s + Number(b.total || 0), 0);
   return `
   <section class="doc invoice">
@@ -115,6 +127,7 @@ export function invoiceHtml({ bill, member, reading, adjustments, otherUnpaid = 
       <div class="box warn">มียอดค้างชำระงวดก่อน ${otherUnpaid.length} งวด รวม <b>${money(prevDebt)}</b> บาท
       (${otherUnpaid.map(b => esc(b.period)).join(', ')}) — กรุณาชำระพร้อมกัน</div>` : ''}
     ${payBlock(org, bill.total)}
+    ${portalBlock(portal)}
     <div class="note">ชำระเกินกำหนดมีค่าปรับ · เก็บใบแจ้งนี้ไว้เป็นหลักฐาน${org.phone ? ` · สอบถาม ${esc(org.phone)}` : ''}</div>
     ${org.footer ? `<div class="note">${esc(org.footer)}</div>` : ''}
   </section>`;

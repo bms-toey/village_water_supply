@@ -66,6 +66,7 @@ import {
   renderMaintenance, setMntTab,
   completeMaintenance, openAddMaintenance, openEditMaintenance, closeMntModal, saveMaintenance,
   openMeterReplaceModal, closeMeterReplaceModal, onMrMemberChange, saveMeterReplacement, genNewMeterNo,
+  viewJobPhoto,
 } from './modules/maintenance/maintenance.js';
 import { renderMap, closeMemberMapPopup, filterMapByVillage, filterMapByStatus } from './modules/map/map.js';
 import { renderUsers, openAddUser, openEditUser, closeUserModal, saveUser, toggleUserActive } from './modules/users/users.js';
@@ -75,6 +76,10 @@ import { downloadBackup, backupOverdue, daysSinceBackup } from './modules/settin
 import { closeAllDynamicModals } from './components/modal/modal.js';
 import { openBatchPrint, openNoticePrint, onPaperChange, printBillDocument, printPaymentReceipt } from './modules/documents/documents.js';
 import { openCashClose } from './modules/payments/cashclose.js';
+import {
+  loadNotifications, onNotificationEvent, notificationListHtml, unreadCount,
+  openNotification, markAllNotificationsRead, openAnnouncement, sendOverdueReminders,
+} from './modules/notify/notify.js';
 
 // ─── Register render callbacks with auth (avoid circular import) ───
 const _renderCbs = {
@@ -89,6 +94,7 @@ const _renderCbs = {
   renderMaintenance,
   populateVillageDropdowns,
   renderSettings,
+  onNotification: onNotificationEvent,
 };
 registerRenderCallbacks(_renderCbs);
 
@@ -231,7 +237,8 @@ function _updateNotifBadge() {
   const n = (appState.payments?.filter(p => p.status === 'pending').length || 0)
           + (appState.members?.filter(m => m.status === 'overdue').length || 0)
           + (appState.maintenance?.filter(m => !['completed','cancelled'].includes(m.status)).length || 0)
-          + (backupOverdue() ? 1 : 0);
+          + (backupOverdue() ? 1 : 0)
+          + unreadCount();
   badge.style.display = n > 0 ? 'block' : 'none';
 }
 
@@ -268,7 +275,8 @@ function _fillNotifPanel() {
   ];
 
   const active = rows.filter(r => r.count > 0);
-  if (!active.length) {
+  const recent = notificationListHtml();
+  if (!active.length && !recent) {
     list.innerHTML = '<div style="padding:20px 16px;text-align:center;color:var(--gray-400);font-size:13px"><i class="ti ti-check-circle" style="font-size:28px;display:block;margin-bottom:6px;color:#22c55e"></i>ไม่มีการแจ้งเตือน</div>';
     return;
   }
@@ -277,7 +285,7 @@ function _fillNotifPanel() {
       <i class="ti ${r.icon}" style="font-size:18px;flex-shrink:0;color:${r.icon==='ti-credit-card'?'var(--blue-600)':r.icon==='ti-alert-triangle'?'var(--red-600)':'#d97706'}"></i>
       <span class="tbd-item-label">${esc(r.label)}</span>
       <span class="tbd-cnt ${r.cls}">${r.count}</span>
-    </div>`).join('');
+    </div>`).join('') + recent;
 }
 
 // ── Village stats panel ──────────────────────────────────────
@@ -444,7 +452,7 @@ function _initTopbar() {
   });
 
   // Update badge count when data loads
-  window.addEventListener('aquaflow:data-ready', _updateNotifBadge);
+  window.addEventListener('aquaflow:data-ready', () => { _updateNotifBadge(); loadNotifications(); });
 
   _initSearch();
 }
@@ -478,6 +486,9 @@ Object.assign(window, {
   // documents / cashier
   openBatchPrint, openNoticePrint, onPaperChange, printBillDocument, printPaymentReceipt,
   openCashClose, viewPaymentSlip,
+  // notifications / LINE
+  openNotification, markAllNotificationsRead, openAnnouncement, sendOverdueReminders,
+  viewJobPhoto,
   // payments
   openCashModal, closeCashModal, openCashModalForBill, closePayTypeModal, notifyBillDebtor, saveCashPayment,
   approvePayment, rejectPayment, cancelPayment, printReceiptByPayment,

@@ -5,24 +5,32 @@
 import { appState } from '../../state/app.state.js';
 import { esc, toast } from '../../utils/dom.util.js';
 import { todayISO } from '../../utils/time.util.js';
-import { sbMarkReceiptPrinted, sbLogAudit } from '../../services/data-loader.service.js';
+import { sbMarkReceiptPrinted, sbLogAudit, sbGetPortalCodes } from '../../services/data-loader.service.js';
+import { portalUrl, portalDeepLink } from '../notify/notify.js';
 import { openModal, closeModal } from '../../components/modal/modal.js';
 import { invoiceHtml, receiptHtml, noticeHtml, remittanceHtml, orgInfo } from './templates.js';
 import { beginPrint, getPaper, setPaper, PAPERS } from './print.js';
 
 const UNPAID = ['pending', 'overdue'];
 
-function _billContext(bill) {
+function _billContext(bill, codes = {}) {
   const { members, meterReadings, billAdjustments, bills } = appState;
+  const member = members.find(m => m.id === bill.memberId) || {};
+  const code   = codes[bill.memberId]?.code;
   return {
     bill,
-    member:      members.find(m => m.id === bill.memberId) || {},
+    member,
     reading:     meterReadings.find(r => r.billId === bill.id) || null,
     adjustments: (billAdjustments || []).filter(a => a.billId === bill.id),
     otherUnpaid: bills.filter(b => b.memberId === bill.memberId && b.id !== bill.id && UNPAID.includes(b.status)),
     org:         orgInfo(appState.systemConfig),
+    portal:      code ? { code, meter: member.meter, url: portalUrl().replace(/^https?:\/\//, ''),
+                          link: portalDeepLink(member.meter, code), lineOa: appState.systemConfig?.line_oa_id || '' } : null,
   };
 }
+
+/** รหัส portal ของสมาชิกในบิลที่จะพิมพ์ (ถ้าดึงไม่ได้ ใบแจ้งยังพิมพ์ได้ แค่ไม่มีส่วนดูบิลออนไลน์) */
+const _codesFor = bills => sbGetPortalCodes([...new Set(bills.map(b => b.memberId))]);
 
 export const paperOptions = (selected = getPaper()) =>
   Object.entries(PAPERS).map(([k, v]) => `<option value="${k}"${k === selected ? ' selected' : ''}>${esc(v)}</option>`).join('');
@@ -38,7 +46,8 @@ export async function printBillDocument(billId) {
   const pay = appState.payments.find(p => p.billId === billId && p.status === 'approved');
   if (bill.status === 'paid' && pay) return printPaymentReceipt(pay.id);
   const job = beginPrint(`ใบแจ้งค่าน้ำ ${bill.id}`);
-  await job.print([invoiceHtml(_billContext(bill))], getPaper());
+  const codes = await _codesFor([bill]);
+  await job.print([invoiceHtml(_billContext(bill, codes))], getPaper());
 }
 
 // ─── ใบเสร็จ — ครั้งแรก "ต้นฉบับ" ครั้งต่อไป "สำเนา" ───────────
@@ -113,7 +122,8 @@ export function openBatchPrint() {
     setPaper(paper);
     const job = beginPrint(`ใบแจ้งค่าน้ำ ${list[0].period}`);
     closeModal('batch-print-modal');
-    await job.print(list.map(b => invoiceHtml(_billContext(b))), paper);
+    const codes = await _codesFor(list);
+    await job.print(list.map(b => invoiceHtml(_billContext(b, codes))), paper);
   };
 }
 

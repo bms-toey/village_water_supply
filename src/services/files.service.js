@@ -6,25 +6,9 @@
 // ──────────────────────────────────────────────────────────────
 import { _sb } from './supabase.service.js';
 import { toast } from '../utils/dom.util.js';
+import { compressImage, splitStoragePath } from '../utils/image.util.js';
 
 const MAX_BYTES = 5 * 1024 * 1024;
-
-/** ย่อรูปเป็น JPEG ด้านยาวไม่เกิน maxDim — ประหยัดเน็ตมือถือในพื้นที่สัญญาณอ่อน */
-export async function compressImage(file, maxDim = 1600, quality = 0.8) {
-  try {
-    const bmp   = await createImageBitmap(file, { imageOrientation: 'from-image' });
-    const scale = Math.min(1, maxDim / Math.max(bmp.width, bmp.height));
-    const canvas = document.createElement('canvas');
-    canvas.width  = Math.round(bmp.width * scale);
-    canvas.height = Math.round(bmp.height * scale);
-    canvas.getContext('2d').drawImage(bmp, 0, 0, canvas.width, canvas.height);
-    bmp.close?.();
-    const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', quality));
-    return blob && blob.size < file.size ? blob : file;
-  } catch {
-    return file;   // เบราว์เซอร์เก่า — ส่งไฟล์เดิม
-  }
-}
 
 /** คืน path ที่บันทึก หรือ null ถ้าล้มเหลว (แสดง toast แล้ว) */
 export async function uploadImage(bucket, path, file) {
@@ -41,9 +25,13 @@ export async function uploadImage(bucket, path, file) {
   return path;
 }
 
-/** URL ชั่วคราว (หมดอายุ 10 นาที) สำหรับดูรูป */
-export async function signedImageUrl(bucket, path, expiresSec = 600) {
-  if (!path) return null;
+/**
+ * URL ชั่วคราว (หมดอายุ 10 นาที) สำหรับดูรูป
+ * path แบบ 'member-uploads:m12/x.jpg' (ผู้ใช้น้ำอัปโหลดผ่าน portal) จะใช้ bucket ตาม prefix
+ */
+export async function signedImageUrl(defaultBucket, value, expiresSec = 600) {
+  if (!value) return null;
+  const { bucket, path } = splitStoragePath(value, defaultBucket);
   const { data, error } = await _sb.storage.from(bucket).createSignedUrl(path, expiresSec);
   if (error) { toast(`เปิดรูปไม่ได้: ${error.message}`, 'error'); return null; }
   return data?.signedUrl || null;

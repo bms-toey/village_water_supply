@@ -29,11 +29,14 @@ let _refreshTimer = null;
 // ─── Session lifecycle ────────────────────────────────────────
 // ใช้ session ใหม่ (หลัง login / ต่ออายุ / เปลี่ยนรหัสผ่าน)
 export function adoptSession(session, remember) {
+  const relogin = currentProfile?.id !== session.profile?.id;
   setSession(session, remember);
   currentProfile = session.profile;
   currentUser    = session.profile;
   syncRealtimeAuth();
   _scheduleRefresh();
+  // ผู้ใช้เปลี่ยน (login ใหม่) → realtime ต้อง subscribe ใหม่ด้วยสิทธิ์ของผู้ใช้คนนี้
+  window.dispatchEvent(new CustomEvent('aquaflow:session', { detail: { loggedIn: true, relogin } }));
 }
 
 function _scheduleRefresh() {
@@ -70,6 +73,7 @@ function _endSession() {
   currentUser    = null;
   currentProfile = null;
   syncRealtimeAuth();
+  window.dispatchEvent(new CustomEvent('aquaflow:session', { detail: { loggedIn: false } }));
 }
 
 // timer ในแท็บที่ถูกพักอาจไม่ทำงาน — เช็กใหม่ทุกครั้งที่กลับมาเปิดแอป
@@ -200,6 +204,8 @@ export async function _initApp() {
 
   const usersNav = document.getElementById('nav-users');
   if (usersNav) usersNav.style.display = currentProfile?.role === 'super_admin' ? '' : 'none';
+  const usersBnav = document.getElementById('bnav-users');
+  if (usersBnav) usersBnav.style.display = currentProfile?.role === 'super_admin' ? '' : 'none';
 
   if (_renderCallbacks) {
     const r = _renderCallbacks;
