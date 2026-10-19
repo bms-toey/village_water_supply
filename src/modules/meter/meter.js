@@ -10,6 +10,11 @@ import { saveToStorage } from '../../services/storage.service.js';
 import { goPage } from '../../components/navigation/navigation.js';
 import { _dbVillages } from '../../services/db-mapper.service.js';
 import { uploadImage, signedImageUrl } from '../../services/files.service.js';
+import {
+  rolloverUsage, meterMax, askConfirm, enqueueReading, syncQueue, queuedMemberIds, isNetworkFailure,
+  queueBannerHtml, openQueueConflicts, discardQueued, openMeterSkip, renderFieldBar, skipFor, SKIP_REASONS,
+  routeCompare, openRouteOrder,
+} from './field.js';
 import { openModal } from '../../components/modal/modal.js';
 
 // ─── Meter Photo / AI OCR ─────────────────────────────────────
@@ -202,6 +207,7 @@ export function renderMeter(searchOverride) {
       .filter(r => { const b = appState.bills.find(x => x.id === r.billId); return b && b.status !== 'cancelled'; })
       .map(r => r.memberId)
   );
+  queuedMemberIds(period).forEach(id => readSet.add(id));   // จดไว้ในเครื่อง รอซิงก์ — ถือว่าจดแล้ว
 
   // ── Global progress counts ──────────────────────────────────
   const totalAll   = allActive.length;
@@ -219,7 +225,7 @@ export function renderMeter(searchOverride) {
     tempVillGroups[v].push(m);
   });
   Object.values(tempVillGroups).forEach(mems => {
-    mems.sort((a, b) => (a.houseNo || '').localeCompare(b.houseNo || '', 'th'));
+    mems.sort(routeCompare);
     mems.forEach((m, i) => villageSeqMap.set(m.id, i + 1));
   });
 
@@ -253,7 +259,7 @@ export function renderMeter(searchOverride) {
     const pendA = readSet.has(a.id) ? 1 : 0;
     const pendB = readSet.has(b.id) ? 1 : 0;
     if (pendA !== pendB) return pendA - pendB; // pending before done
-    return (a.houseNo || '').localeCompare(b.houseNo || '', 'th');
+    return routeCompare(a, b);                  // ลำดับเส้นทาง → บ้านเลขที่
   });
 
   // ── Group by village (preserving sort order) ────────────────
@@ -330,6 +336,7 @@ export function renderMeter(searchOverride) {
         </span>
         <span style="color:var(--gray-400);font-size:12px;white-space:nowrap">รวม ${totalAll} ราย</span>
       </div>
+      ${queueBannerHtml()}
     </div>
 
     <!-- Filters row -->
@@ -370,6 +377,7 @@ export function renderMeter(searchOverride) {
               <div style="display:flex;gap:4px;flex-shrink:0">
                 ${gPend > 0 ? `<span style="background:var(--amber-100);color:var(--amber-700);font-size:11px;padding:2px 8px;border-radius:12px;font-weight:600">รอ ${gPend}</span>` : ''}
                 ${gDone > 0 ? `<span style="background:var(--green-100);color:var(--green-700);font-size:11px;padding:2px 8px;border-radius:12px;font-weight:600">✓ ${gDone}</span>` : ''}
+                ${g.village !== '—' ? `<button class="btn-icon" style="width:26px;height:26px;font-size:14px" title="ลำดับเส้นทาง" aria-label="ลำดับเส้นทาง ${esc(g.village)}" onclick="openRouteOrder('${esc(g.village)}')"><i class="ti ti-route"></i></button>` : ''}
               </div>
             </div>
 
@@ -381,6 +389,8 @@ export function renderMeter(searchOverride) {
                 const reading = meterReadings.find(r => r.memberId === m.id && r.period === period);
                 const newRead = reading ? Number(reading.newRead).toLocaleString() : null;
                 const dispPrev = _effectivePrev(m.id);
+                const skip     = !done ? skipFor(m.id, period) : null;
+                const queued   = done && !reading;
                 const borderColor = done ? 'var(--green-400)' : 'var(--amber-400)';
                 return `
                 <div onclick="gotoMeter('${esc(m.firstName+' '+m.lastName)}','${esc(m.meter||'')}',${m.id})"
@@ -408,7 +418,11 @@ export function renderMeter(searchOverride) {
                         ${esc(m.firstName)} ${esc(m.lastName)}
                       </span>
                       ${done
-                        ? `<span style="background:var(--green-100);color:var(--green-700);font-size:10.5px;padding:2px 7px;border-radius:10px;font-weight:700;flex-shrink:0">✓ จดแล้ว</span>`
+                        ? (queued
+                            ? `<span style="background:var(--amber-100);color:var(--amber-700);font-size:10.5px;padding:2px 7px;border-radius:10px;font-weight:700;flex-shrink:0"><i class="ti ti-cloud-upload"></i> รอส่ง</span>`
+                            : `<span style="background:var(--green-100);color:var(--green-700);font-size:10.5px;padding:2px 7px;border-radius:10px;font-weight:700;flex-shrink:0">✓ จดแล้ว</span>`)
+                        : skip
+                        ? `<span style="background:var(--red-50);color:var(--red-700);font-size:10.5px;padding:2px 7px;border-radius:10px;font-weight:700;flex-shrink:0">${esc(SKIP_REASONS[skip.reason]?.label || 'จดไม่ได้')}</span>`
                         : `<span style="background:var(--amber-50);color:var(--amber-600);font-size:10.5px;padding:2px 7px;border-radius:10px;font-weight:700;flex-shrink:0;border:1px solid var(--amber-200)">รอจด</span>`
                       }
                     </div>
@@ -481,12 +495,15 @@ window._gotoNextPending = function () {
   if (!pending.length) return;
   const villMooMap = {};
   _dbVillages.forEach(v => { villMooMap[v.name] = v.moo_number || 999; });
-  pending.sort((a, b) => {
+  const queued = queuedMemberIds(period);
+  const todo = pending.filter(m => !queued.has(m.id));
+  if (!todo.length) return;
+  todo.sort((a, b) => {
     const mA = villMooMap[a.village] || 999, mB = villMooMap[b.village] || 999;
     if (mA !== mB) return mA - mB;
-    return (a.houseNo || '').localeCompare(b.houseNo || '', 'th');
+    return routeCompare(a, b);
   });
-  const m = pending[0];
+  const m = todo[0];
   gotoMeter(m.firstName + ' ' + m.lastName, m.meter || '', m.id);
 };
 
@@ -501,6 +518,7 @@ export function gotoMeter(name, meterId, memberId) {
     const prevEl = document.getElementById('m-prev');
     if (prevEl) prevEl.textContent = _effectivePrev(memberId).toLocaleString();
     renderMeterHistory(memberId);
+    renderFieldBar(appState.members.find(x => x.id === memberId), currentPeriod());
   }
   const listEl    = document.getElementById('meter-member-list');
   const formEl    = document.getElementById('meter-form-area');
@@ -540,7 +558,8 @@ export function calcMeter(val) {
   const p2El   = document.getElementById('m-pct2');
   const prEl   = document.getElementById('m-prog');
   const wEl    = document.getElementById('meter-warn');
-  if (!val || isNaN(curr) || curr <= prev) {
+  const roll = !isNaN(curr) && curr < prev ? rolloverUsage(prev, curr) : null;
+  if (!val || isNaN(curr) || (curr <= prev && roll === null)) {
     [uEl, eEl].forEach(e => { if (e) e.textContent = '—'; });
     if (pEl)  pEl.textContent  = 'รอกรอกข้อมูล';
     if (p2El) p2El.textContent = '—';
@@ -550,10 +569,10 @@ export function calcMeter(val) {
     if (bdEl) bdEl.style.display = 'none';
     return;
   }
-  const usage     = curr - prev;
+  const usage     = roll ?? (curr - prev);
   const meterSize = member?.meterSize || '0.5';
   const charges   = calcWaterCharge(usage, meterSize);
-  if (uEl)  uEl.textContent = usage.toFixed(1) + ' m³';
+  if (uEl)  uEl.textContent = usage.toFixed(1) + ' m³' + (roll !== null ? ' (วนรอบ)' : '');
   if (eEl)  eEl.textContent = '฿' + charges.total.toLocaleString();
   const pct = Math.round((usage / 15) * 100);
   if (pEl)  pEl.textContent  = pct + '% ของค่าเฉลี่ย';
@@ -626,6 +645,10 @@ export async function saveMeter() {
     return;
   }
   if (_saving) return;
+  if (queuedMemberIds(period).has(currentMeterMemberId)) {
+    toast('บ้านนี้จดไว้ในเครื่องแล้ว รอส่งขึ้นระบบ', 'warn');
+    return;
+  }
 
   // ── Duplicate reading check ──────────────────────────────────
   // (ตรวจก่อน validate curr เพื่อ restore lastRead ถ้าบิลเดิมถูกยกเลิก)
@@ -649,10 +672,56 @@ export async function saveMeter() {
     sbDeleteReading(dupReading.id);
   }
 
-  if (curr <= Number(member.lastRead)) { toast('เลขมิเตอร์ต้องมากกว่าค่าเดิม', 'error'); return; }
+  const prev = Number(member.lastRead);
+  let usage = Math.round(curr - prev), rollover = false;
+  if (curr <= prev) {
+    const roll = rolloverUsage(prev, curr);
+    if (roll === null) { toast('เลขมิเตอร์ต้องมากกว่าค่าเดิม', 'error'); return; }
+    const okRoll = await askConfirm({
+      title: 'มิเตอร์หมุนครบรอบ?', okText: 'ใช่ — วนรอบ', okClass: 'btn-primary', icon: 'ti-rotate-clockwise',
+      iconBg: 'var(--blue-50)', iconColor: 'var(--blue-700)',
+      message: `เลขใหม่ ${curr.toLocaleString()} น้อยกว่าครั้งก่อน ${prev.toLocaleString()}\nถ้ามิเตอร์หมุนเกิน ${meterMax().toLocaleString()} แล้วเริ่มนับใหม่ จะคิดใช้น้ำ ${roll} หน่วย\n\nถ้ากรอกผิด ให้กดยกเลิกแล้วแก้ไข`,
+    });
+    if (!okRoll) return;
+    usage = Math.round(roll); rollover = true;
+  }
 
-  const prev    = Number(member.lastRead);
-  const usage   = Math.round(curr - prev);
+  const entry = {
+    id: 'MR-' + Date.now(), memberId: currentMeterMemberId, period, readingDate: today,
+    prev, curr, usage, rollover, meterMax: rollover ? meterMax() : null,
+  };
+
+  // ไม่มีสัญญาณ → เก็บไว้ในเครื่อง ส่งเองเมื่อออนไลน์
+  if (!navigator.onLine) {
+    await enqueueReading(entry, _photoFile);
+    saveToStorage();
+    resetMeterSelection();
+    return;
+  }
+
+  const billId = await persistMeterReading(entry, { photoFile: _photoFile });
+  if (!billId) {
+    if (isNetworkFailure()) { await enqueueReading(entry, _photoFile); saveToStorage(); resetMeterSelection(); }
+    return;
+  }
+  saveToStorage();
+  window.populateBillingFilters?.();
+  window.renderBilling?.();
+  toast(`บันทึกแล้ว — ${member.firstName} ใช้ ${usage} m³`, 'success');
+  window._afterReceiptClose = resetMeterSelection;
+  window.openBillReceipt?.(billId);
+}
+
+/**
+ * บันทึกบิล + การอ่านมิเตอร์ที่ server — คืนเลขบิล หรือ null ถ้าไม่สำเร็จ
+ * ใช้ทั้งตอนจดปกติ และตอนส่งข้อมูลที่จดไว้ในเครื่อง (field.js → syncQueue)
+ */
+export async function persistMeterReading(entry, { photoFile = null } = {}) {
+  const { bills, meterReadings, members } = appState;
+  const member = members.find(m => m.id === entry.memberId);
+  if (!member) return null;
+  const { period, readingDate: today, prev, curr, usage } = entry;
+  const currentMeterMemberId = entry.memberId;
   const charges = calcWaterCharge(usage, member.meterSize || '0.5');
 
   // ── Bill: reactivate cancelled, update existing, or create new ─
@@ -676,7 +745,7 @@ export async function saveMeter() {
       billId = targetBill.id;
     } else {
       const dueDays = parseInt(appState.systemConfig?.billing_due_days) || 15;
-      const dueDate = new Date(); dueDate.setDate(dueDate.getDate() + dueDays);
+      const dueDate = new Date(`${today}T00:00:00`); dueDate.setDate(dueDate.getDate() + dueDays);   // นับจากวันที่จด (ซิงก์ทีหลังก็ไม่เลื่อน)
       const saved = await sbInsertBills([{
         memberId: currentMeterMemberId, period,
         issueDate: today, dueDate: toLocalDate(dueDate),
@@ -692,28 +761,32 @@ export async function saveMeter() {
   }
 
   const newReading = {
-    id: 'MR-'+Date.now(), memberId: currentMeterMemberId, meter: member.meter,
+    id: entry.id, memberId: currentMeterMemberId, meter: member.meter,
     readingDate: today, period, prevReading: prev, currReading: curr, usage,
+    rollover: !!entry.rollover, meterMax: entry.meterMax,
     waterCharge: charges.waterCharge, serviceCharge: charges.serviceCharge,
     total: charges.total, readBy: 'ผู้ดูแลระบบ', method: 'manual',
     anomaly: _detectAnomaly(usage, member, meterReadings), billId,
   };
-  if (_photoFile) {
-    const path = await uploadImage('meter-photos', `${today.slice(0, 7)}/${newReading.id}.jpg`, _photoFile);
+  if (photoFile) {
+    const path = await uploadImage('meter-photos', `${today.slice(0, 7)}/${newReading.id}.jpg`, photoFile);
     if (path) newReading.photoUrl = path;   // ถ้าอัปโหลดไม่ได้ ยังบันทึกการอ่านต่อ (แจ้งเตือนแล้ว)
   }
-  meterReadings.push(newReading);
+  if (!meterReadings.some(r => r.id === newReading.id)) meterReadings.push(newReading);
   member.lastRead = curr; member.lastReadDate = today;
 
-  sbUpsertReading(newReading);
+  await sbUpsertReading(newReading);
   sbUpdateMember(member);
-  saveToStorage();
-  window.populateBillingFilters?.();
-  window.renderBilling?.();
-  toast(`บันทึกแล้ว — ${member.firstName} ใช้ ${usage} m³ ค่าน้ำ ฿${charges.total.toLocaleString()}`, 'success');
-  window._afterReceiptClose = resetMeterSelection;
-  window.openBillReceipt?.(billId);
+  return billId;
 }
+
+// ─── ส่งข้อมูลที่จดไว้ในเครื่อง ──────────────────────────────────
+export function syncMeterQueue() {
+  return syncQueue(persistMeterReading).then(() => { saveToStorage(); window.renderBilling?.(); });
+}
+window.addEventListener('online', () => syncMeterQueue());
+window.addEventListener('aquaflow:data-ready', () => syncMeterQueue());
+Object.assign(window, { syncMeterQueue, openQueueConflicts, discardQueued, openMeterSkip, openRouteOrder });
 
 window._viewMeterPhoto = async function (readingId) {
   const r = appState.meterReadings.find(x => x.id === readingId);

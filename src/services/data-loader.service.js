@@ -17,8 +17,12 @@ import { toast } from '../utils/dom.util.js';
 import { localToISO } from '../utils/time.util.js';
 import { loadMasterData } from './master-data.service.js';
 
+/** error ล่าสุดจาก Supabase — ใช้แยก "ไม่มีสัญญาณ" กับ error จาก server */
+export let lastSbError = null;
+
 // Show Supabase write errors as toast so the user can see them
 function _sbErr(label, error) {
+  lastSbError = error;
   console.error(`[sb] ${label}:`, error.message, error);
   toast(`⚠ Supabase (${label}): ${error.message}`, 'error');
 }
@@ -68,6 +72,7 @@ export async function loadAllFromSupabase() {
     // meter_replacements loaded separately (non-blocking) — table may not exist yet
     _loadMeterReplacements();
     await loadBillingPeriods();
+    loadMeterSkips();
 
     const tiers = rt.data || [];
     if (tiers.length) {
@@ -280,6 +285,35 @@ export async function sbListCashClosings(limit = 60) {
   return data || [];
 }
 
+// ─── Field work: skips / route order ─────────────────────────
+export async function loadMeterSkips() {
+  const { data, error } = await _sb.from('meter_skips').select('*').order('created_at', { ascending: false }).limit(2000);
+  if (error) { console.warn('[sb] meter_skips:', error.message); return; }
+  appState.meterSkips = data || [];
+  window.renderMeter?.();
+}
+
+export async function sbRecordMeterSkip(memberId, reason, note) {
+  const { data, error } = await _sb.rpc('record_meter_skip', { p_member_id: memberId, p_reason: reason, p_note: note || null });
+  if (error) { _sbErr('recordMeterSkip', error); return null; }
+  return data;
+}
+
+export async function sbSetRouteOrder(memberIds) {
+  const { error } = await _sb.rpc('set_route_order', { p_member_ids: memberIds });
+  if (error) { _sbErr('setRouteOrder', error); return false; }
+  return true;
+}
+
+/** บิลของสมาชิกในงวดนี้ที่อยู่บน server (ใช้ตอนซิงก์ข้อมูลที่จดตอนออฟไลน์) */
+export async function sbFindBill(memberId, periodYear, periodMonth) {
+  const { data, error } = await _sb.from('bills').select('*')
+    .eq('member_id', memberId).eq('period_year', periodYear).eq('period_month', periodMonth)
+    .neq('status', 'cancelled').maybeSingle();
+  if (error) throw error;
+  return data ? _bFromDB(data) : null;
+}
+
 // ─── Notifications (staff) ───────────────────────────────────
 export async function sbLoadNotifications(limit = 30) {
   const { data, error } = await _sb.from('notifications').select('*')
@@ -349,8 +383,9 @@ export function sbUpdatePayment(id, patch) {
 
 // ─── Meter Reading Write Helpers ──────────────────────────────
 export function sbUpsertReading(r) {
-  _sb.from('meter_readings').upsert(_rToDB(r)).then(({ error }) => {
+  return _sb.from('meter_readings').upsert(_rToDB(r)).then(({ error }) => {
     if (error) _sbErr('upsertReading', error);
+    return !error;
   });
 }
 

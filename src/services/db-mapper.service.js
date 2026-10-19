@@ -54,6 +54,7 @@ export function _mFromDB(r) {
     lastReadDate:     r.last_read_date     || '',
     status:           r.status             || 'normal',
     notes:            r.notes              || '',
+    routeOrder:       r.route_order        ?? null,
   };
 }
 export function _mToDB(m) {
@@ -179,6 +180,10 @@ export function _pToDB(p) {
 }
 
 // ─── Meter Reading ────────────────────────────────────────────
+// มิเตอร์วนรอบ: DB เก็บ prev_reading เลื่อนไป 1 รอบ (ติดลบ) ให้ usage = curr − prev ถูกต้อง
+// แอปใช้เลขจริงเสมอ (prevReading = เลขบนหน้าปัดครั้งก่อน)
+const _rollShift = r => (r.rollover ? Number(r.meter_max ?? r.meterMax) + 1 : 0);
+
 export function _rFromDB(r) {
   return {
     id:            r.id,
@@ -186,7 +191,9 @@ export function _rFromDB(r) {
     meter:         r.meter_no,
     readingDate:   r.reading_date,
     period:        _dateToPeriod(r.reading_date),
-    prevReading:   parseFloat(r.prev_reading)   || 0,
+    prevReading:   (parseFloat(r.prev_reading) || 0) + _rollShift(r),
+    rollover:      !!r.rollover,
+    meterMax:      r.meter_max ?? null,
     currReading:   parseFloat(r.curr_reading)   || 0,
     usage:         parseFloat(r.usage)          || 0,
     waterCharge:   parseFloat(r.water_charge)   || 0,
@@ -205,7 +212,9 @@ export function _rToDB(r) {
     member_id:      r.memberId,
     meter_no:       r.meter,
     reading_date:   r.readingDate,
-    prev_reading:   r.prevReading,
+    prev_reading:   r.prevReading - _rollShift(r),
+    // ส่งคอลัมน์วนรอบเฉพาะเมื่อวนรอบจริง — ฐานข้อมูลที่ยังไม่ได้รัน sql_phase4 ยังจดมิเตอร์ปกติได้
+    ...(r.rollover ? { rollover: true, meter_max: r.meterMax } : {}),
     curr_reading:   r.currReading,
     // usage is GENERATED — omit from inserts
     water_charge:   r.waterCharge,

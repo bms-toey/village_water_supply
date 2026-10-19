@@ -55,8 +55,10 @@ export function openCashClose() {
     el.querySelector('#cc-history').style.display = t.dataset.ccTab === 'history' ? '' : 'none';
     if (t.dataset.ccTab === 'history') _loadHistory();
   }));
-  el.querySelector('#cc-date').addEventListener('change', e => { _state.date = e.target.value; _loadSummary(); });
-  el.querySelector('#cc-cashier')?.addEventListener('change', e => { _state.cashier = e.target.value; _loadSummary(); });
+  // เปลี่ยนวัน/ผู้รับเงิน = คนละบริบท → ล้างฟอร์มก่อนโหลด (ไม่พกยอดที่พิมพ์ไว้ไปด้วย)
+  const reload = () => { el.querySelector('#cc-summary').innerHTML = ''; _loadSummary(); };
+  el.querySelector('#cc-date').addEventListener('change', e => { _state.date = e.target.value; reload(); });
+  el.querySelector('#cc-cashier')?.addEventListener('change', e => { _state.cashier = e.target.value; reload(); });
   _loadSummary();
 }
 
@@ -65,13 +67,16 @@ let _loadSeq = 0;
 async function _loadSummary() {
   const box = document.getElementById('cc-summary');
   if (!box) return;
-  // เก็บค่าที่ผู้ใช้พิมพ์ไว้ — ถ้าวาดใหม่ระหว่างกรอกจะได้ไม่หาย
-  const typed = { counted: box.querySelector('#cc-counted')?.value ?? '', note: box.querySelector('#cc-note')?.value ?? '' };
   const seq = ++_loadSeq;
-  box.innerHTML = '<div style="text-align:center;padding:24px;color:var(--gray-400)"><i class="ti ti-loader-2" style="animation:spin .8s linear infinite;font-size:22px"></i></div>';
+  // แสดง spinner เฉพาะครั้งแรก — ครั้งต่อไปคงฟอร์มเดิมไว้ระหว่างรอ (ผู้ใช้อาจกำลังพิมพ์)
+  if (!box.children.length) {
+    box.innerHTML = '<div style="text-align:center;padding:24px;color:var(--gray-400)"><i class="ti ti-loader-2" style="animation:spin .8s linear infinite;font-size:22px"></i></div>';
+  }
   const s = await sbGetCashSummary(_state.date, _state.cashier);
   if (seq !== _loadSeq) return;   // มีการโหลดใหม่กว่าแล้ว (เปลี่ยนวัน/ผู้รับเงินระหว่างรอ)
   if (!s || !document.getElementById('cc-summary')) return;
+  // เก็บค่าที่ผู้ใช้พิมพ์ไว้ ณ ตอนวาดใหม่ — ไม่ให้หาย
+  const typed = { counted: box.querySelector('#cc-counted')?.value ?? '', note: box.querySelector('#cc-note')?.value ?? '' };
   _state.summary = s;
   const mine = s.cashier_id === currentProfile?.id;
   const c = s.closing;

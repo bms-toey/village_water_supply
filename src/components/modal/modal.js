@@ -34,7 +34,11 @@ export function openModal({ id, title, icon = 'ti-file', body, footer = '', widt
     if (e.target === el || e.target.closest('[data-close]')) closeModal(id);
   });
   document.body.appendChild(el);
-  setTimeout(() => el.querySelector('input:not([type=hidden]),select,textarea')?.focus(), 60);
+  // โฟกัสช่องแรกให้อัตโนมัติ — เว้นแต่ผู้ใช้กดช่องอื่นใน modal ไปแล้ว (ไม่แย่งโฟกัสระหว่างพิมพ์)
+  setTimeout(() => {
+    if (el.contains(document.activeElement) && document.activeElement !== el) return;
+    el.querySelector('input:not([type=hidden]),select,textarea')?.focus();
+  }, 60);
   return el;
 }
 
