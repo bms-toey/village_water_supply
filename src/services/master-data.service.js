@@ -3,6 +3,7 @@
 // All lookup/dropdown data is managed here — never hardcoded.
 // ──────────────────────────────────────────────────────────────
 import { _sb } from './supabase.service.js';
+import { getSession } from './session.service.js';
 import { appState } from '../state/app.state.js';
 import { _dbVillages, setVillages } from './db-mapper.service.js';
 import { rateConfig } from '../config/rate.config.js';
@@ -157,7 +158,9 @@ export async function saveSystemConfig(key, value) {
 
 // ─── Audit Log ─────────────────────────────────────────────────
 async function _logAudit(tableName, recordId, action, oldData, newData) {
-  const user = _sb.auth.getUser ? (await _sb.auth.getUser()).data?.user?.email : null;
+  // server เขียนทับ performed_by จาก JWT อยู่แล้ว (trg_audit_stamp) — ค่านี้ไว้แสดงผลเท่านั้น
+  const p    = getSession()?.profile;
+  const user = p?.username || p?.email || p?.full_name;
   await _sb.from('audit_logs').insert({
     table_name:   tableName,
     record_id:    String(recordId || ''),

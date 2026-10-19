@@ -1,8 +1,11 @@
-// ─── Authentication Service (Simple Mode) ──────────────────────
-// Login ตรวจจาก profiles.password_hash ไม่ผ่าน Supabase Auth
-// Session เก็บใน localStorage key 'aquaflow_session'
+// ─── Authentication Service ────────────────────────────────────
+// Login ด้วย email / username / เบอร์โทร ผ่าน RPC verify_login
+// ซึ่งคืน JWT ที่ฐานข้อมูลเซ็นเอง → RLS บังคับสิทธิ์ทุก request
+// Session อายุ 12 ชม. ต่ออายุอัตโนมัติเมื่อเหลือ < 2 ชม.
+// (ดู sql/sql_secure_auth.sql)
 // ──────────────────────────────────────────────────────────────
-import { _sb } from './supabase.service.js';
+import { _sb, syncRealtimeAuth } from './supabase.service.js';
+import { getSession, setSession, clearSession, secondsLeft } from './session.service.js';
 import { loadAllFromSupabase, sbUpdateBillFees } from './data-loader.service.js';
 import { loadFromStorage, loadRateConfig, loadMaintenanceFromStorage } from './storage.service.js';
 import { syncOverdueStatus, applyLateFees } from '../utils/date.util.js';
@@ -10,10 +13,80 @@ import { saveToStorage } from './storage.service.js';
 import { toast } from '../utils/dom.util.js';
 import { roleLabels } from '../config/ui.config.js';
 
-const SESSION_KEY = 'aquaflow_session';
+const REFRESH_BEFORE_SEC = 2 * 3600;
+const RETRY_SEC          = 5 * 60;
 
 export let currentUser    = null;
 export let currentProfile = null;
+
+let _refreshTimer = null;
+
+// ─── Session lifecycle ────────────────────────────────────────
+// ใช้ session ใหม่ (หลัง login / ต่ออายุ / เปลี่ยนรหัสผ่าน)
+export function adoptSession(session, remember) {
+  setSession(session, remember);
+  currentProfile = session.profile;
+  currentUser    = session.profile;
+  syncRealtimeAuth();
+  _scheduleRefresh();
+}
+
+function _scheduleRefresh() {
+  clearTimeout(_refreshTimer);
+  const left = secondsLeft();
+  if (left <= 0) { _expireSession(); return; }
+  const wait = Math.max(0, left - REFRESH_BEFORE_SEC);
+  _refreshTimer = setTimeout(_refreshNow, wait * 1000);
+}
+
+async function _refreshNow() {
+  const { data, error } = await _sb.rpc('refresh_session');
+  if (data?.token) {
+    adoptSession(data);
+    loadCurrentProfile();
+    return;
+  }
+  if (_isNetworkError(error) && secondsLeft() > 0) {
+    clearTimeout(_refreshTimer);
+    _refreshTimer = setTimeout(_refreshNow, Math.min(RETRY_SEC, secondsLeft()) * 1000);
+    return;
+  }
+  _expireSession();
+}
+
+function _expireSession() {
+  _endSession();
+  _showLogin('เซสชันหมดอายุหรือถูกยกเลิก กรุณาเข้าสู่ระบบใหม่');
+}
+
+function _endSession() {
+  clearTimeout(_refreshTimer);
+  clearSession();
+  currentUser    = null;
+  currentProfile = null;
+  syncRealtimeAuth();
+}
+
+// timer ในแท็บที่ถูกพักอาจไม่ทำงาน — เช็กใหม่ทุกครั้งที่กลับมาเปิดแอป
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && getSession()) _scheduleRefresh();
+});
+
+// fetch ล้มเหลว (ออฟไลน์) จะไม่มี error.code — ต่างจาก error จาก server
+function _isNetworkError(error) {
+  if (!error) return false;
+  return !navigator.onLine || !error.code || /fetch|network|load failed/i.test(error.message || '');
+}
+
+function _showLogin(message) {
+  _hideLoadingOverlay();
+  const errEl = document.getElementById('login-error');
+  if (errEl) {
+    errEl.textContent   = message || '';
+    errEl.style.display = message ? 'block' : 'none';
+  }
+  document.getElementById('auth-overlay').style.display = 'flex';
+}
 
 // ─── Sign In ──────────────────────────────────────────────────
 export async function doSignIn() {
@@ -35,13 +108,6 @@ export async function doSignIn() {
   btn.disabled  = true;
   btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin .8s linear infinite"></i> กำลังเข้าสู่ระบบ...';
 
-  const showErr = (msg) => {
-    btn.disabled  = false;
-    btn.innerHTML = '<i class="ti ti-login"></i> เข้าสู่ระบบ';
-    errEl.textContent   = msg;
-    errEl.style.display = 'block';
-  };
-
   const { data, error } = await _sb.rpc('verify_login', {
     p_identifier: identifier,
     p_password:   password,
@@ -50,30 +116,23 @@ export async function doSignIn() {
   btn.disabled  = false;
   btn.innerHTML = '<i class="ti ti-login"></i> เข้าสู่ระบบ';
 
-  if (error) {
-    showErr(error.message || 'เข้าสู่ระบบไม่ได้ กรุณาลองใหม่');
+  if (error || !data?.token) {
+    errEl.textContent = data?.error
+      || (_isNetworkError(error) ? 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กรุณาตรวจสอบอินเทอร์เน็ต' : 'เข้าสู่ระบบไม่ได้ กรุณาลองใหม่');
+    errEl.style.display = 'block';
     return;
   }
 
-  if (!data || data.length === 0) {
-    showErr('ไม่พบข้อมูลผู้ใช้');
-    return;
-  }
-
-  const profile = data[0];
-  currentProfile = profile;
-  currentUser    = profile;
-  localStorage.setItem(SESSION_KEY, JSON.stringify(profile));
-
+  passEl.value = '';
+  const remember = !!document.getElementById('login-remember')?.checked;
+  adoptSession(data, remember);
   await _initApp();
 }
 
 // ─── Sign Out ─────────────────────────────────────────────────
 export async function doSignOut() {
-  localStorage.removeItem(SESSION_KEY);
-  currentUser    = null;
-  currentProfile = null;
-  document.getElementById('auth-overlay').style.display = 'flex';
+  _endSession();
+  _showLogin();
 }
 
 // ─── Load Profile — อัปเดต UI จาก session ที่เก็บไว้ ────────
@@ -137,7 +196,7 @@ export async function _initApp() {
   const feeChanges     = applyLateFees();
   if (overdueChanged || feeChanges.length) {
     saveToStorage();
-    feeChanges.forEach(b => sbUpdateBillFees(b.id, b.lateFee, b.total));
+    feeChanges.forEach(b => sbUpdateBillFees(b.id, b.lateFee));
   }
 
   if (_renderCallbacks) {
@@ -159,54 +218,35 @@ export async function _initApp() {
   if (startPage && window.goPage) window.goPage(startPage);
 }
 
-// ─── Check Session — อ่าน localStorage แล้ว re-verify ───────
+// ─── Check Session — ตอนเปิดแอป ตรวจ token กับ server ─────────
 export async function checkSession() {
-  const stored = localStorage.getItem(SESSION_KEY);
-  if (!stored) {
-    _hideLoadingOverlay();
-    document.getElementById('auth-overlay').style.display = 'flex';
+  const saved = getSession();
+  if (!saved) { _showLogin(); return; }
+  if (secondsLeft() <= 0) { _expireSession(); return; }
+
+  const { data, error } = await _sb.rpc('refresh_session');
+  if (data?.token) {
+    adoptSession(data);
+  } else if (_isNetworkError(error)) {
+    // ออฟไลน์ — ใช้ session เดิมไปก่อน แล้ว _initApp จะ fallback เป็นข้อมูล local
+    adoptSession(saved);
+  } else {
+    _expireSession();
     return;
   }
-
-  try {
-    const saved = JSON.parse(stored);
-    // Re-verify ว่า account ยังใช้งานอยู่
-    const { data, error } = await _sb
-      .from('profiles')
-      .select('id, full_name, email, username, phone, role, village_id, is_active')
-      .eq('id', saved.id)
-      .eq('is_active', true)
-      .maybeSingle();
-
-    if (error || !data) {
-      localStorage.removeItem(SESSION_KEY);
-      _hideLoadingOverlay();
-      document.getElementById('auth-overlay').style.display = 'flex';
-      return;
-    }
-
-    currentProfile = data;
-    currentUser    = data;
-    localStorage.setItem(SESSION_KEY, JSON.stringify(data));
-    await _initApp();
-  } catch (e) {
-    console.error('[checkSession] error:', e);
-    localStorage.removeItem(SESSION_KEY);
-    _hideLoadingOverlay();
-    document.getElementById('auth-overlay').style.display = 'flex';
-  }
+  await _initApp();
 }
 
 // ─── Change Password ──────────────────────────────────────────
 export function openChangePwdModal() {
-  ['cpwd-new', 'cpwd-confirm'].forEach(id => {
+  ['cpwd-current', 'cpwd-new', 'cpwd-confirm'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
   const errEl = document.getElementById('cpwd-error');
   if (errEl) errEl.style.display = 'none';
   document.getElementById('change-pwd-modal').style.display = 'flex';
-  setTimeout(() => document.getElementById('cpwd-new')?.focus(), 80);
+  setTimeout(() => document.getElementById('cpwd-current')?.focus(), 80);
 }
 
 export function closeChangePwdModal() {
@@ -214,48 +254,43 @@ export function closeChangePwdModal() {
 }
 
 export async function doChangePassword() {
+  const currentPwd = document.getElementById('cpwd-current').value;
   const newPwd     = document.getElementById('cpwd-new').value;
   const confirmPwd = document.getElementById('cpwd-confirm').value;
   const errEl      = document.getElementById('cpwd-error');
   const btn        = document.getElementById('cpwd-btn');
 
   errEl.style.display = 'none';
+  const showErr = (msg) => { errEl.textContent = msg; errEl.style.display = 'block'; };
 
-  if (!newPwd || newPwd.length < 8) {
-    errEl.textContent   = 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร';
-    errEl.style.display = 'block';
-    return;
-  }
+  if (!currentPwd) { showErr('กรุณากรอกรหัสผ่านปัจจุบัน'); return; }
+  if (!newPwd || newPwd.length < 8) { showErr('รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร'); return; }
   if (!/[a-zA-Z]/.test(newPwd) || !/[0-9]/.test(newPwd)) {
-    errEl.textContent   = 'รหัสผ่านต้องมีทั้งตัวอักษรและตัวเลขอย่างน้อย 1 ตัว';
-    errEl.style.display = 'block';
+    showErr('รหัสผ่านต้องมีทั้งตัวอักษรและตัวเลขอย่างน้อย 1 ตัว');
     return;
   }
-  if (newPwd !== confirmPwd) {
-    errEl.textContent   = 'รหัสผ่านทั้งสองช่องไม่ตรงกัน';
-    errEl.style.display = 'block';
-    return;
-  }
+  if (newPwd !== confirmPwd) { showErr('รหัสผ่านทั้งสองช่องไม่ตรงกัน'); return; }
 
   btn.disabled  = true;
   btn.innerHTML = '<i class="ti ti-loader-2" style="animation:spin .8s linear infinite"></i> กำลังบันทึก...';
 
-  const { error } = await _sb.rpc('set_profile_password', {
-    p_user_id: currentProfile.id,
-    p_password: newPwd,
+  const { data, error } = await _sb.rpc('change_my_password', {
+    p_current: currentPwd,
+    p_new:     newPwd,
   });
 
   btn.disabled  = false;
   btn.innerHTML = '<i class="ti ti-check"></i> บันทึก';
 
-  if (error) {
-    errEl.textContent   = 'เกิดข้อผิดพลาด: ' + error.message;
-    errEl.style.display = 'block';
+  if (error || !data?.token) {
+    showErr(error?.message || 'เปลี่ยนรหัสผ่านไม่สำเร็จ');
     return;
   }
 
+  // session เดิมทุกเครื่องถูกยกเลิกแล้ว — เครื่องนี้ใช้ session ใหม่ต่อ
+  adoptSession(data);
   closeChangePwdModal();
-  toast('เปลี่ยนรหัสผ่านสำเร็จ', 'success');
+  toast('เปลี่ยนรหัสผ่านสำเร็จ — อุปกรณ์อื่นที่ login อยู่จะต้องเข้าสู่ระบบใหม่', 'success');
 }
 
 // ─── Loading Overlay ──────────────────────────────────────────

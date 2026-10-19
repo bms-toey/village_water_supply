@@ -2,7 +2,7 @@
 import { esc, toast } from '../../utils/dom.util.js';
 import { _sb } from '../../services/supabase.service.js';
 import { _dbVillages } from '../../services/db-mapper.service.js';
-import { currentUser, currentProfile } from '../../services/auth.service.js';
+import { currentUser, currentProfile, adoptSession } from '../../services/auth.service.js';
 
 const roleMap = {
   super_admin:   { label: 'Super Admin',       cls: 'pill-paid',    icon: 'ti-crown' },
@@ -163,11 +163,13 @@ export async function saveUser() {
       if (password.length < 8 || !/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
         reset(); toast('รหัสผ่านต้องมีอย่างน้อย 8 ตัว และมีทั้งตัวอักษรและตัวเลข', 'error'); return;
       }
-      const { error: pwErr } = await _sb.rpc('set_profile_password', {
+      // session เดิมของผู้ใช้นั้นจะหลุดทั้งหมด — ถ้าตั้งให้ตัวเอง server คืน session ใหม่มาให้
+      const { data: newSession, error: pwErr } = await _sb.rpc('set_profile_password', {
         p_user_id:  _editUserId,
         p_password: password,
       });
       if (pwErr) { reset(); toast('แก้ไขรหัสผ่านล้มเหลว: ' + pwErr.message, 'error'); return; }
+      if (newSession?.token) adoptSession(newSession);
     }
     reset();
     toast(`แก้ไข ${fullName} แล้ว${password ? ' (เปลี่ยนรหัสผ่านด้วย)' : ''}`, 'success');

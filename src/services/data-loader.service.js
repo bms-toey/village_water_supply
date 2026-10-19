@@ -145,8 +145,9 @@ export function sbUpdateBillStatus(billId, status) {
   });
 }
 
-export function sbUpdateBillFees(billId, lateFee, total) {
-  _sb.from('bills').update({ late_fee: lateFee, total }).eq('id', billId).then(({ error }) => {
+// total is a GENERATED column — DB recalculates it from late_fee
+export function sbUpdateBillFees(billId, lateFee) {
+  _sb.from('bills').update({ late_fee: lateFee }).eq('id', billId).then(({ error }) => {
     if (error) _sbErr('updateBillFees', error);
   });
 }

@@ -17,7 +17,7 @@
 <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png"/>
 <meta name="description" content="ระบบบริหารจัดการประปาหมู่บ้านครบวงจร"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&family=Prompt:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.0.0/dist/tabler-icons.min.css"/>
 <link rel="stylesheet" href="styles/variables.css"/>
 <link rel="stylesheet" href="styles/base.css"/>
@@ -1314,133 +1314,134 @@
 <!-- ══════════ AUTH OVERLAY (LOGIN) ══════════ -->
 <div id="auth-overlay" style="display:none">
 
-  <!-- Animated background -->
-  <div class="lo-bg">
-    <div class="lo-bg-orb lo-bg-orb-1"></div>
-    <div class="lo-bg-orb lo-bg-orb-2"></div>
-    <div class="lo-bg-orb lo-bg-orb-3"></div>
-    <div class="lo-bg-dots"></div>
-    <!-- water wave SVG -->
-    <svg class="lo-bg-wave" viewBox="0 0 1440 180" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-      <path fill="white" d="M0,80 C240,160 480,0 720,80 C960,160 1200,0 1440,80 L1440,180 L0,180 Z"/>
-      <path fill="white" opacity="0.5" d="M0,110 C360,30 720,150 1080,90 C1260,60 1380,130 1440,110 L1440,180 L0,180 Z"/>
+  <!-- Background: aurora + perspective grid + rising bubbles + waves -->
+  <div class="lo-bg" aria-hidden="true">
+    <div class="lo-aurora lo-aurora-1"></div>
+    <div class="lo-aurora lo-aurora-2"></div>
+    <div class="lo-aurora lo-aurora-3"></div>
+    <div class="lo-grid"></div>
+    <div class="lo-rings">
+      <div class="lo-ring lo-ring-1"><span></span></div>
+      <div class="lo-ring lo-ring-2"><span></span></div>
+      <div class="lo-ring lo-ring-3"></div>
+    </div>
+    <div class="lo-bubbles">
+      <span style="--x:6%;--s:10px;--d:14s;--delay:0s"></span>
+      <span style="--x:14%;--s:18px;--d:18s;--delay:-6s"></span>
+      <span style="--x:23%;--s:8px;--d:12s;--delay:-3s"></span>
+      <span style="--x:35%;--s:14px;--d:20s;--delay:-11s"></span>
+      <span style="--x:46%;--s:6px;--d:11s;--delay:-2s"></span>
+      <span style="--x:57%;--s:22px;--d:22s;--delay:-8s"></span>
+      <span style="--x:66%;--s:9px;--d:15s;--delay:-13s"></span>
+      <span style="--x:75%;--s:16px;--d:19s;--delay:-4s"></span>
+      <span style="--x:84%;--s:7px;--d:13s;--delay:-9s"></span>
+      <span style="--x:93%;--s:12px;--d:17s;--delay:-1s"></span>
+    </div>
+    <svg class="lo-wave lo-wave-back" viewBox="0 0 2880 180" preserveAspectRatio="none">
+      <path d="M0,80 C240,160 480,0 720,80 C960,160 1200,0 1440,80 C1680,160 1920,0 2160,80 C2400,160 2640,0 2880,80 L2880,180 L0,180 Z"/>
+    </svg>
+    <svg class="lo-wave lo-wave-front" viewBox="0 0 2880 180" preserveAspectRatio="none">
+      <path d="M0,110 C360,40 720,40 1080,110 C1260,145 1350,130 1440,110 C1800,40 2160,40 2520,110 C2700,145 2790,130 2880,110 L2880,180 L0,180 Z"/>
     </svg>
   </div>
 
-  <!-- Layout wrapper -->
   <div class="lo-wrap">
 
-    <!-- ── LEFT: Hero Section ── -->
-    <div class="lo-hero">
+    <!-- ── LEFT: Hero ── -->
+    <section class="lo-hero">
 
-      <div class="lo-badge">
-        <i class="ti ti-shield-check"></i>
-        Secure Village Water System
+      <div class="lo-status">
+        <span class="lo-status-dot"></span>
+        <span>ระบบพร้อมใช้งาน</span>
+        <span class="lo-status-sep"></span>
+        <span id="lo-date">—</span>
       </div>
 
-      <div class="lo-hero-title">
-        Aqua<span class="lo-hero-title-accent">Flow</span><br>Pro
-      </div>
-      <div class="lo-hero-sub">
-        ระบบบริหารจัดการประปาหมู่บ้านครบวงจร พร้อมรายงาน
-        วิเคราะห์ข้อมูล และจัดการผู้ใช้น้ำอย่างมืออาชีพ
-      </div>
+      <h1 class="lo-hero-title">
+        <span class="lo-kicker">SMART VILLAGE WATER PLATFORM</span>
+        Aqua<span class="lo-grad">Flow</span> Pro
+      </h1>
+      <p class="lo-hero-sub">
+        ระบบบริหารจัดการประปาหมู่บ้านครบวงจร — จดมิเตอร์ ออกบิล
+        รับชำระ และติดตามทุกอย่างได้ในที่เดียว ทั้งบนคอมพิวเตอร์และมือถือ
+      </p>
 
-      <div class="lo-chips">
-        <div class="lo-chip"><i class="ti ti-gauge"></i> จัดการมิเตอร์</div>
-        <div class="lo-chip"><i class="ti ti-receipt-2"></i> ออกบิลค่าน้ำ</div>
-        <div class="lo-chip"><i class="ti ti-credit-card"></i> รับชำระเงิน</div>
-        <div class="lo-chip"><i class="ti ti-chart-bar"></i> รายงานวิเคราะห์</div>
-        <div class="lo-chip"><i class="ti ti-map-2"></i> แผนที่ผู้ใช้น้ำ</div>
-      </div>
-
-      <!-- Mini dashboard preview -->
-      <div class="lo-preview">
-        <div class="lo-kpi-row">
-          <div class="lo-kpi">
-            <div class="lo-kpi-label">สมาชิกทั้งหมด</div>
-            <div class="lo-kpi-val c-blue">248</div>
-            <div class="lo-kpi-trend up">↑ 3 รายใหม่</div>
-          </div>
-          <div class="lo-kpi">
-            <div class="lo-kpi-label">ชำระแล้ว</div>
-            <div class="lo-kpi-val c-green">93%</div>
-            <div class="lo-kpi-trend up">↑ 2% จากเดือนก่อน</div>
-          </div>
-          <div class="lo-kpi">
-            <div class="lo-kpi-label">ค้างชำระ</div>
-            <div class="lo-kpi-val c-yellow">17</div>
-            <div class="lo-kpi-trend">รายการ</div>
-          </div>
+      <div class="lo-bento">
+        <div class="lo-tile">
+          <div class="lo-tile-icon"><i class="ti ti-gauge"></i></div>
+          <div class="lo-tile-title">จดมิเตอร์หน้างาน</div>
+          <div class="lo-tile-desc">บันทึกเลขมิเตอร์จากมือถือ ใช้งานได้แม้สัญญาณไม่ดี</div>
         </div>
-        <div class="lo-chart-card">
-          <div class="lo-chart-head">
-            <span class="lo-chart-title">การใช้น้ำรายเดือน (ลูกบาศก์เมตร)</span>
-            <div class="lo-chart-dot"></div>
-          </div>
-          <div class="lo-bars-wrap">
-            <div class="lo-bar" style="height:42%"></div>
-            <div class="lo-bar" style="height:58%"></div>
-            <div class="lo-bar" style="height:48%"></div>
-            <div class="lo-bar" style="height:72%"></div>
-            <div class="lo-bar" style="height:62%"></div>
-            <div class="lo-bar lo-bar-active" style="height:88%"></div>
-          </div>
-          <div class="lo-months">
-            <span>ม.ค.</span><span>ก.พ.</span><span>มี.ค.</span>
-            <span>เม.ย.</span><span>พ.ค.</span><span>มิ.ย.</span>
-          </div>
+        <div class="lo-tile">
+          <div class="lo-tile-icon"><i class="ti ti-receipt-2"></i></div>
+          <div class="lo-tile-title">ออกบิลอัตโนมัติ</div>
+          <div class="lo-tile-desc">คำนวณค่าน้ำตามอัตราขั้นบันได พร้อมค่าปรับล่าช้า</div>
+        </div>
+        <div class="lo-tile">
+          <div class="lo-tile-icon"><i class="ti ti-wallet"></i></div>
+          <div class="lo-tile-title">รับชำระเรียลไทม์</div>
+          <div class="lo-tile-desc">ยอดชำระและค้างจ่ายอัปเดตทันทีทุกเครื่อง</div>
+        </div>
+        <div class="lo-tile">
+          <div class="lo-tile-icon"><i class="ti ti-map-2"></i></div>
+          <div class="lo-tile-title">แผนที่ &amp; รายงาน</div>
+          <div class="lo-tile-desc">ดูตำแหน่งผู้ใช้น้ำ และสรุปผลประจำเดือน</div>
         </div>
       </div>
 
-    </div>
-    <!-- end .lo-hero -->
+    </section>
 
-    <!-- ── RIGHT: Login Panel ── -->
-    <div class="lo-panel">
+    <!-- ── RIGHT: Login card ── -->
+    <section class="lo-panel">
       <div class="lo-card">
 
-        <!-- Logo & App name -->
-        <div class="lo-logo-row">
-          <div class="lo-logo-icon"><i class="ti ti-droplet-filled"></i></div>
+        <div class="lo-head">
+          <div class="lo-logo"><i class="ti ti-droplet"></i></div>
+          <div class="lo-greet"><i class="ti ti-sun" id="lo-greet-icon"></i><span id="lo-greet">สวัสดี</span></div>
           <div class="lo-app-name">AquaFlow Pro</div>
-          <div class="lo-app-tagline">ระบบบริหารจัดการประปาหมู่บ้าน</div>
-          <div class="lo-app-desc">เข้าสู่ระบบเพื่อจัดการผู้ใช้น้ำ มิเตอร์ ใบแจ้งหนี้<br>และรายงานการชำระเงิน</div>
+          <div class="lo-app-tagline">เข้าสู่ระบบเพื่อเริ่มทำงาน</div>
         </div>
 
-        <!-- Form -->
         <div class="lo-form">
 
           <!-- Username / Email / Phone -->
           <div class="lo-field">
             <i class="ti ti-user lo-field-icon"></i>
             <input class="lo-input" id="login-identifier" type="text"
-              placeholder="อีเมล / เบอร์โทร / ชื่อผู้ใช้"
-              autocomplete="username"
+              placeholder=" "
+              autocomplete="username" autocapitalize="off" spellcheck="false"
               onkeydown="if(event.key==='Enter')document.getElementById('login-password').focus()"/>
+            <label class="lo-label" for="login-identifier">อีเมล / เบอร์โทร / ชื่อผู้ใช้</label>
           </div>
 
           <!-- Password -->
           <div class="lo-field">
             <i class="ti ti-lock lo-field-icon"></i>
-            <input class="lo-input" id="login-password" type="password"
-              placeholder="รหัสผ่าน"
+            <input class="lo-input lo-input-pwd" id="login-password" type="password"
+              placeholder=" "
               autocomplete="current-password"
-              style="padding-right:44px"
               onkeydown="if(event.key==='Enter')doSignIn()"/>
+            <label class="lo-label" for="login-password">รหัสผ่าน</label>
             <button class="lo-eye-btn" type="button"
               onclick="loTogglePwd(this)" tabindex="-1" title="แสดง/ซ่อนรหัสผ่าน">
               <i class="ti ti-eye"></i>
             </button>
           </div>
+          <div class="lo-caps" id="lo-caps" hidden>
+            <i class="ti ti-arrow-big-up-line"></i> Caps Lock เปิดอยู่
+          </div>
 
           <!-- Remember / Forgot -->
           <div class="lo-row">
             <label class="lo-remember">
-              <input type="checkbox" id="login-remember"/>
-              จดจำการเข้าสู่ระบบ
+              <input type="checkbox" id="login-remember" checked/>
+              <span>จดจำการเข้าสู่ระบบ</span>
             </label>
-            <a href="#" class="lo-forgot" onclick="return false">ลืมรหัสผ่าน?</a>
+            <a href="#" class="lo-forgot" onclick="loToggleForgot();return false">ลืมรหัสผ่าน?</a>
+          </div>
+          <div class="lo-forgot-note" id="lo-forgot-note" hidden>
+            <i class="ti ti-info-circle"></i>
+            <span>กรุณาติดต่อผู้ดูแลระบบ (Super Admin) เพื่อตั้งรหัสผ่านใหม่ให้</span>
           </div>
 
           <!-- Error message (managed by auth.service.js) -->
@@ -1452,20 +1453,17 @@
           </button>
 
         </div>
-        <!-- end .lo-form -->
 
         <div class="lo-secure-note">
-          <i class="ti ti-shield-check"></i>
-          ข้อมูลของคุณได้รับการป้องกันด้วยระบบยืนยันตัวตนที่ปลอดภัย
+          <i class="ti ti-shield-lock"></i>
+          ข้อมูลของคุณได้รับการป้องกันด้วยการเชื่อมต่อแบบเข้ารหัส
         </div>
-        <div class="lo-footer-text">AquaFlow Pro • Supabase Backend • © 2026</div>
+        <div class="lo-footer-text">AquaFlow Pro · © 2026</div>
 
       </div>
-    </div>
-    <!-- end .lo-panel -->
+    </section>
 
   </div>
-  <!-- end .lo-wrap -->
 
 </div>
 <!-- end #auth-overlay -->
@@ -1515,6 +1513,16 @@
       <button class="btn-close" onclick="closeChangePwdModal()"><i class="ti ti-x"></i></button>
     </div>
     <div class="modal-body">
+      <div class="form-group" style="margin-bottom:14px">
+        <label class="form-label" for="cpwd-current">รหัสผ่านปัจจุบัน</label>
+        <div style="position:relative">
+          <input class="form-input" id="cpwd-current" type="password" placeholder="รหัสผ่านที่ใช้อยู่ตอนนี้" autocomplete="current-password" style="padding-right:44px"
+            onkeydown="if(event.key==='Enter')document.getElementById('cpwd-new').focus()"/>
+          <button type="button" aria-label="แสดงรหัสผ่าน" onclick="(function(b){var i=document.getElementById('cpwd-current');i.type=i.type==='password'?'text':'password';b.querySelector('i').className=i.type==='password'?'ti ti-eye':'ti ti-eye-off'})(this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--gray-500);padding:4px;min-height:unset">
+            <i class="ti ti-eye"></i>
+          </button>
+        </div>
+      </div>
       <div class="form-group" style="margin-bottom:14px">
         <label class="form-label">รหัสผ่านใหม่</label>
         <div style="position:relative">
@@ -1611,6 +1619,46 @@ function loTogglePwd(btn) {
     icon.className = 'ti ti-eye';
   }
 }
+
+function loToggleForgot() {
+  var note = document.getElementById('lo-forgot-note');
+  note.hidden = !note.hidden;
+}
+
+// Caps Lock warning on password field
+(function () {
+  var inp  = document.getElementById('login-password');
+  var caps = document.getElementById('lo-caps');
+  if (!inp || !caps) return;
+  function check(e) { caps.hidden = !(e.getModifierState && e.getModifierState('CapsLock')); }
+  inp.addEventListener('keydown', check);
+  inp.addEventListener('keyup', check);
+  inp.addEventListener('blur', function () { caps.hidden = true; });
+})();
+
+// Greeting + Thai date (ปี พ.ศ.) — refresh every minute while login is visible
+(function () {
+  function tick() {
+    var overlay = document.getElementById('auth-overlay');
+    if (!overlay || overlay.style.display === 'none') return;
+    var now = new Date(), h = now.getHours();
+    var g = h < 5  ? ['สวัสดียามดึก', 'ti-moon-stars']
+          : h < 12 ? ['สวัสดีตอนเช้า', 'ti-sunrise']
+          : h < 17 ? ['สวัสดีตอนบ่าย', 'ti-sun']
+          : h < 19 ? ['สวัสดีตอนเย็น', 'ti-sunset-2']
+          :          ['สวัสดีตอนค่ำ', 'ti-moon'];
+    document.getElementById('lo-greet').textContent = g[0];
+    document.getElementById('lo-greet-icon').className = 'ti ' + g[1];
+    document.getElementById('lo-date').textContent = now.toLocaleDateString('th-TH', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+    });
+  }
+  new MutationObserver(tick).observe(document.getElementById('auth-overlay'), {
+    attributes: true, attributeFilter: ['style']
+  });
+  setInterval(tick, 60000);
+  tick();
+})();
 </script>
 
 <!-- PWA Install Prompt (Android + iOS) -->
@@ -1788,7 +1836,7 @@ function _showUpdateBanner(reg) {
 <!-- App config (credentials — gitignored, never committed) -->
 <script src="config.js"></script>
 <!-- CDN Libraries (global scope, loaded before ES6 modules) -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
 <!-- Application entry point (ES6 module — imports entire src/ tree) -->
 <script type="module" src="src/app.js"></script>

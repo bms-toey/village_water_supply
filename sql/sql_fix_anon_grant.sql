@@ -1,3 +1,7 @@
+-- ⚠️ เลิกใช้แล้ว — ถูกแทนที่ด้วย sql_secure_auth.sql
+-- ไฟล์นี้เปิดสิทธิ์ให้ anon (ผู้ที่ไม่ได้ login) ห้ามรันซ้ำ เก็บไว้เป็นประวัติเท่านั้น
+DO $$ BEGIN RAISE EXCEPTION 'sql_fix_anon_grant.sql เลิกใช้แล้ว — ใช้ sql_secure_auth.sql แทน'; END $$;
+
 -- ══════════════════════════════════════════════════════════════
 -- FIX: GRANT สำหรับ login ด้วย username/เบอร์โทร
 -- รัน SQL นี้ใน Supabase Dashboard → SQL Editor

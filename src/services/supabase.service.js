@@ -1,13 +1,12 @@
 // ─── Supabase Client ───────────────────────────────────────────
-// Initialises and exports the two Supabase client instances.
+// _sb แนบ JWT จาก session.service ไปกับทุก request (REST + Realtime)
+// ยังไม่ login → ใช้ anon key ซึ่งเรียกได้แค่ RPC verify_login
 //
-// _sb       — main session client (persistent auth)
-// _sbCreate — secondary client for creating users without
-//             disrupting the admin session (separate storageKey)
-//
-// Credentials are loaded from window.APP_CONFIG (config.js)
-// which is gitignored. Never hardcode keys here.
+// Credentials are loaded from window.APP_CONFIG (config.js).
+// The anon key is browser-safe — access is enforced by RLS
+// (sql/sql_secure_auth.sql).
 // ──────────────────────────────────────────────────────────────
+import { getAccessToken } from './session.service.js';
 
 const cfg = window.APP_CONFIG;
 if (!cfg?.SUPABASE_URL || !cfg?.SUPABASE_ANON_KEY) {
@@ -30,13 +29,12 @@ const SUPABASE_URL      = cfg.SUPABASE_URL;
 const SUPABASE_ANON_KEY = cfg.SUPABASE_ANON_KEY;
 
 // supabase is loaded as a global via CDN script in index.html
-export const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-export const _sbCreate = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: {
-    persistSession:    false,
-    autoRefreshToken:  false,
-    detectSessionInUrl: false,
-    storageKey:        'sb-admin-create',
-  },
+// หมายเหตุ: เมื่อใช้ accessToken แล้ว _sb.auth ใช้ไม่ได้ (ไม่ได้ใช้ Supabase Auth)
+export const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  accessToken: async () => getAccessToken(),
 });
+
+// เรียกหลัง login / ต่ออายุ / logout ให้ช่อง Realtime ใช้ token ล่าสุด
+export function syncRealtimeAuth() {
+  _sb.realtime.setAuth().catch(e => console.warn('[realtime] setAuth:', e));
+}
