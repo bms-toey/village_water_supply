@@ -7,6 +7,7 @@
 |---|---|---|---|
 | 1 | `sql_secure_auth.sql` | Login + JWT + RLS | ต้องใส่ JWT secret ใน Vault ก่อน (ดูหัวไฟล์) |
 | 2 | `sql_phase0_finance.sql` | เลขเอกสารจาก server, ปิดงวด, ใบลดหนี้/เพิ่มหนี้, ค่าปรับอัตโนมัติ, audit, backup | เปิด extension `pg_cron` ก่อนจะดีที่สุด |
+| 3 | `sql_phase1_documents.sql` | ผู้รับเงินจาก JWT, ต้นฉบับ/สำเนาใบเสร็จ, ปิดยอดประจำวัน, Storage สลิป+รูปมิเตอร์ | สร้าง bucket ให้อัตโนมัติ |
 
 หลังรัน SQL แล้วให้ deploy frontend เวอร์ชันเดียวกันทันที
 

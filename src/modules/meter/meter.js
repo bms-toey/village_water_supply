@@ -9,12 +9,15 @@ import { sbUpsertReading, sbDeleteReading, sbUpsertBill, sbInsertBills, sbUpdate
 import { saveToStorage } from '../../services/storage.service.js';
 import { goPage } from '../../components/navigation/navigation.js';
 import { _dbVillages } from '../../services/db-mapper.service.js';
+import { uploadImage, signedImageUrl } from '../../services/files.service.js';
+import { openModal } from '../../components/modal/modal.js';
 
 // ─── Meter Photo / AI OCR ─────────────────────────────────────
 
 const _OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const _OPENROUTER_MODEL = 'qwen/qwen2.5-vl-72b-instruct';
 let _saving = false;   // กันกดบันทึกซ้ำระหว่างรอ server ออกเลขบิล
+let _photoFile = null; // รูปมิเตอร์ที่ถ่ายไว้ — อัปโหลดเป็นหลักฐานตอนบันทึก
 
 function _getFileInput(id, capture) {
   let inp = document.getElementById(id);
@@ -42,6 +45,7 @@ async function _processMeterPhoto(file) {
   const clearBtn  = document.getElementById('meter-photo-clear-btn');
   const aiBtn     = document.getElementById('meter-ai-btn');
 
+  _photoFile = file;
   // Show preview
   const url = URL.createObjectURL(file);
   if (preview) preview.src = url;
@@ -152,6 +156,7 @@ window._handleMeterDrop = function (e) {
 };
 
 window._clearMeterPhoto = function () {
+  _photoFile = null;
   const preview  = document.getElementById('meter-photo-preview');
   const wrap     = document.getElementById('meter-photo-wrap');
   const drop     = document.getElementById('meter-photo-drop');
@@ -693,6 +698,10 @@ export async function saveMeter() {
     total: charges.total, readBy: 'ผู้ดูแลระบบ', method: 'manual',
     anomaly: _detectAnomaly(usage, member, meterReadings), billId,
   };
+  if (_photoFile) {
+    const path = await uploadImage('meter-photos', `${today.slice(0, 7)}/${newReading.id}.jpg`, _photoFile);
+    if (path) newReading.photoUrl = path;   // ถ้าอัปโหลดไม่ได้ ยังบันทึกการอ่านต่อ (แจ้งเตือนแล้ว)
+  }
   meterReadings.push(newReading);
   member.lastRead = curr; member.lastReadDate = today;
 
@@ -705,6 +714,17 @@ export async function saveMeter() {
   window._afterReceiptClose = resetMeterSelection;
   window.openBillReceipt?.(billId);
 }
+
+window._viewMeterPhoto = async function (readingId) {
+  const r = appState.meterReadings.find(x => x.id === readingId);
+  const url = r && await signedImageUrl('meter-photos', r.photoUrl);
+  if (!url) return;
+  openModal({
+    id: 'meter-photo-modal', title: `รูปมิเตอร์ ${r.meter} — ${r.readingDate}`, icon: 'ti-photo', width: 520,
+    body: `<img src="${esc(url)}" alt="รูปมิเตอร์" style="width:100%;border-radius:var(--radius-md)"/>
+      <div style="margin-top:8px;font-size:13px">เลขที่จด <b>${r.currReading.toLocaleString()}</b> · ใช้น้ำ ${r.usage} ลบ.ม.</div>`,
+  });
+};
 
 export function renderMeterHistory(memberId) {
   const { meterReadings } = appState;
@@ -728,6 +748,7 @@ export function renderMeterHistory(memberId) {
       ? `<span class="pill pill-overdue" style="font-size:10px;padding:2px 7px">${anomalyMap[r.anomaly]||r.anomaly}</span>`
       : `<span class="pill pill-normal" style="font-size:10px;padding:2px 7px">ปกติ</span>`
     }</td>
-    <td class="text-muted" style="font-size:11px">${methodMap[r.method]||r.method} · ${r.readBy}</td>
+    <td class="text-muted" style="font-size:11px">${methodMap[r.method]||r.method} · ${r.readBy}${r.photoUrl
+      ? ` <button class="btn-icon" style="width:24px;height:24px;font-size:13px" title="ดูรูปมิเตอร์" aria-label="ดูรูปมิเตอร์" onclick="_viewMeterPhoto('${esc(r.id)}')"><i class="ti ti-photo"></i></button>` : ''}</td>
   </tr>`).join('');
 }

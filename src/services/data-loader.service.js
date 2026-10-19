@@ -109,6 +109,13 @@ export function sbUpdateMember(m) {
   });
 }
 
+/** บันทึกสมาชิกแล้วรอผล — ใช้เมื่อต้องรู้ว่าสำเร็จ (เช่น ระงับการใช้น้ำ) */
+export async function sbSaveMember(m) {
+  const { error } = await _sb.from('members').update(_mToDB(m)).eq('id', m.id);
+  if (error) _sbErr('saveMember', error);
+  return !error;
+}
+
 export async function sbInsertMember(m) {
   const { data, error } = await _sb.from('members').insert(_mToDB(m)).select('id').single();
   if (error) { _sbErr('insertMember', error); return null; }
@@ -230,6 +237,55 @@ export async function sbInsertPayment(p) {
     .insert({ ..._pToDB(p), receipt_no: null }).select().single();
   if (error) { _sbErr('insertPayment', error); return null; }
   return _pFromDB(data);
+}
+
+export async function sbCancelPayment(id, cancelledAt, reason) {
+  const { error } = await _sb.from('payments')
+    .update({ status: 'cancelled', cancelled_at: localToISO(cancelledAt), cancel_reason: reason })
+    .eq('id', id);
+  if (error) _sbErr('cancelPayment', error);
+  return !error;
+}
+
+/** นับการพิมพ์ใบเสร็จ — คืนครั้งที่พิมพ์ (1 = ต้นฉบับ) หรือ null */
+export async function sbMarkReceiptPrinted(paymentId) {
+  const { data, error } = await _sb.rpc('mark_receipt_printed', { p_payment_id: paymentId });
+  if (error) { _sbErr('markReceiptPrinted', error); return null; }
+  return data;
+}
+
+// ─── Cashier day close ───────────────────────────────────────
+export async function sbGetCashSummary(date, cashierId = null) {
+  const { data, error } = await _sb.rpc('get_cash_summary', { p_date: date, p_cashier: cashierId });
+  if (error) { _sbErr('getCashSummary', error); return null; }
+  return data;
+}
+
+export async function sbCloseCashDay(date, counted, note) {
+  const { data, error } = await _sb.rpc('close_cash_day', { p_date: date, p_counted: counted, p_note: note || null });
+  if (error) { _sbErr('closeCashDay', error); return null; }
+  return data;
+}
+
+export async function sbReopenCashDay(id, reason) {
+  const { error } = await _sb.rpc('reopen_cash_day', { p_id: id, p_reason: reason });
+  if (error) { _sbErr('reopenCashDay', error); return false; }
+  return true;
+}
+
+export async function sbListCashClosings(limit = 60) {
+  const { data, error } = await _sb.from('cash_closings').select('*')
+    .order('close_date', { ascending: false }).limit(limit);
+  if (error) { _sbErr('listCashClosings', error); return []; }
+  return data || [];
+}
+
+// ─── Audit (server กำหนดผู้ทำรายการเอง) ──────────────────────
+export function sbLogAudit(tableName, recordId, action, oldData, newData) {
+  _sb.from('audit_logs').insert({
+    table_name: tableName, record_id: String(recordId ?? ''), action,
+    old_data: oldData ?? null, new_data: newData ?? null,
+  }).then(({ error }) => { if (error) console.warn('[audit]', error.message); });
 }
 
 export async function sbApprovePayment(id, approvedAt) {

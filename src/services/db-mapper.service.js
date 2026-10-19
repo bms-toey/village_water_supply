@@ -150,6 +150,12 @@ export function _pFromDB(r) {
     approvedBy:   r.approved_by   || null,
     approvedAt:   r.approved_at ? fmtLocalDateTime(r.approved_at) : null,
     rejectReason: r.reject_reason || null,
+    createdBy:      r.created_by       || null,
+    receivedByName: r.received_by_name || '',
+    printCount:     r.print_count      || 0,
+    cancelledAt:    r.cancelled_at ? fmtLocalDateTime(r.cancelled_at) : null,
+    cancelledBy:    r.cancelled_by     || '',
+    cancelReason:   r.cancel_reason    || '',
   };
 }
 export function _pToDB(p) {
@@ -190,6 +196,7 @@ export function _rFromDB(r) {
     method:        r.method  || 'manual',
     anomaly:       r.anomaly || null,
     billId:        r.bill_id || null,
+    photoUrl:      r.photo_url || null,
   };
 }
 export function _rToDB(r) {
@@ -206,6 +213,7 @@ export function _rToDB(r) {
     method:         r.method  || 'manual',
     anomaly:        r.anomaly || null,
     bill_id:        r.billId  || null,
+    photo_url:      r.photoUrl || null,
   };
 }
 

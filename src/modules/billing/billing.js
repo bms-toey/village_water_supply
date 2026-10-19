@@ -9,6 +9,8 @@ import { sbInsertBills, sbCancelBill, sbGetBilledMemberIds } from '../../service
 import { saveToStorage } from '../../services/storage.service.js';
 import { currentUser } from '../../services/auth.service.js';
 import { isBillLocked, canAdjustBill } from './periods.js';
+import { printBillDocument, paperOptions } from '../documents/documents.js';
+import { promptPaySvg } from '../../utils/promptpay.js';
 
 let _billSearch    = '';
 let _billPeriod    = '';
@@ -284,7 +286,10 @@ export async function confirmCancelBill() {
 }
 
 // ─── Receipt / Invoice Modal ──────────────────────────────────
+let _receiptBillId = null;
+
 export function openBillReceipt(billId) {
+  _receiptBillId = billId;
   const { bills, members, meterReadings, payments } = appState;
   const b   = bills.find(x => x.id === billId);   if (!b) return;
   const m   = members.find(x => x.id === b.memberId) || {};
@@ -374,7 +379,7 @@ export function openBillReceipt(billId) {
     </div>
   </div>
   <div style="margin-top:16px;padding-top:14px;border-top:1px dashed var(--gray-200);display:flex;justify-content:space-between;align-items:flex-end;font-size:12px;color:var(--gray-500)">
-    <div>ลงชื่อผู้รับเงิน .....................................<br><span style="margin-top:4px;display:block;padding-left:8px">(${esc(m.firstName||'')} ${esc(m.lastName||'')})</span></div>
+    <div>ลงชื่อผู้รับเงิน .....................................<br><span style="margin-top:4px;display:block;padding-left:8px">(${esc(pay.receivedByName || '')})</span></div>
     <div style="text-align:right">ประทับตรา<br><div style="width:60px;height:60px;border:1px dashed var(--gray-300);border-radius:50%;margin-top:4px;margin-left:auto"></div></div>
   </div>` : '';
 
@@ -412,10 +417,29 @@ export function openBillReceipt(billId) {
   <div style="text-align:center;margin-top:14px">
     <span class="pill ${st.cls}" style="font-size:13px;padding:5px 18px">${st.label}</span>
   </div>
+  ${isUnpaid ? _payQrBlock(b) : ''}
   ${receiptSection}
   ${cancelSection}`;
 
+  const paperSel = document.getElementById('receipt-paper');
+  if (paperSel) paperSel.innerHTML = paperOptions();
   document.getElementById('receipt-modal').style.display = 'flex';
+}
+
+// QR พร้อมเพย์บนหน้าจอ — สมาชิกสแกนจ่ายได้ทันทีตอนเจ้าหน้าที่เปิดใบแจ้งให้ดู
+function _payQrBlock(b) {
+  const ppId = appState.systemConfig?.promptpay_id;
+  const svg  = ppId ? promptPaySvg(ppId, b.total, 150) : '';
+  if (!svg) return '';
+  return `
+  <div class="no-print" style="display:flex;gap:14px;align-items:center;margin-top:14px;padding:12px;border:1px solid var(--gray-200);border-radius:var(--radius-md)">
+    <div style="flex-shrink:0">${svg}</div>
+    <div style="font-size:12.5px;line-height:1.6;color:var(--gray-700)">
+      <b>สแกนจ่ายด้วยแอปธนาคาร</b><br>พร้อมเพย์ ${esc(appState.systemConfig?.promptpay_name || '')}<br>
+      ยอด <b>฿${b.total.toLocaleString()}</b><br>
+      <span style="color:var(--gray-500)">ส่งสลิปให้เจ้าหน้าที่เพื่อยืนยันการชำระ</span>
+    </div>
+  </div>`;
 }
 
 export function closeReceiptModal() {
@@ -424,18 +448,7 @@ export function closeReceiptModal() {
   if (cb) { window._afterReceiptClose = null; cb(); }
 }
 
+// พิมพ์เอกสารของบิลที่เปิดอยู่ (ใบแจ้ง หรือใบเสร็จถ้าชำระแล้ว) ตามกระดาษที่เลือก
 export function printReceipt() {
-  const body = document.getElementById('receipt-body');
-  if (!body) return;
-  const titleText = document.getElementById('receipt-modal-title')?.textContent || 'เอกสาร';
-  const w = window.open('', '_blank', 'width=520,height=820');
-  w.document.write(`<!DOCTYPE html><html lang="th"><head><meta charset="utf-8"/><title>${titleText}</title>
-  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"/>
-  <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Sarabun',sans-serif;font-size:14px;color:#111;padding:28px;max-width:440px;margin:0 auto}
-  .text-bold{font-weight:700}.text-muted{color:#666}.text-error{color:#ba1a1a}.text-primary{color:#00236f}.op-50{opacity:.5}
-  .mono{font-family:'IBM Plex Mono',monospace;font-size:12px}.pill{display:inline-block;padding:4px 16px;border-radius:20px;font-weight:700;font-size:12px}
-  .pill-paid{background:#dcfce7;color:#15803d}.pill-overdue{background:#ffdad6;color:#ba1a1a}.pill-pending{background:#fef3c7;color:#b45309}.pill-closed{background:#f1f5f9;color:#475569}
-  i[class*="ti"]{display:none}.no-print,button{display:none!important}</style></head><body>${body.innerHTML}</body></html>`);
-  w.document.close();
-  setTimeout(() => { w.focus(); w.print(); }, 400);
+  if (_receiptBillId) printBillDocument(_receiptBillId);
 }

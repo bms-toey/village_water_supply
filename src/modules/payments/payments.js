@@ -1,17 +1,24 @@
 // ─── Payments Module ───────────────────────────────────────────
-import { nowLocal, todayISO, localToISO } from '../../utils/time.util.js';
+import { nowLocal, todayISO } from '../../utils/time.util.js';
 import { appState } from '../../state/app.state.js';
-import { esc, toast, showConfirm } from '../../utils/dom.util.js';
+import { esc, toast } from '../../utils/dom.util.js';
 import { channelMap } from '../../config/ui.config.js';
-import { sbInsertPayment, sbApprovePayment, sbUpdatePayment, sbUpdateBillStatus } from '../../services/data-loader.service.js';
+import { sbInsertPayment, sbApprovePayment, sbCancelPayment, sbUpdatePayment, sbUpdateBillStatus } from '../../services/data-loader.service.js';
 import { saveToStorage } from '../../services/storage.service.js';
 import { currentUser } from '../../services/auth.service.js';
+import { uploadImage, signedImageUrl } from '../../services/files.service.js';
+import { promptPaySvg } from '../../utils/promptpay.js';
+import { openModal, closeModal, busyButton } from '../../components/modal/modal.js';
+import { printPaymentReceipt } from '../documents/documents.js';
 
 const payStatusMap = {
-  approved: { cls: 'pill-paid',    label: 'อนุมัติแล้ว' },
-  pending:  { cls: 'pill-pending', label: 'รอตรวจสอบ' },
-  rejected: { cls: 'pill-overdue', label: 'ปฏิเสธ' },
+  approved:  { cls: 'pill-paid',    label: 'อนุมัติแล้ว' },
+  pending:   { cls: 'pill-pending', label: 'รอตรวจสอบ' },
+  rejected:  { cls: 'pill-overdue', label: 'ปฏิเสธ' },
+  cancelled: { cls: 'pill-closed',  label: 'ยกเลิก' },
 };
+
+let _slipFile = null;   // สลิปที่เลือกในหน้าบันทึกการชำระ (อัปโหลดตอนบันทึก)
 
 const _channelMeta = {
   cash:      { title: 'บันทึกรับเงินสด',       icon: 'ti-cash',          showRef: false, refPlaceholder: '' },
@@ -33,15 +40,19 @@ export function renderPayments() {
       const ch = channelMap[p.channel] || { label: p.channel, icon: 'ti-cash' };
       const st = payStatusMap[p.status] || payStatusMap.pending;
       const [dateStr, timeStr] = p.paidAt.split(' ');
+      const slipBtn = p.slipPath
+        ? `<button class="btn btn-secondary btn-xs" onclick="viewPaymentSlip('${esc(p.id)}')" title="ดูสลิป"><i class="ti ti-photo"></i></button>` : '';
       let actionBtns;
       if (p.status === 'pending') {
-        actionBtns = `<button class="btn btn-primary btn-xs" onclick="approvePayment('${p.id}')"><i class="ti ti-check"></i>อนุมัติ</button>
+        actionBtns = `${slipBtn}<button class="btn btn-primary btn-xs" onclick="approvePayment('${p.id}')"><i class="ti ti-check"></i>อนุมัติ</button>
            <button class="btn btn-danger btn-xs" onclick="rejectPayment('${p.id}')">ปฏิเสธ</button>`;
       } else if (p.status === 'approved') {
-        actionBtns = `<button class="btn btn-secondary btn-xs" onclick="printReceiptByPayment('${p.id}')" title="พิมพ์ใบเสร็จ"><i class="ti ti-printer"></i></button>
+        actionBtns = `${slipBtn}<button class="btn btn-secondary btn-xs" onclick="printReceiptByPayment('${p.id}')" title="พิมพ์ใบเสร็จ${p.printCount ? ' (พิมพ์แล้ว ' + p.printCount + ' ครั้ง)' : ''}"><i class="ti ti-printer"></i></button>
            <button class="btn btn-xs" style="color:var(--red-600);border:1px solid var(--red-200);border-radius:var(--radius-sm);padding:3px 8px;background:#fff;cursor:pointer" onclick="cancelPayment('${p.id}')" title="ยกเลิก"><i class="ti ti-ban"></i></button>`;
+      } else if (p.status === 'cancelled' && p.receiptNo) {
+        actionBtns = `${slipBtn}<button class="btn btn-secondary btn-xs" onclick="printReceiptByPayment('${p.id}')" title="พิมพ์ใบเสร็จที่ยกเลิก"><i class="ti ti-printer"></i></button>`;
       } else {
-        actionBtns = `<span style="font-size:11px;color:var(--gray-400)">${p.status === 'cancelled' ? 'ยกเลิกแล้ว' : '—'}</span>`;
+        actionBtns = `${slipBtn}<span style="font-size:11px;color:var(--gray-400)">${p.status === 'cancelled' ? 'ยกเลิกแล้ว' : '—'}</span>`;
       }
       return `<div class="h-card" style="opacity:${p.status==='cancelled'?.55:1}">
         <div class="pch-time">
@@ -54,7 +65,7 @@ export function renderPayments() {
         </div>
         <div class="pch-info">
           <div class="text-bold" style="font-size:13px">${esc(m.firstName||'')} ${esc(m.lastName||'')}</div>
-          <div class="text-muted" style="font-size:11px">${esc(p.billId||'—')}${p.receiptNo?' · <span class="mono">'+esc(p.receiptNo)+'</span>':''}</div>
+          <div class="text-muted" style="font-size:11px">${esc(p.billId||'—')}${p.receiptNo?' · <span class="mono">'+esc(p.receiptNo)+'</span>':''}${p.receivedByName?' · รับโดย '+esc(p.receivedByName):''}</div>
         </div>
         <div class="pch-amount">
           <div style="font-size:17px;font-weight:800;color:var(--blue-900)">฿${Number(p.amount).toLocaleString()}</div>
@@ -138,6 +149,8 @@ export function openCashModal(channel) {
   const recvEl = document.getElementById('cp-received');
   if (recvEl) recvEl.value = '';
   _resetChangeDisplay();
+  _setSlip(null);
+  _renderPayQr();
   document.getElementById('cash-modal').style.display = 'flex';
   if (isCash) setTimeout(() => document.getElementById('cp-received')?.focus(), 80);
 }
@@ -179,9 +192,11 @@ window._selectPayType = function(channel) {
   const m = appState.members.find(x => x.id === b.memberId);
   if (m) document.getElementById('cp-name').value = m.firstName + ' ' + m.lastName;
   _calcChange();
+  _renderPayQr();
 };
 
 window._onBillSelect = function(billId) {
+  _renderPayQr();
   if (!billId) return;
   const b = appState.bills.find(x => x.id === billId);
   if (!b) return;
@@ -189,6 +204,63 @@ window._onBillSelect = function(billId) {
   if (amtEl) amtEl.value = b.total;
   _calcChange();
 };
+
+// ── QR พร้อมเพย์ตามยอดบิล — ให้ผู้ชำระสแกนจากหน้าจอที่จุดรับเงิน ──
+function _renderPayQr() {
+  const row = document.getElementById('cp-ref-row');
+  if (!row) return;
+  let box = document.getElementById('cp-qr');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'cp-qr';
+    box.style.cssText = 'text-align:center;margin-bottom:14px';
+    row.parentNode.insertBefore(box, row);
+  }
+  const channel = document.getElementById('cp-channel')?.value;
+  const b   = appState.bills.find(x => x.id === document.getElementById('cp-bill')?.value);
+  const ppId = appState.systemConfig?.promptpay_id;
+  const svg = channel === 'promptpay' && b && ppId ? promptPaySvg(ppId, b.total, 170) : '';
+  box.innerHTML = svg
+    ? `${svg}<div style="font-size:12px;color:var(--gray-600)">สแกนจ่าย ฿${b.total.toLocaleString()} · ${esc(appState.systemConfig?.promptpay_name || '')}</div>`
+    : (channel === 'promptpay' && !ppId
+        ? '<div style="font-size:12px;color:var(--amber-700)">ตั้งค่าพร้อมเพย์ไอดีใน ตั้งค่า → ตั้งค่าทั่วไป เพื่อแสดง QR</div>' : '');
+}
+
+// ── สลิปการโอน ─────────────────────────────────────────────────
+function _setSlip(file) {
+  _slipFile = file;
+  const label = document.getElementById('cp-slip-label');
+  if (label) label.textContent = file ? `${file.name} (${Math.round(file.size / 1024)} KB)` : 'คลิกเพื่อแนบสลิป หรือถ่ายรูป';
+}
+
+window._pickSlip = function () {
+  const inp = Object.assign(document.createElement('input'), { type: 'file', accept: 'image/*' });
+  inp.onchange = () => { if (inp.files[0]) _setSlip(inp.files[0]); };
+  inp.click();
+};
+
+window._dropSlip = function (e) {
+  e.preventDefault();
+  const f = e.dataTransfer?.files?.[0];
+  if (f && f.type.startsWith('image/')) _setSlip(f);
+};
+
+export async function viewPaymentSlip(pid) {
+  const p = appState.payments.find(x => x.id === pid);
+  if (!p?.slipPath) return;
+  const url = await signedImageUrl('payment-slips', p.slipPath);
+  if (!url) return;
+  openModal({
+    id: 'slip-modal', title: `สลิป ${p.receiptNo || p.id}`, icon: 'ti-photo', width: 520,
+    body: `<img src="${esc(url)}" alt="สลิปการโอน" style="width:100%;border-radius:var(--radius-md)"/>
+      ${p.txRef ? `<div style="margin-top:8px;font-size:13px">เลขอ้างอิง <span class="mono">${esc(p.txRef)}</span></div>` : ''}
+      <div style="font-size:13px">ยอด ฿${Number(p.amount).toLocaleString()} · ${esc(p.paidAt)}</div>`,
+    footer: p.status === 'pending'
+      ? `<button class="btn btn-danger" data-close onclick="rejectPayment('${esc(p.id)}')">ปฏิเสธ</button>
+         <button class="btn btn-primary" data-close onclick="approvePayment('${esc(p.id)}')"><i class="ti ti-check"></i>อนุมัติ</button>`
+      : '<button class="btn btn-secondary" data-close>ปิด</button>',
+  });
+}
 
 function _resetChangeDisplay() {
   const due  = document.getElementById('cp-due-display');
@@ -239,38 +311,41 @@ export function cancelPayment(pid) {
   const p = payments.find(x => x.id === pid);
   if (!p) return;
   if (p.status !== 'approved') { toast('ยกเลิกได้เฉพาะรายการที่อนุมัติแล้ว', 'error'); return; }
-  showConfirm({
-    title:   `ยกเลิกใบเสร็จ ${p.receiptNo || pid}`,
-    message: `ยอดเงิน: ฿${p.amount.toLocaleString()}\n\nบิลจะถูกเปลี่ยนกลับเป็นสถานะรอชำระ`,
-    okText:  'ยืนยันยกเลิก',
-    icon:    'ti-ban',
-    onOk() {
-      const now = nowLocal();
-      p.status      = 'cancelled';
-      p.cancelledAt = now;
-      const b = bills.find(x => x.id === p.billId);
-      if (b && b.status === 'paid') {
-        const today = todayISO();
-        b.status = b.dueDate < today ? 'overdue' : 'pending';
-        sbUpdateBillStatus(b.id, b.status);
-      }
-      sbUpdatePayment(pid, { status: 'cancelled', cancelled_at: localToISO(now) });
-      saveToStorage();
-      renderPayments();
-      window.renderBilling?.();
-      window.renderDebtors?.();
-      toast(`ยกเลิกใบเสร็จ ${p.receiptNo || pid} แล้ว`, 'warn');
-    },
+  openModal({
+    id: 'cancel-pay-modal', title: `ยกเลิกใบเสร็จ ${p.receiptNo || pid}`, icon: 'ti-ban', width: 420,
+    body: `
+      <div style="font-size:13px;margin-bottom:10px">ยอดเงิน <b>฿${p.amount.toLocaleString()}</b> — บิลจะกลับเป็นสถานะรอชำระ
+        และใบเสร็จเลขนี้จะถูกประทับ "ยกเลิก" (เลขที่ไม่ถูกนำกลับมาใช้ใหม่)</div>
+      <label class="form-label" for="cp-cancel-reason">เหตุผล *</label>
+      <textarea class="form-input" id="cp-cancel-reason" rows="2" placeholder="เช่น บันทึกผิดบิล, รับเงินซ้ำ"></textarea>`,
+    footer: `<button class="btn btn-secondary" data-close>กลับ</button>
+      <button class="btn btn-danger" id="cp-cancel-ok"><i class="ti ti-ban"></i>ยืนยันยกเลิก</button>`,
   });
+  document.getElementById('cp-cancel-ok').onclick = async (e) => {
+    const reason = document.getElementById('cp-cancel-reason').value.trim();
+    if (!reason) { toast('กรุณาระบุเหตุผล', 'error'); return; }
+    const done = busyButton(e.currentTarget);
+    const now  = nowLocal();
+    const ok   = await sbCancelPayment(pid, now, reason);   // server ตรวจว่าวันนั้นปิดยอดแล้วหรือยัง
+    done();
+    if (!ok) return;
+    closeModal('cancel-pay-modal');
+    Object.assign(p, { status: 'cancelled', cancelledAt: now, cancelReason: reason });
+    const b = bills.find(x => x.id === p.billId);
+    if (b && b.status === 'paid') {
+      b.status = b.dueDate < todayISO() ? 'overdue' : 'pending';
+      sbUpdateBillStatus(b.id, b.status);
+    }
+    saveToStorage();
+    renderPayments();
+    window.renderBilling?.();
+    window.renderDebtors?.();
+    toast(`ยกเลิกใบเสร็จ ${p.receiptNo || pid} แล้ว`, 'warn');
+  };
 }
 
 export function printReceiptByPayment(pid) {
-  const p = appState.payments.find(x => x.id === pid);
-  if (!p) return;
-  const b = appState.bills.find(x => x.id === p.billId);
-  if (!b) return;
-  window.openBillReceipt?.(b.id);
-  setTimeout(() => window.printReceipt?.(), 350);
+  printPaymentReceipt(pid);
 }
 
 export async function saveCashPayment() {
@@ -310,8 +385,20 @@ export async function saveCashPayment() {
     rejectReason: null,
   };
   _busy.add(billId);
-  const saved = await sbInsertPayment(draft);   // เงินสด: server ออกเลขใบเสร็จทันที
-  _busy.delete(billId);
+  let saved = null;
+  const saveBtn = document.querySelector('#cash-modal .modal-footer .btn-primary');
+  const done = busyButton(saveBtn);
+  try {
+    if (!isCash && _slipFile) {
+      const [y, mo] = todayISO().split('-');
+      draft.slipPath = await uploadImage('payment-slips', `${y}/${mo}/${draft.id}.jpg`, _slipFile);
+      if (!draft.slipPath) return;   // อัปโหลดไม่สำเร็จ — ยังไม่บันทึกการชำระ
+    }
+    saved = await sbInsertPayment(draft);   // เงินสด: server ออกเลขใบเสร็จทันที
+  } finally {
+    _busy.delete(billId);
+    done();
+  }
   if (!saved) return;
   const newPay    = { ...draft, ...saved };
   const receiptNo = newPay.receiptNo;

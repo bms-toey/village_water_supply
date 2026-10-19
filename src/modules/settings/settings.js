@@ -16,6 +16,8 @@ import {
   saveSystemConfig, loadAuditLogs,
 } from '../../services/master-data.service.js';
 import { buildBackupPanel, canBackup } from './backup.js';
+import { PAPERS } from '../documents/print.js';
+import { isValidPromptPayId } from '../../utils/promptpay.js';
 
 // ─── Tab Configuration ─────────────────────────────────────────
 const TABS = [
@@ -33,11 +35,23 @@ const TABS = [
 ];
 
 const SYSTEM_CONFIG_FIELDS = [
-  { key: 'org_name',           label: 'ชื่อองค์กร',                    type: 'text',     placeholder: 'ประปาหมู่บ้าน...' },
+  { section: 'ข้อมูลหน่วยงาน (แสดงบนเอกสาร)' },
+  { key: 'org_name',           label: 'ชื่อองค์กร',                    type: 'text',     placeholder: 'กิจการประปาหมู่บ้าน...' },
   { key: 'org_address',        label: 'ที่อยู่',                        type: 'text',     placeholder: 'ที่อยู่...' },
   { key: 'org_phone',          label: 'เบอร์โทรติดต่อ',                 type: 'text',     placeholder: '081-234-5678' },
+  { key: 'org_tax_id',         label: 'เลขประจำตัวผู้เสียภาษี (ถ้ามี)',   type: 'text',     placeholder: '13 หลัก' },
+  { key: 'org_signer_name',    label: 'ผู้ลงนามในหนังสือแจ้ง',          type: 'text',     placeholder: 'ชื่อ-นามสกุล' },
+  { key: 'org_signer_title',   label: 'ตำแหน่งผู้ลงนาม',                type: 'text',     placeholder: 'ประธานคณะกรรมการบริหารกิจการประปาหมู่บ้าน' },
+  { section: 'การเรียกเก็บเงิน' },
   { key: 'billing_due_days',   label: 'วันครบกำหนดชำระ (หลังออกบิล)', type: 'number',   placeholder: '15' },
-  { key: 'line_notify_token',  label: 'LINE Notify Token',              type: 'password', placeholder: 'token...' },
+  { key: 'reconnect_fee',      label: 'ค่าธรรมเนียมต่อน้ำใหม่ (บาท)',   type: 'number',   placeholder: '100' },
+  { key: 'promptpay_id',       label: 'พร้อมเพย์ไอดี (เบอร์มือถือ/เลขผู้เสียภาษี)', type: 'text', placeholder: '0812345678', validate: 'promptpay' },
+  { key: 'promptpay_name',     label: 'ชื่อบัญชีพร้อมเพย์',              type: 'text',     placeholder: 'กองทุนประปาหมู่บ้าน...' },
+  { key: 'bank_info',          label: 'ข้อมูลบัญชีธนาคาร (แสดงบนใบแจ้ง)', type: 'textarea', placeholder: 'ธนาคาร... สาขา...\nเลขที่บัญชี ...' },
+  { key: 'receipt_footer',     label: 'ข้อความท้ายใบแจ้ง/ใบเสร็จ',       type: 'text',     placeholder: 'ขอบคุณที่ชำระตรงเวลา' },
+  { section: 'การพิมพ์' },
+  { key: 'print_paper',        label: 'กระดาษเริ่มต้น (แต่ละเครื่องเปลี่ยนเองได้)', type: 'select', options: PAPERS },
+  { section: 'อื่นๆ' },
   { key: 'openrouter_api_key', label: 'OpenRouter API Key (จดมิเตอร์ AI)', type: 'password', placeholder: 'sk-or-v1-...' },
 ];
 
@@ -693,11 +707,18 @@ export function saveSettings() { saveRateConfig(); renderSettingsRates(); toast(
 // ─── System Config Panel ───────────────────────────────────────
 function _buildSystemConfigPanel() {
   const cfg = appState.systemConfig || {};
-  const rows = SYSTEM_CONFIG_FIELDS.map(f => `
-    <div class="syconf-row">
-      <label class="form-label" style="min-width:200px">${esc(f.label)}</label>
-      <input class="form-input" id="scf-${f.key}" type="${f.type || 'text'}"
-        value="${esc(String(cfg[f.key] || ''))}" placeholder="${esc(f.placeholder || '')}"/>
+  const input = f => {
+    const v = String(cfg[f.key] || '');
+    if (f.type === 'select') return `<select class="form-input" id="scf-${f.key}">${Object.entries(f.options)
+      .map(([k, label]) => `<option value="${esc(k)}"${k === v ? ' selected' : ''}>${esc(label)}</option>`).join('')}</select>`;
+    if (f.type === 'textarea') return `<textarea class="form-input" id="scf-${f.key}" rows="2" placeholder="${esc(f.placeholder || '')}">${esc(v)}</textarea>`;
+    return `<input class="form-input" id="scf-${f.key}" type="${f.type || 'text'}" value="${esc(v)}" placeholder="${esc(f.placeholder || '')}"/>`;
+  };
+  const rows = SYSTEM_CONFIG_FIELDS.map(f => f.section
+    ? `<div style="font-weight:700;color:var(--blue-900);margin-top:6px;padding-top:10px;border-top:1px solid var(--gray-100)">${esc(f.section)}</div>`
+    : `<div class="syconf-row">
+      <label class="form-label" for="scf-${f.key}" style="min-width:200px">${esc(f.label)}</label>
+      ${input(f)}
     </div>`).join('');
 
   return `
@@ -716,7 +737,15 @@ export async function saveSystemConfigHandler() {
   const btn = document.querySelector('.card-hd .btn-primary');
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2"></i>กำลังบันทึก...'; }
 
-  const promises = SYSTEM_CONFIG_FIELDS.map(f => {
+  const fields = SYSTEM_CONFIG_FIELDS.filter(f => f.key);
+  const bad = fields.find(f => f.validate === 'promptpay' && document.getElementById(`scf-${f.key}`)?.value.trim()
+    && !isValidPromptPayId(document.getElementById(`scf-${f.key}`).value));
+  if (bad) {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-device-floppy"></i>บันทึก'; }
+    toast('พร้อมเพย์ไอดีต้องเป็นเบอร์มือถือ 10 หลัก, เลข 13 หลัก หรือ e-Wallet 15 หลัก', 'error');
+    return;
+  }
+  const promises = fields.map(f => {
     const el = document.getElementById(`scf-${f.key}`);
     return el ? saveSystemConfig(f.key, el.value.trim()) : Promise.resolve({ ok: true });
   });

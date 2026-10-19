@@ -1,8 +1,9 @@
 // ─── Debtors Module ────────────────────────────────────────────
 import { appState } from '../../state/app.state.js';
-import { esc, toast } from '../../utils/dom.util.js';
+import { esc, toast, showConfirm } from '../../utils/dom.util.js';
 import { getInitials } from '../../utils/dom.util.js';
 import { saveToStorage } from '../../services/storage.service.js';
+import { sbSaveMember, sbLogAudit } from '../../services/data-loader.service.js';
 
 let _debtorSeverity = '';
 
@@ -58,7 +59,8 @@ export function renderDebtors() {
       </div>
       <div class="dch-severity"><span class="pill ${severityPill}" style="font-size:11px">ค้าง ${months} เดือน</span></div>
       <div class="dch-actions">
-        <button class="btn-icon" data-notify="${mid}" title="แจ้งเตือน"><i class="ti ti-bell-ringing"></i></button>
+        <button class="btn-icon" onclick="openNoticePrint(${parseInt(mid)})" title="พิมพ์หนังสือแจ้ง" aria-label="พิมพ์หนังสือแจ้ง"><i class="ti ti-mail"></i></button>
+        <button class="btn-icon" data-notify="${mid}" title="แจ้งเตือน" aria-label="แจ้งเตือน"><i class="ti ti-bell-ringing"></i></button>
         <button class="btn-icon" title="ประวัติ" onclick="gotoMeter('${esc((m.firstName||'')+' '+(m.lastName||''))}','${esc(m.meter||'')}',${mid})"><i class="ti ti-history"></i></button>
         <button class="btn-icon" data-suspend="${mid}" title="ตัดน้ำ" style="color:var(--red-700);border-color:var(--red-100)"><i class="ti ti-droplet-off"></i></button>
       </div>
@@ -89,14 +91,36 @@ function _updateDebtorKpis(grouped) {
   if (kpis[3]) kpis[3].textContent = '฿' + total.toLocaleString();
 }
 
-export function suspendMember(mid) {
-  const m = appState.members.find(x => x.id === mid); if (!m) return;
-  m.status = 'suspended';
+// ระงับการใช้น้ำ — บันทึกลงฐานข้อมูล + บันทึกกิจกรรม (เดิมเปลี่ยนแค่ในหน้าจอ รีเฟรชแล้วหาย)
+async function _suspend(members) {
+  let ok = 0;
+  for (const m of members) {
+    const prev = m.status;
+    m.status = 'suspended';
+    if (await sbSaveMember(m)) {
+      ok++;
+      sbLogAudit('members', String(m.id), 'suspend', { status: prev }, { status: 'suspended', name: `${m.firstName} ${m.lastName}` });
+    } else {
+      m.status = prev;
+    }
+  }
   saveToStorage();
-  // renderMembers and renderDebtors called via window
   window.renderMembers?.();
   renderDebtors();
-  toast(`ระงับการใช้น้ำ: ${m.firstName} ${m.lastName}`, 'warn');
+  return ok;
+}
+
+export function suspendMember(mid) {
+  const m = appState.members.find(x => x.id === mid); if (!m) return;
+  showConfirm({
+    title:   `ระงับการใช้น้ำ ${m.firstName} ${m.lastName}`,
+    message: 'ควรส่งหนังสือแจ้งงดจ่ายน้ำก่อนดำเนินการ\nสถานะสมาชิกจะเป็น "ระงับ" จนกว่าจะชำระยอดค้างและต่อน้ำใหม่',
+    okText:  'ระงับการใช้น้ำ',
+    icon:    'ti-droplet-off',
+    async onOk() {
+      if (await _suspend([m])) toast(`ระงับการใช้น้ำ: ${m.firstName} ${m.lastName}`, 'warn');
+    },
+  });
 }
 
 export function notifyDebtor(mid) {
@@ -120,13 +144,17 @@ export function suspendAllOverdue3Months() {
   const toSuspend = Object.entries(grouped)
     .filter(([, oldestDue]) => Math.ceil((today - new Date(oldestDue)) / (86400000 * 30)) >= 3)
     .map(([mid]) => parseInt(mid));
-  if (!toSuspend.length) { toast('ไม่มีสมาชิกที่ค้างเกิน 3 เดือน', 'info'); return; }
-  toSuspend.forEach(mid => {
-    const m = appState.members.find(x => x.id === mid);
-    if (m && m.status !== 'suspended') m.status = 'suspended';
+  const members = toSuspend.map(mid => appState.members.find(x => x.id === mid))
+    .filter(m => m && m.status !== 'suspended');
+  if (!members.length) { toast('ไม่มีสมาชิกที่ค้างเกิน 3 เดือน', 'info'); return; }
+  showConfirm({
+    title:   `ระงับการใช้น้ำ ${members.length} ราย`,
+    message: `สมาชิกที่ค้างชำระเกิน 3 เดือน:\n${members.slice(0, 8).map(m => `• ${m.firstName} ${m.lastName}`).join('\n')}${members.length > 8 ? `\n…และอีก ${members.length - 8} ราย` : ''}\n\nควรส่งหนังสือแจ้งงดจ่ายน้ำก่อนดำเนินการ`,
+    okText:  `ระงับ ${members.length} ราย`,
+    icon:    'ti-droplet-off',
+    async onOk() {
+      const n = await _suspend(members);
+      toast(`ระงับการใช้น้ำ ${n} ราย (ค้างเกิน 3 เดือน)`, 'warn');
+    },
   });
-  saveToStorage();
-  window.renderMembers?.();
-  renderDebtors();
-  toast(`ระงับการใช้น้ำ ${toSuspend.length} ราย (ค้างเกิน 3 เดือน)`, 'warn');
 }

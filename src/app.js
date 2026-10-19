@@ -45,7 +45,7 @@ import {
 import {
   renderPayments, approvePayment, rejectPayment,
   openCashModal, closeCashModal, openCashModalForBill, closePayTypeModal, notifyBillDebtor, saveCashPayment,
-  cancelPayment, printReceiptByPayment
+  cancelPayment, printReceiptByPayment, viewPaymentSlip
 } from './modules/payments/payments.js';
 import { renderDebtors, notifyAllDebtors, suspendAllOverdue3Months, notifyDebtor, setDebtorSeverity } from './modules/debtors/debtors.js';
 import { renderReports, switchReport, exportCurrentReport, exportBillingCSV, exportMembersCSV } from './modules/reports/reports.js';
@@ -73,6 +73,8 @@ import { portalSearch } from './modules/portal/portal.js';
 import { openBillingPeriods, closeBillingPeriod, reopenBillingPeriod, openAdjustBill } from './modules/billing/periods.js';
 import { downloadBackup, backupOverdue, daysSinceBackup } from './modules/settings/backup.js';
 import { closeAllDynamicModals } from './components/modal/modal.js';
+import { openBatchPrint, openNoticePrint, onPaperChange, printBillDocument, printPaymentReceipt } from './modules/documents/documents.js';
+import { openCashClose } from './modules/payments/cashclose.js';
 
 // ─── Register render callbacks with auth (avoid circular import) ───
 const _renderCbs = {
@@ -473,6 +475,9 @@ Object.assign(window, {
   openBillingPeriods, closeBillingPeriod, reopenBillingPeriod, openAdjustBill,
   // backup
   downloadBackup,
+  // documents / cashier
+  openBatchPrint, openNoticePrint, onPaperChange, printBillDocument, printPaymentReceipt,
+  openCashClose, viewPaymentSlip,
   // payments
   openCashModal, closeCashModal, openCashModalForBill, closePayTypeModal, notifyBillDebtor, saveCashPayment,
   approvePayment, rejectPayment, cancelPayment, printReceiptByPayment,

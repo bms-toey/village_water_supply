@@ -370,6 +370,7 @@
       <div class="page-hd">
         <div><div class="page-title">ระบบออกบิลค่าน้ำ</div><div class="page-sub">จัดการการเรียกเก็บค่าน้ำรายเดือนและสถานะการชำระ</div></div>
         <div class="page-hd-actions">
+          <button class="btn btn-secondary" onclick="openBatchPrint()"><i class="ti ti-printer"></i>พิมพ์ใบแจ้งหลายใบ</button>
           <button class="btn btn-secondary" onclick="openBillingPeriods()"><i class="ti ti-calendar-stats"></i>งวดบิล / ปิดงวด</button>
         </div>
       </div>
@@ -399,6 +400,7 @@
       <div class="page-hd">
         <div><div class="page-title">ระบบรับชำระเงิน</div><div class="page-sub">Payment Collection &amp; Slip Verification</div></div>
         <div class="page-hd-actions">
+          <button class="btn btn-secondary" onclick="openCashClose()"><i class="ti ti-cash-register"></i>ปิดยอดประจำวัน</button>
           <button class="btn btn-primary" onclick="openCashModal()"><i class="ti ti-plus"></i>บันทึกรับเงินสด</button>
         </div>
       </div>
@@ -454,6 +456,7 @@
       <div class="page-hd">
         <div><div class="page-title">ระบบลูกหนี้ค้างชำระ</div><div class="page-sub">ติดตามและดำเนินการกับสมาชิกที่ค้างชำระ</div></div>
         <div class="page-hd-actions">
+          <button class="btn btn-secondary" onclick="openNoticePrint()"><i class="ti ti-mail"></i>พิมพ์หนังสือแจ้ง</button>
           <button class="btn btn-secondary" onclick="notifyAllDebtors()"><i class="ti ti-brand-line"></i>ส่งแจ้งเตือน LINE</button>
           <button class="btn btn-danger" onclick="suspendAllOverdue3Months()"><i class="ti ti-droplet-off"></i>ตัดน้ำชั่วคราว</button>
           <button class="btn btn-secondary" onclick="goPage('reports')"><i class="ti ti-download"></i>Export รายงาน</button>
@@ -1110,9 +1113,9 @@
       <div class="form-row" id="cp-ref-row" style="display:none"><label class="form-label">เลขอ้างอิง</label><input class="form-input" type="text" id="cp-ref" placeholder="เลขที่อ้างอิงการโอน"/></div>
       <div id="cp-slip-row" style="display:none;margin-bottom:16px">
         <label class="form-label">แนบสลิปการโอน</label>
-        <div style="background:var(--gray-50);border:2px dashed var(--gray-300);border-radius:var(--radius-md);padding:18px;text-align:center;cursor:pointer;transition:var(--transition)" onclick="toast('ฟีเจอร์แนบสลิปอยู่ระหว่างพัฒนา','info')" onmouseenter="this.style.borderColor='var(--blue-300)'" onmouseleave="this.style.borderColor='var(--gray-300)'">
+        <div role="button" tabindex="0" style="background:var(--gray-50);border:2px dashed var(--gray-300);border-radius:var(--radius-md);padding:18px;text-align:center;cursor:pointer;transition:var(--transition)" onclick="_pickSlip()" onkeydown="if(event.key==='Enter')_pickSlip()" ondragover="event.preventDefault()" ondrop="_dropSlip(event)" onmouseenter="this.style.borderColor='var(--blue-300)'" onmouseleave="this.style.borderColor='var(--gray-300)'">
           <i class="ti ti-photo-up" style="font-size:24px;color:var(--gray-400);display:block;margin-bottom:5px"></i>
-          <span style="font-size:12px;color:var(--gray-500)">คลิกเพื่อแนบสลิป หรือลากไฟล์มาวาง</span>
+          <span id="cp-slip-label" style="font-size:12px;color:var(--gray-500)">คลิกเพื่อแนบสลิป หรือถ่ายรูป</span>
         </div>
       </div>
       <div class="form-row" style="margin-bottom:0"><label class="form-label">หมายเหตุ</label><input class="form-input" type="text" id="cp-note" placeholder="(ถ้ามี)"/></div>
@@ -1131,6 +1134,7 @@
       <div class="modal-title"><i id="receipt-modal-icon" class="ti ti-receipt-2"></i><span id="receipt-modal-title">ใบแจ้งหนี้</span></div>
       <div style="display:flex;gap:6px;align-items:center">
         <button id="receipt-cancel-btn" class="btn btn-danger btn-sm" style="display:none"><i class="ti ti-ban"></i>ยกเลิกบิล</button>
+        <select id="receipt-paper" class="fselect" aria-label="ขนาดกระดาษ" title="ขนาดกระดาษ" style="height:30px;font-size:12px;max-width:150px" onchange="onPaperChange(this.value)"></select>
         <button class="btn btn-secondary btn-sm" onclick="printReceipt()"><i class="ti ti-printer"></i><span id="receipt-print-label">พิมพ์</span></button>
         <button class="modal-close" onclick="closeReceiptModal()"><i class="ti ti-x"></i></button>
       </div>
@@ -1840,6 +1844,7 @@ function _showUpdateBanner(reg) {
 <script src="config.js"></script>
 <!-- CDN Libraries (global scope, loaded before ES6 modules) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
 <!-- Application entry point (ES6 module — imports entire src/ tree) -->
 <script type="module" src="src/app.js"></script>
