@@ -341,8 +341,8 @@ export function renderMeter(searchOverride) {
 
     <!-- Filters row -->
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-      <input id="meter-search-inp" class="form-input" type="text"
-        placeholder="🔍 ค้นหาชื่อ, มิเตอร์, บ้านเลขที่..."
+      <input id="meter-search-inp" class="form-input lx-search" type="text"
+        placeholder="ค้นหาชื่อ, มิเตอร์, บ้านเลขที่..."
         value="${esc(_meterSearch)}" oninput="renderMeter(this.value)"
         style="min-width:180px;flex:1"/>
       <select class="form-input" style="width:150px;flex-shrink:0" onchange="window._setMeterVillage(this.value)">
@@ -450,9 +450,9 @@ export function renderMeter(searchOverride) {
 
   <!-- ─── FAB: จดถัดไป ─── -->
   ${pendingAll > 0 ? `
-  <button onclick="window._gotoNextPending()"
+  <button class="meter-fab" onclick="window._gotoNextPending()"
     onpointerdown="this.style.transform='scale(.93)'" onpointerup="this.style.transform=''" onpointercancel="this.style.transform=''"
-    style="position:fixed;bottom:24px;right:18px;z-index:800;
+    style="position:fixed;right:18px;z-index:800;
       background:#1d4ed8;
       color:#fff;border:3px solid #fff;border-radius:32px;
       padding:16px 26px;font-size:16px;font-weight:800;
@@ -466,7 +466,7 @@ export function renderMeter(searchOverride) {
       ${pendingAll}
     </span>
   </button>` : `
-  <div style="position:fixed;bottom:24px;right:18px;z-index:800;
+  <div class="meter-fab" style="position:fixed;right:18px;z-index:800;
     background:#16a34a;color:#fff;border:3px solid #fff;border-radius:32px;
     padding:15px 24px;font-size:15px;font-weight:800;
     display:flex;align-items:center;gap:9px;

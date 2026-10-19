@@ -1,0 +1,181 @@
+/* ─── MOBILE-FIRST LAYER ──────────────────────────────────────────
+   สมาร์ทโฟนคืออุปกรณ์หลักของระบบ — ไฟล์นี้โหลดหลัง stylesheet อื่น
+   (ยกเว้น print.css) เพื่อปรับ UX บนมือถือให้เป็นลำดับแรก
+   - ความสูงจอจริง (dvh) + safe-area (notch / home bar)
+   - ช่องกรอกตัวอักษร 16px กัน iOS ซูมอัตโนมัติ
+   - แถบแท็บ/การ์ดรายงาน เลื่อนแนวนอนแทนการ wrap หลายแถว
+   - modal เป็น bottom sheet ปุ่มเรียงแนวนอน
+   Depends on: variables.css, layout.css, components.css, responsive.css
+────────────────────────────────────────────────────────────── */
+
+/* ═══ ทุกขนาดจอ ═══ */
+.app { height: 100vh; height: 100dvh; }
+.content-area { overscroll-behavior-y: contain; -webkit-overflow-scrolling: touch; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+button, .btn, .tab, .stab-btn, .bnav-item, .nav-item, [role="button"] { touch-action: manipulation; }
+
+/* ปุ่มลอย "จดถัดไป" หน้าจดมิเตอร์ */
+.meter-fab { bottom: 24px; }
+
+/* อุปกรณ์สัมผัส: ไม่ยกการ์ดตอน hover (ค้างหลังแตะ) */
+@media (hover: none) {
+  .rpt-card:hover { transform: none; box-shadow: none; }
+  .rpt-card.active-rpt { box-shadow: var(--shadow-md); }
+}
+
+/* ═══ MOBILE (≤768px) ═══ */
+@media (max-width: 768px) {
+
+  /* ── Topbar: ชื่อหน้าชัด ไม่ตัดคำ + safe-area ด้านบน (PWA standalone) ── */
+  .topbar {
+    height: calc(52px + env(safe-area-inset-top));
+    padding-top: env(safe-area-inset-top);
+    padding-left: max(10px, env(safe-area-inset-left));
+    padding-right: max(10px, env(safe-area-inset-right));
+    gap: 2px;
+  }
+  .breadcrumb-app, .breadcrumb-sep { display: none; }
+  .breadcrumb-page { font-size: 16px; font-weight: 800; }
+  .topbar-icon, .topbar-realtime { width: 40px; height: 40px; }
+  .topbar-avatar { width: 34px; height: 34px; margin-left: 4px; }
+  .tbar-drop { top: calc(56px + env(safe-area-inset-top)); }
+  .tbd-body { max-height: 60vh; max-height: 60dvh; }
+  .sidebar-logo { padding-top: calc(22px + env(safe-area-inset-top)); }
+
+  /* ── ช่องกรอก 16px: iOS Safari ไม่ซูมหน้าเมื่อแตะ ── */
+  .form-input, .fsearch, .fselect, .topbar-search input { font-size: 16px; }
+  /* :where() = specificity 0 → ช่องที่มี class กำหนดขนาดใหญ่กว่า (เช่น .meter-big-input 28px) ยังคงขนาดเดิม */
+  :where(input[type="text"], input[type="tel"], input[type="email"], input[type="number"],
+  input[type="password"], input[type="search"], input[type="date"], input[type="month"],
+  select, textarea) { font-size: 16px; }
+  #debtor-severity-select { font-size: 15px !important; }
+
+  /* ── Bottom nav: safe-area ซ้ายขวา + ปุ่ม "เพิ่มเติม" active เมื่ออยู่หน้าในเมนูนั้น ── */
+  .bottom-nav { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+  .bnav-more-btn.active { color: var(--blue-700); }
+  .bnav-more-btn.active::after {
+    content: ''; position: absolute; top: 0; left: 20%; right: 20%;
+    height: 2.5px; background: var(--blue-700); border-radius: 0 0 4px 4px;
+  }
+  .bnav-more-panel { max-height: 85vh; max-height: 85dvh; overflow-y: auto; }
+  .bnav-more-panel::before {
+    content: ''; display: block; width: 40px; height: 4px; border-radius: 2px;
+    background: var(--gray-300); margin: -8px auto 14px;
+  }
+  .bnav-more-close { justify-content: center; }
+
+  /* ── Content area: เผื่อ bottom nav + home bar ── */
+  .content-area {
+    padding-left: max(14px, env(safe-area-inset-left));
+    padding-right: max(14px, env(safe-area-inset-right));
+  }
+
+  /* ── Filter bar: ช่องค้นหาเต็มแถว, dropdown 2 คอลัมน์ ── */
+  .filter-bar { gap: 8px; }
+  .filter-bar .fselect { flex: 1 1 calc(50% - 4px); min-width: 0; }
+  .filter-bar .btn { flex: 1 1 100%; justify-content: center; }
+  .page-hd-actions .fselect { flex: 1 1 calc(50% - 4px); min-width: 0; }
+
+  /* ── Tabs: เลื่อนแนวนอน ไม่ขึ้นบรรทัดใหม่ ── */
+  .tabs {
+    overflow-x: auto; overflow-y: hidden; flex-wrap: nowrap;
+    scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { white-space: nowrap; flex-shrink: 0; min-height: 44px; display: inline-flex; align-items: center; }
+
+  /* ── Settings: เมนูซ้ายกลายเป็นแถบเลื่อนแนวนอนแถวเดียวเหนือเนื้อหา ── */
+  .settings-layout { display: block; }
+  #settings-tabs-bar {
+    position: relative; flex-direction: row; flex-wrap: nowrap; gap: 6px;
+    max-height: none; overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
+    margin: 0 -14px 12px; padding: 2px 14px 4px;
+    border: none; border-radius: 0; background: transparent; box-shadow: none;
+    scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch;
+  }
+  #settings-tabs-bar::-webkit-scrollbar { display: none; }
+  #settings-tabs-bar .snav-group { display: contents; }
+  #settings-tabs-bar .snav-group-label { display: none; }
+  #settings-tabs-bar .snav-item {
+    width: auto; flex-shrink: 0; min-height: 40px; padding: 5px 12px 5px 6px; scroll-snap-align: start;
+    background: #fff; border-color: var(--lx-line-2, #e5e7eb);
+  }
+  #settings-tabs-bar .snav-item.active { border-color: #071a52; background: var(--lx-navy-grad, #0b2266); }
+  #settings-tabs-bar .snav-item > i { width: 26px; height: 26px; font-size: 15px; }
+  #settings-tabs-bar .snav-desc, #settings-tabs-bar .snav-count { display: none; }
+
+  /* ── Report picker: การ์ดเล็กเลื่อนแนวนอน เนื้อหารายงานขึ้นมาอยู่ใกล้ด้านบน ── */
+  .report-grid {
+    display: flex !important; overflow-x: auto; gap: 8px;
+    margin-left: -14px; margin-right: -14px; padding: 2px 14px 6px;
+    scroll-snap-type: x proximity; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  }
+  .report-grid::-webkit-scrollbar { display: none; }
+  .rpt-card {
+    flex: 0 0 auto; width: 118px; padding: 12px 10px; gap: 8px;
+    align-items: center; text-align: center; scroll-snap-align: start;
+  }
+  .rpt-card:hover, .rpt-card.active-rpt { transform: none; }
+  .rpt-icon { width: 36px; height: 36px; font-size: 19px; }
+  .rpt-name { font-size: 12px; }
+  .rpt-desc { display: none; }
+
+  /* ── KPI 3 ช่อง (หน้าจดมิเตอร์): เรียงแถวเดียว ไม่เหลือช่องกำพร้า ── */
+  .kpi-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 6px !important; }
+  .kpi-grid-3 .kpi-card { padding: 10px 8px; }
+  .kpi-grid-3 .kpi-val { font-size: 18px; }
+  .kpi-grid-3 .kpi-label { font-size: 10.5px; line-height: 1.25; }
+
+  /* ── เลขมิเตอร์ไม่ตัดกลางคำ ── */
+  .mch-meter-mini { white-space: nowrap; }
+
+  /* ── Modal → bottom sheet: ใช้ความสูงจอจริง, มีที่จับด้านบน ── */
+  .modal { max-height: 92vh; max-height: 92dvh; }
+  .modal-body { overscroll-behavior: contain; }
+
+  /* ── ปุ่มลอยหน้าจดมิเตอร์: อยู่เหนือ bottom nav ── */
+  .meter-fab { bottom: calc(72px + env(safe-area-inset-bottom)); right: 14px !important; }
+  #page-meter { padding-bottom: 72px; }  /* รายการสุดท้ายไม่ถูก FAB บัง */
+
+  /* ── ป้ายติดตั้งแอป: ย้ายไปใต้ topbar ไม่บัง FAB/bottom nav, อยู่ใต้ sheet/modal ── */
+  #pwa-install-banner, #pwa-ios-guide {
+    top: calc(60px + env(safe-area-inset-top)); bottom: auto !important; z-index: 450 !important;
+  }
+
+  /* ── Toast ไม่ทับ FAB/bottom nav ── */
+  #toast-container { bottom: calc(72px + env(safe-area-inset-bottom)); }
+}
+
+/* ═══ SMALL PHONE (≤640px) — modal เป็น bottom sheet ═══ */
+@media (max-width: 640px) {
+  .modal::before {
+    content: ''; display: block; flex-shrink: 0;
+    width: 40px; height: 4px; border-radius: 2px;
+    background: var(--gray-300); margin: 8px auto 0;
+  }
+  /* ปุ่มใน footer เรียงแนวนอน (ยกเลิก | บันทึก) ประหยัดพื้นที่ แตะง่ายด้วยนิ้วโป้ง */
+  .modal-footer { flex-direction: row !important; flex-wrap: wrap; gap: 8px !important; }
+  .modal-footer > .btn { flex: 1 1 0; min-width: calc(50% - 4px); width: auto; }
+  .modal-footer > .btn-primary { flex-grow: 1.6; }
+  .confirm-box .btn { min-height: 48px; }
+}
+
+/* ═══ VERY SMALL PHONE (≤480px) ═══ */
+@media (max-width: 480px) {
+  .topbar { height: calc(50px + env(safe-area-inset-top)); }
+  .content-area {
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+  }
+  #settings-tabs-bar, .report-grid { margin-left: -12px; margin-right: -12px; padding-left: 12px; padding-right: 12px; }
+  /* responsive.css ตั้ง .fselect เต็มแถวที่ ≤480 — มือถือส่วนใหญ่กว้าง 360–430 จึงคง 2 คอลัมน์ */
+  .filter-bar .fselect, .page-hd-actions .fselect { flex: 1 1 calc(50% - 4px); }
+  .page-hd-actions .btn { min-width: 0; }
+}
+
+/* ═══ แนวนอน (มือถือตะแคง) — ประหยัดความสูง ═══ */
+@media (max-width: 920px) and (max-height: 500px) and (orientation: landscape) {
+  .modal { max-height: 96vh; max-height: 96dvh; }
+  .bottom-nav { height: calc(52px + env(safe-area-inset-bottom)); }
+  .bnav-item span { display: none; }
+}

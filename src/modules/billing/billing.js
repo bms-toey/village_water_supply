@@ -395,7 +395,7 @@ export function openBillReceipt(billId) {
   if (!body) return;
   body.innerHTML = `
   <div style="text-align:center;padding:0 0 16px;border-bottom:2px solid var(--gray-100);margin-bottom:16px">
-    <div style="font-size:20px;font-weight:800;color:var(--blue-900)"><i class="ti ti-droplet-filled" style="color:var(--blue-500)"></i> AquaFlow Pro</div>
+    <div style="font-size:20px;font-weight:800;color:var(--blue-900)"><i class="ti ti-droplet" style="color:var(--blue-500)"></i> AquaFlow Pro</div>
     <div style="font-size:12px;color:var(--gray-500);margin-top:2px">${isPaid ? 'ใบเสร็จรับเงิน' : 'ใบแจ้งหนี้ค่าน้ำประปาหมู่บ้าน'}</div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;font-size:12.5px">

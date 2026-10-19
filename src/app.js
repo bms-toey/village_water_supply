@@ -25,12 +25,13 @@ import { initRealtime, manualRefresh } from './services/realtime.service.js';
 
 // ─── Navigation ───────────────────────────────────────────────
 import { goPage, setTab, initNavigation, closeMobileSidebar } from './components/navigation/navigation.js';
+import { initLuxe, openCommandPalette } from './components/ux/luxe.js';
 
 // ─── Utils ────────────────────────────────────────────────────
 import { toast, showConfirm, esc } from './utils/dom.util.js';
 
 // ─── Modules ──────────────────────────────────────────────────
-import { renderDashboard, setDashChartYear } from './modules/dashboard/dashboard.js';
+import { renderDashboard, setDashChartYear, setDashPeriod, dashGotoMeter } from './modules/dashboard/dashboard.js';
 import {
   renderMembers, openAddMember, openEditMember, closeMemberModal, saveMember,
   switchModalTab, openMemberQuickView, closeMemberQV, openEditMemberFromQV, gotoMeterFromQV,
@@ -215,8 +216,6 @@ function _closeAllPanels() {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
-  const sd = document.getElementById('_search_drop');
-  if (sd) sd.style.display = 'none';
 }
 
 function _togglePanel(id, fillFn) {
@@ -327,100 +326,17 @@ function _fillUserPanel() {
   if (a) a.textContent = avatar;
 }
 
-// ── Search dropdown ───────────────────────────────────────────
+// ── Search → Command Palette (Ctrl+K) ─────────────────────────
+// ช่องค้นหาบน topbar และปุ่มค้นหาบนมือถือ เปิด palette เดียวกัน
+// (ค้นสมาชิก / เลขบิล / คำสั่ง / เมนู — Enter = จดมิเตอร์เหมือนเดิม)
 function _initSearch() {
-  // Desktop: live dropdown from topbar search input
   const inp  = document.querySelector('.topbar-search input');
   const wrap = document.querySelector('.topbar-search');
   if (inp && wrap) {
-    let drop = null;
-    const _getDrop = () => {
-      if (!drop) {
-        drop = document.createElement('div');
-        drop.id = '_search_drop';
-        drop.className = 'search-drop';
-        drop.style.display = 'none';
-        document.body.appendChild(drop);
-      }
-      return drop;
-    };
-
-    const _renderDrop = () => {
-      const q = inp.value.trim().toLowerCase();
-      const d = _getDrop();
-      if (!q) { d.style.display = 'none'; return; }
-
-      const results = (appState.members || []).filter(m =>
-        (m.firstName + ' ' + m.lastName).toLowerCase().includes(q) ||
-        (m.meter || '').toLowerCase().includes(q) ||
-        (m.houseNo || '').toLowerCase().includes(q)
-      ).slice(0, 7);
-
-      d.innerHTML = !results.length
-        ? '<div class="sd-empty">ไม่พบผลลัพธ์</div>'
-        : results.map(m =>
-            `<div class="sd-item" data-mid="${m.id}">
-              <div class="sd-name">${esc(m.firstName + ' ' + m.lastName)}</div>
-              <div class="sd-sub">${esc(m.meter)} | ${esc(m.village||'')}${m.status==='overdue'?' <span style="color:var(--red-500)">• ค้างชำระ</span>':''}</div>
-            </div>`).join('');
-
-      d.querySelectorAll('.sd-item').forEach(el => {
-        el.addEventListener('mousedown', ev => {
-          ev.preventDefault();
-          const m = (appState.members||[]).find(x => x.id === parseInt(el.dataset.mid));
-          if (m) { gotoMeter(m.firstName+' '+m.lastName, m.meter, m.id); inp.value = ''; d.style.display = 'none'; }
-        });
-      });
-
-      const rect = wrap.getBoundingClientRect();
-      Object.assign(d.style, { display:'block', top:(rect.bottom+4)+'px', left:rect.left+'px', width:rect.width+'px' });
-    };
-
-    inp.addEventListener('input', _renderDrop);
-    inp.addEventListener('focus', _renderDrop);
-    inp.addEventListener('blur',  () => { setTimeout(() => { if (drop) drop.style.display='none'; }, 150); });
-    inp.addEventListener('keydown', e => {
-      if (e.key === 'Escape') { inp.value = ''; if (drop) drop.style.display = 'none'; }
-      if (e.key === 'Enter') {
-        const first = drop?.querySelector('.sd-item');
-        if (first) first.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-      }
-    });
-  }
-
-  // Mobile: full-screen overlay
-  const mInp = document.getElementById('mobile-search-inp');
-  const mRes = document.getElementById('mobile-search-results');
-  if (mInp && mRes) {
-    mInp.addEventListener('input', () => {
-      const q = mInp.value.trim().toLowerCase();
-      if (!q) { mRes.innerHTML = ''; return; }
-      const results = (appState.members||[]).filter(m =>
-        (m.firstName+' '+m.lastName).toLowerCase().includes(q) ||
-        (m.meter||'').toLowerCase().includes(q) ||
-        (m.houseNo||'').toLowerCase().includes(q)
-      ).slice(0, 12);
-
-      mRes.innerHTML = !results.length
-        ? '<div style="padding:24px;text-align:center;color:var(--gray-400);font-size:14px">ไม่พบผลลัพธ์</div>'
-        : results.map(m =>
-            `<div class="sd-item" data-mid="${m.id}" style="border-radius:10px;margin-bottom:4px;background:var(--gray-50);border:1px solid var(--gray-100)">
-              <div class="sd-name" style="font-size:14px">${esc(m.firstName+' '+m.lastName)}</div>
-              <div class="sd-sub">${esc(m.meter)} | ${esc(m.village||'')} | บ้านเลขที่ ${esc(m.houseNo||'-')}${m.status==='overdue'?' <span style="color:var(--red-500)">• ค้างชำระ</span>':''}</div>
-            </div>`).join('');
-
-      mRes.querySelectorAll('.sd-item').forEach(el => {
-        el.addEventListener('click', () => {
-          const m = (appState.members||[]).find(x => x.id === parseInt(el.dataset.mid));
-          if (m) {
-            gotoMeter(m.firstName+' '+m.lastName, m.meter, m.id);
-            document.getElementById('mobile-search-overlay').style.display = 'none';
-            mInp.value = '';
-            mRes.innerHTML = '';
-          }
-        });
-      });
-    });
+    const open = () => { const v = inp.value; inp.value = ''; inp.blur(); openCommandPalette(v); };
+    inp.addEventListener('focus', open);
+    inp.addEventListener('input', open);
+    wrap.addEventListener('click', e => { if (e.target !== inp) open(); });
   }
 }
 
@@ -437,10 +353,7 @@ function _initTopbar() {
     _togglePanel('user-panel');
   });
 
-  document.getElementById('topbar-search-btn')?.addEventListener('click', () => {
-    document.getElementById('mobile-search-overlay').style.display = 'block';
-    setTimeout(() => document.getElementById('mobile-search-inp')?.focus(), 80);
-  });
+  document.getElementById('topbar-search-btn')?.addEventListener('click', () => openCommandPalette());
 
   // Close panels on outside click
   document.addEventListener('click', e => {
@@ -460,6 +373,7 @@ function _initTopbar() {
 // ─── Navigation init ─────────────────────────────────────────
 initNavigation();
 _initTopbar();
+initLuxe();
 
 // ─── Expose to window (for onclick="" handlers in HTML) ──────
 Object.assign(window, {
@@ -468,7 +382,7 @@ Object.assign(window, {
   // navigation
   goPage: _goPageWithRender, setTab,
   // dashboard (called from links)
-  renderDashboard, setDashChartYear,
+  renderDashboard, setDashChartYear, setDashPeriod, dashGotoMeter,
   // members
   openAddMember, openEditMember, closeMemberModal, saveMember,
   switchModalTab, openMemberQuickView, closeMemberQV, openEditMemberFromQV, gotoMeterFromQV,
@@ -525,6 +439,8 @@ Object.assign(window, {
   // topbar panels (called from injected HTML)
   _closeAllPanels,
   _updateNotifBadge,
+  // command palette
+  openCommandPalette,
 });
 
 // ─── Bootstrap ───────────────────────────────────────────────

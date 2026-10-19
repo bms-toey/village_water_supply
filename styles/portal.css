@@ -75,3 +75,61 @@ textarea.pt-input{resize:vertical;min-height:84px}
 .pt-toast.err{background:var(--red-700)}
 .pt-line{display:flex;gap:10px;align-items:flex-start;font-size:13.5px}
 .pt-line i{font-size:26px;color:#06c755}
+
+/* ─── LUXE LAYER: navy + champagne gold, 3D bevelled glass (ตรงกับแอปหลัก styles/luxe.css) ─── */
+:root{
+  --lx-ink:#0b1633;--lx-gold:#d6b26e;--lx-gold-hi:#f3dca6;--lx-gold-d:#a47c38;--lx-aqua:#22c7ee;
+  --lx-line:rgba(15,35,90,.08);--lx-line-2:rgba(15,35,90,.14);
+  --lx-gold-grad:linear-gradient(135deg,#f6e2b0 0%,#d6b26e 45%,#a47c38 100%);
+  --lx-navy-grad:linear-gradient(180deg,#1d3c94 0%,#0b2266 52%,#071a52 100%);
+  --lx-bevel:inset 0 1px 0 rgba(255,255,255,.95),inset 0 -1px 0 rgba(15,35,90,.05);
+}
+body{background:
+  radial-gradient(700px 400px at 110% 20%,rgba(214,178,110,.14),transparent 60%),
+  radial-gradient(600px 400px at -10% 60%,rgba(34,199,238,.10),transparent 60%),
+  linear-gradient(180deg,#f4f7fc,#edf1f8);background-attachment:fixed}
+.pt-hd{position:relative;overflow:hidden;padding-bottom:58px;
+  background:radial-gradient(500px 220px at 0% 0%,rgba(34,199,238,.25),transparent 60%),radial-gradient(420px 240px at 100% 0%,rgba(214,178,110,.25),transparent 60%),linear-gradient(135deg,#0b1d4a,#071434 55%,#040b22);
+  box-shadow:inset 0 -1px 0 rgba(214,178,110,.35)}
+.pt-hd::after{content:'';position:absolute;inset:0;pointer-events:none;
+  background-image:linear-gradient(rgba(148,190,255,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(148,190,255,.07) 1px,transparent 1px);background-size:30px 30px;
+  -webkit-mask-image:linear-gradient(180deg,#000,transparent);mask-image:linear-gradient(180deg,#000,transparent)}
+.pt-hd>*{position:relative;z-index:1}
+.pt-brand{font-family:'Prompt','Sarabun',sans-serif;font-weight:700}
+.pt-brand span{background:linear-gradient(100deg,#fff 40%,var(--lx-gold-hi));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.pt-brand i{width:36px;height:36px;border-radius:12px;display:inline-grid;place-items:center;font-size:20px;color:#fff;
+  background:radial-gradient(circle at 30% 25%,#9cf0ff,#22c7ee 30%,#1d5fd6 70%,#0b2266);box-shadow:0 0 0 1.5px rgba(214,178,110,.7),0 8px 18px -8px rgba(34,199,238,.9),inset 0 2px 3px rgba(255,255,255,.5)}
+.pt-hd-sub{color:var(--lx-gold-hi);opacity:.8;letter-spacing:.04em}
+.pt-logout{background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,.05));border:1px solid rgba(255,255,255,.2);border-radius:12px}
+.pt-main{margin-top:-40px}
+.pt-card{border-radius:22px;background:linear-gradient(180deg,#fff,#f8faff);border:1px solid rgba(255,255,255,.9);
+  box-shadow:0 0 0 1px var(--lx-line),var(--lx-bevel),0 24px 44px -26px rgba(10,25,60,.45);animation:ptRise .55s cubic-bezier(.2,.8,.2,1) both}
+@keyframes ptRise{from{opacity:0;transform:perspective(1000px) translateY(16px) rotateX(6deg)}to{opacity:1;transform:none}}
+.pt-title{font-family:'Prompt','Sarabun',sans-serif;font-weight:700;color:var(--lx-ink)}
+.pt-input{border-radius:14px;border:1px solid var(--lx-line-2);background:linear-gradient(180deg,#f7f9fe,#fff);box-shadow:inset 0 2px 4px rgba(10,25,60,.06)}
+.pt-input:focus{border-color:var(--lx-gold);box-shadow:0 0 0 4px rgba(214,178,110,.2)}
+.pt-btn{border-radius:14px;transition:transform .18s,filter .2s}
+.pt-btn:active:not(:disabled){transform:translateY(1px) scale(.985)}
+.pt-btn-primary{background:var(--lx-navy-grad);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),inset 0 -2px 0 rgba(0,0,0,.25),0 12px 22px -12px rgba(7,26,82,.85)}
+.pt-btn-green{background:linear-gradient(180deg,#22c55e,#15803d);box-shadow:inset 0 1px 0 rgba(255,255,255,.3),inset 0 -2px 0 rgba(0,0,0,.2),0 12px 22px -12px rgba(21,128,61,.85)}
+.pt-btn-light{background:linear-gradient(180deg,#fff,#eef2fa);border:1px solid var(--lx-line-2);box-shadow:var(--lx-bevel),0 6px 14px -8px rgba(10,25,60,.3)}
+.pt-avatar{background:var(--lx-navy-grad);color:var(--lx-gold-hi);box-shadow:0 0 0 2px #fff,0 0 0 3.5px var(--lx-gold),0 8px 16px -8px rgba(7,26,82,.8)}
+.pt-me b{font-family:'Prompt','Sarabun',sans-serif;font-weight:600;color:var(--lx-ink)}
+.pt-due{position:relative;overflow:hidden;background:linear-gradient(135deg,#fff,#eef4ff);border:1px solid rgba(214,178,110,.45)}
+.pt-due::after{content:'';position:absolute;right:-50px;top:-60px;width:170px;height:170px;border-radius:50%;background:radial-gradient(circle,rgba(214,178,110,.28),transparent 65%);pointer-events:none}
+.pt-due.is-overdue{background:linear-gradient(135deg,#fff,#fff0f0);border-color:rgba(229,72,77,.35)}
+.pt-due-amt{font-family:'Prompt','Sarabun',sans-serif;font-weight:700;font-size:36px;color:var(--lx-ink);text-shadow:0 2px 0 #fff}
+.pt-tabs{border-radius:18px;background:linear-gradient(180deg,#e3e8f3,#edf1f8);box-shadow:inset 0 2px 5px rgba(10,25,60,.12),0 1px 0 #fff}
+.pt-tab{border-radius:13px;transition:all .25s cubic-bezier(.2,.8,.2,1)}
+.pt-tab.active{color:#1b1406;background:var(--lx-gold-grad);box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 8px 16px -8px rgba(164,124,56,.9)}
+.pt-bill{border-bottom:1px solid var(--lx-line)}
+.pt-bill-amt{font-family:'Prompt','Sarabun',sans-serif;font-weight:700}
+.pt-pill{box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 2px 6px -3px rgba(10,25,60,.25)}
+.pt-bar span{border-radius:7px 7px 2px 2px;background:linear-gradient(90deg,#0891b2,#22c7ee 45%,#1d5fd6);box-shadow:0 8px 14px -8px rgba(34,199,238,.9),inset 0 1px 0 rgba(255,255,255,.5)}
+.pt-sheet{background:radial-gradient(circle at 50% 30%,rgba(11,29,74,.45),rgba(4,11,34,.7));backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.pt-sheet-card{border-radius:28px 28px 0 0;background:linear-gradient(180deg,#fff,#f6f8fd);box-shadow:0 -20px 60px -20px rgba(4,11,34,.6),0 0 0 1px rgba(214,178,110,.25)}
+.pt-sheet-hd{font-family:'Prompt','Sarabun',sans-serif;color:var(--lx-ink)}
+.pt-close{border-radius:12px;background:linear-gradient(180deg,#fff,#eef2fa);box-shadow:var(--lx-bevel),0 0 0 1px var(--lx-line-2)}
+.pt-toast{border-radius:16px;background:linear-gradient(135deg,#0b1d4a,#040b22);box-shadow:0 18px 40px -14px rgba(4,11,34,.8);border:1px solid rgba(214,178,110,.3)}
+.pt-loading{color:var(--lx-gold)}
+@media (prefers-reduced-motion:reduce){.pt-card{animation:none}}

@@ -6,7 +6,7 @@
 <title>AquaFlow Pro — ระบบประปาหมู่บ้าน</title>
 <!-- PWA -->
 <link rel="manifest" href="manifest.json"/>
-<meta name="theme-color" content="#00236f"/>
+<meta name="theme-color" content="#071434"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <!-- iOS Safari PWA -->
 <meta name="apple-mobile-web-app-capable" content="yes"/>
@@ -25,7 +25,10 @@
 <link rel="stylesheet" href="styles/components.css"/>
 <link rel="stylesheet" href="styles/responsive.css"/>
 <link rel="stylesheet" href="styles/theme.css"/>
+<link rel="stylesheet" href="styles/dashboard.css"/>
 <link rel="stylesheet" href="styles/login.css"/>
+<link rel="stylesheet" href="styles/luxe.css"/>
+<link rel="stylesheet" href="styles/mobile.css"/>
 <link rel="stylesheet" href="styles/print.css"/>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css"/>
 </head>
@@ -93,7 +96,7 @@
     </div>
     <div class="topbar-search">
       <i class="ti ti-search"></i>
-      <input type="text" placeholder="ค้นหาสมาชิก, มิเตอร์, บิล..."/>
+      <input type="text" placeholder="ค้นหาสมาชิก, มิเตอร์, บิล, คำสั่ง..." aria-label="ค้นหาและคำสั่งด่วน (Ctrl+K)"/>
     </div>
     <button class="topbar-icon" id="topbar-search-btn" aria-label="ค้นหา" title="ค้นหาสมาชิก" style="display:none"><i class="ti ti-search"></i></button>
     <div class="topbar-icon" id="topbar-bell" role="button" tabindex="0" aria-label="การแจ้งเตือน" title="การแจ้งเตือน"><i class="ti ti-bell"></i><div class="topbar-notif-dot" id="notif-badge" style="display:none"></div></div>
@@ -111,116 +114,145 @@
 
     <!-- ══════════ DASHBOARD ══════════ -->
     <div class="page active" id="page-dashboard">
-      <div class="page-hd">
-        <div class="page-hd-left">
-          <div class="page-title">Dashboard ผู้บริหาร</div>
-          <div class="page-sub">สรุปภาพรวมระบบประปาหมู่บ้าน • ตุลาคม 2566</div>
-        </div>
-        <div class="page-hd-actions">
-          <button class="btn btn-secondary" onclick="goPage('reports')"><i class="ti ti-download"></i>ส่งออกรายงาน</button>
-          <button class="btn btn-primary"   onclick="goPage('meter')"><i class="ti ti-plus"></i>จดมิเตอร์</button>
-        </div>
-      </div>
+      <div class="dx" id="dx-root">
+        <div class="dx-orb o1"></div><div class="dx-orb o2"></div><div class="dx-orb o3"></div>
 
-      <div class="kpi-grid">
-        <div class="kpi-card" onclick="goPage('members')">
-          <div class="kpi-icon" style="background:var(--blue-50);color:var(--blue-700)"><i class="ti ti-users"></i></div>
-          <div class="kpi-label">จำนวนผู้ใช้น้ำ</div>
-          <div class="kpi-val text-primary">—</div>
-          <div class="kpi-footer"><span class="kpi-badge kb-green"><i class="ti ti-trending-up" style="font-size:10px"></i>+2.5%</span><span class="text-muted" style="font-size:11px">จากเดือนที่แล้ว</span></div>
-        </div>
-        <div class="kpi-card" onclick="goPage('billing')">
-          <div class="kpi-icon" style="background:#f0fdf4;color:var(--green-700)"><i class="ti ti-circle-percentage"></i></div>
-          <div class="kpi-label">อัตราการจัดเก็บ</div>
-          <div class="kpi-val" style="color:var(--green-700)">—</div>
-          <div class="kpi-footer"><span class="kpi-badge kb-green">ปกติ</span></div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-icon" style="background:var(--cyan-50);color:var(--cyan-800)"><i class="ti ti-droplet"></i></div>
-          <div class="kpi-label">ปริมาณน้ำใช้รวม</div>
-          <div class="kpi-val" style="color:var(--cyan-800)">—</div>
-          <div class="kpi-footer"><span class="kpi-badge kb-amber">↑ สูงขึ้น</span></div>
-        </div>
-        <div class="kpi-card" onclick="goPage('debtors')">
-          <div class="kpi-icon" style="background:var(--red-50);color:var(--red-700)"><i class="ti ti-alert-circle"></i></div>
-          <div class="kpi-label">ค้างชำระ</div>
-          <div class="kpi-val text-error">—</div>
-          <div class="kpi-footer"><span class="kpi-badge kb-red"><i class="ti ti-arrow-up" style="font-size:10px"></i>ต้องติดตาม</span></div>
-        </div>
-      </div>
-
-      <div class="grid-2-3" style="align-items:start">
-        <div>
-          <div class="card">
-            <div class="card-hd">
-              <div class="card-title"><i class="ti ti-chart-bar" style="color:var(--blue-500)"></i>รายรับรายเดือน</div>
-              <div style="display:flex;align-items:center;gap:6px">
-                <div id="dash-year-toggles" style="display:flex;gap:4px"></div>
-                <span class="card-link" onclick="goPage('reports')">ดูรายงาน <i class="ti ti-arrow-right"></i></span>
-              </div>
-            </div>
-            <div class="bar-chart-wrap" style="padding-top:18px">
-              <div class="bar-chart" id="dash-bar-chart"></div>
-              <div class="bar-chart-axis">
-                <span></span>
-                <span></span>
-              </div>
-            </div>
+        <!-- Header -->
+        <div class="dx-hd">
+          <div>
+            <div class="dx-eyebrow">AquaFlow · Executive Command Center</div>
+            <div class="dx-title">ภาพรวมระบบประปาหมู่บ้าน</div>
+            <div class="dx-sub" id="dx-sub">กำลังโหลดข้อมูล...</div>
           </div>
-
-          <div class="card">
-            <div class="card-hd">
-              <div class="card-title"><i class="ti ti-map-2" style="color:var(--blue-500)"></i>เปรียบเทียบรายหมู่บ้าน</div>
-              <span class="card-link" onclick="goPage('reports')">ดูรายละเอียด <i class="ti ti-arrow-right"></i></span>
-            </div>
-            <div class="card-body" style="padding-bottom:8px" id="dash-vbar-body"></div>
+          <div class="dx-hd-r">
+            <div class="dx-clock"><span class="dx-live"></span><span id="dx-clock">--:--</span></div>
+            <select class="dx-select" id="dx-period" onchange="setDashPeriod(this.value)" aria-label="เลือกงวด"></select>
+            <button class="dx-btn" onclick="goPage('reports')"><i class="ti ti-file-analytics"></i><span>รายงาน</span></button>
+            <button class="dx-btn dx-btn-gold" onclick="goPage('meter')"><i class="ti ti-gauge"></i><span>จดมิเตอร์</span></button>
           </div>
         </div>
 
-        <div>
-          <div class="card">
-            <div class="card-hd">
-              <div class="card-title"><i class="ti ti-chart-donut" style="color:var(--blue-500)"></i>สถานะการชำระ</div>
-              <span class="card-link" onclick="goPage('billing')">บิลทั้งหมด <i class="ti ti-arrow-right"></i></span>
+        <!-- Hero: 3D tank + KPI cards -->
+        <div class="dx-hero">
+          <div class="dx-glass dx-tilt dx-tankcard dx-in" onclick="goPage('billing')" style="cursor:pointer">
+            <div class="dx-tank" id="dx-tank">
+              <div class="dx-tank-shadow"></div>
+              <div class="dx-tank-bot"></div>
+              <div class="dx-tank-body"></div>
+              <div class="dx-water"><div class="dx-water-surf"></div><div id="dx-bubbles"></div></div>
+              <div class="dx-tank-top"></div>
+              <div class="dx-tank-ticks"><span>100</span><span>75</span><span>50</span><span>25</span><span>0</span></div>
+              <div class="dx-tank-pct"><b id="dx-tank-pct">0%</b><span>เก็บเงินได้</span></div>
             </div>
-            <div class="card-body" style="padding:16px 20px">
-              <div style="display:flex;justify-content:center;margin-bottom:14px">
-                <svg width="110" height="110" viewBox="0 0 110 110">
-                  <circle cx="55" cy="55" r="44" fill="none" stroke="#eceef0" stroke-width="14"/>
-                  <circle cx="55" cy="55" r="44" fill="none" stroke="#0058be" stroke-width="14" stroke-dasharray="0 276.46" stroke-linecap="round" transform="rotate(-90 55 55)"/>
-                  <circle cx="55" cy="55" r="44" fill="none" stroke="#f59e0b" stroke-width="14" stroke-dasharray="0 276.46" stroke-dashoffset="0" stroke-linecap="round" transform="rotate(-90 55 55)"/>
-                  <circle cx="55" cy="55" r="44" fill="none" stroke="#ba1a1a" stroke-width="14" stroke-dasharray="0 276.46" stroke-dashoffset="0" stroke-linecap="round" transform="rotate(-90 55 55)"/>
-                  <text x="55" y="52" text-anchor="middle" font-size="11" fill="#444651" font-family="Sarabun">รวม</text>
-                  <text x="55" y="66" text-anchor="middle" font-size="14" fill="#00236f" font-family="Sarabun" font-weight="800">0</text>
-                </svg>
-              </div>
-              <div class="donut-legend-item"><span style="display:flex;align-items:center"><span class="dl-dot" style="background:#0058be"></span>ชำระแล้ว</span><strong>0% — 0 ราย</strong></div>
-              <div class="donut-legend-item"><span style="display:flex;align-items:center"><span class="dl-dot" style="background:#f59e0b"></span>รอยืนยัน</span><strong>0% — 0 ราย</strong></div>
-              <div class="donut-legend-item"><span style="display:flex;align-items:center"><span class="dl-dot" style="background:#ba1a1a"></span>ค้างชำระ</span><strong style="color:var(--red-700)">0% — 0 ราย</strong></div>
-            </div>
+            <div class="dx-tank-info" id="dx-tank-info"></div>
           </div>
+          <div class="dx-kpis" id="dx-kpis"></div>
+        </div>
 
-          <div class="card">
-            <div class="card-hd">
-              <div class="card-title" style="color:var(--red-700)"><i class="ti ti-alert-triangle"></i>ใช้น้ำผิดปกติ</div>
-              <span id="anomaly-count" style="background:var(--red-100);color:var(--red-700);font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px">0 เคส</span>
+        <!-- Row A: trend + donut -->
+        <div class="dx-grid">
+          <div class="dx-glass dx-panel s8 dx-in">
+            <div class="dx-ph">
+              <div class="dx-pt"><span class="dx-ico" style="--c:#38e1ff"><i class="ti ti-chart-bar"></i></span><div>แนวโน้มการใช้น้ำ &amp; รายได้<small id="dx-trend-cap">ปริมาณน้ำ (m³) เทียบรายได้เรียกเก็บ/เก็บได้จริง</small></div></div>
+              <div class="dx-seg" id="dash-year-toggles"></div>
             </div>
-            <div id="anomaly-list" style="padding:12px 14px">
-              <div style="text-align:center;color:var(--gray-500);padding:16px;font-size:12px">กำลังโหลด...</div>
+            <div id="dx-trend"></div>
+            <div class="dx-legend">
+              <span><i style="--c:linear-gradient(180deg,#38e1ff,#1d4ed8)"></i>ปริมาณน้ำใช้ (m³)</span>
+              <span><i class="ln" style="--c:#e9c47a"></i>รายได้เรียกเก็บ (฿)</span>
+              <span><i class="ln" style="--c:#34d399"></i>เก็บได้จริง (฿)</span>
             </div>
+            <div class="dx-trend-sum" id="dx-trend-sum"></div>
           </div>
+          <div class="dx-glass dx-panel s4 dx-in">
+            <div class="dx-ph">
+              <div class="dx-pt"><span class="dx-ico" style="--c:#e9c47a"><i class="ti ti-chart-donut-3"></i></span><div>สถานะการชำระ<small id="dx-donut-cap">บิลงวดที่เลือก</small></div></div>
+              <span class="dx-link" onclick="goPage('billing')">บิลทั้งหมด <i class="ti ti-arrow-right"></i></span>
+            </div>
+            <div class="dx-donut-wrap">
+              <div class="dx-donut-floor"></div>
+              <div class="dx-donut-stack" id="dx-donut"></div>
+              <div class="dx-donut-c"><b id="dx-donut-total">0</b><span>บิลทั้งหมด</span></div>
+            </div>
+            <div class="dx-dlist" id="dx-donut-list"></div>
+          </div>
+        </div>
 
-          <div class="card">
-            <div class="card-hd">
-              <div class="card-title"><i class="ti ti-clock-exclamation" style="color:var(--red-700)"></i>ลูกหนี้ค้างสูงสุด</div>
-              <span class="card-link" onclick="goPage('debtors')">ดูทั้งหมด <i class="ti ti-arrow-right"></i></span>
+        <!-- Row B: water balance / villages / consumption profile -->
+        <div class="dx-grid">
+          <div class="dx-glass dx-panel s4 dx-in">
+            <div class="dx-ph">
+              <div class="dx-pt"><span class="dx-ico" style="--c:#3b82f6"><i class="ti ti-arrows-exchange"></i></span><div>สมดุลน้ำ (Water Balance)<small id="dx-bal-cap">ผลิต → จ่าย → จำหน่าย</small></div></div>
             </div>
-            <div class="tbl-wrap">
-              <table>
-                <thead><tr><th>ชื่อ</th><th>ระยะ</th><th>ยอด</th><th></th></tr></thead>
-                <tbody></tbody>
-              </table>
+            <div id="dx-balance"></div>
+          </div>
+          <div class="dx-glass dx-panel s4 dx-in">
+            <div class="dx-ph">
+              <div class="dx-pt"><span class="dx-ico" style="--c:#a78bfa"><i class="ti ti-map-2"></i></span><div>การใช้น้ำรายหมู่บ้าน<small>ปริมาณน้ำ · เฉลี่ยต่อครัวเรือน</small></div></div>
+              <span class="dx-link" onclick="goPage('map')">แผนที่ <i class="ti ti-arrow-right"></i></span>
             </div>
+            <div id="dash-vbar-body"></div>
+          </div>
+          <div class="dx-glass dx-panel s4 dx-in">
+            <div class="dx-ph">
+              <div class="dx-pt"><span class="dx-ico" style="--c:#34d399"><i class="ti ti-chart-histogram"></i></span><div>พฤติกรรมการใช้น้ำ<small>การกระจายปริมาณใช้ต่อราย</small></div></div>
+            </div>
+            <div id="dx-profile"></div>
+          </div>
+        </div>
+
+        <!-- Row C: finance / debtors / top consumers -->
+        <div class="dx-grid">
+          <div class="dx-glass dx-panel s4 dx-in">
+            <div class="dx-ph">
+              <div class="dx-pt"><span class="dx-ico" style="--c:#e9c47a"><i class="ti ti-coins"></i></span><div>การเงิน &amp; ช่องทางชำระ<small id="dx-fin-cap">เงินเข้าเดือนนี้</small></div></div>
+              <span class="dx-link" onclick="goPage('payments')">การชำระ <i class="ti ti-arrow-right"></i></span>
+            </div>
+            <div id="dx-finance"></div>
+          </div>
+          <div class="dx-glass dx-panel s4 half dx-in">
+            <div class="dx-ph">
+              <div class="dx-pt"><span class="dx-ico" style="--c:#fb7185"><i class="ti ti-clock-exclamation"></i></span><div>ลูกหนี้ค้างสูงสุด<small id="dx-debt-cap">เรียงตามยอดค้าง</small></div></div>
+              <span class="dx-link" onclick="goPage('debtors')">ทั้งหมด <i class="ti ti-arrow-right"></i></span>
+            </div>
+            <div id="dx-debtors"></div>
+          </div>
+          <div class="dx-glass dx-panel s4 half dx-in">
+            <div class="dx-ph">
+              <div class="dx-pt"><span class="dx-ico" style="--c:#38e1ff"><i class="ti ti-droplets"></i></span><div>ผู้ใช้น้ำสูงสุด<small id="dx-top-cap">งวดที่เลือก</small></div></div>
+              <span class="dx-link" onclick="goPage('members')">สมาชิก <i class="ti ti-arrow-right"></i></span>
+            </div>
+            <div id="dx-consumers"></div>
+          </div>
+        </div>
+
+        <!-- Row D: service / quality / maintenance / anomalies -->
+        <div class="dx-grid" style="margin-bottom:0">
+          <div class="dx-glass dx-panel s3 dx-in">
+            <div class="dx-ph">
+              <div class="dx-pt"><span class="dx-ico" style="--c:#34d399"><i class="ti ti-rosette-discount-check"></i></span><div>ระดับการให้บริการ<small>Service Level</small></div></div>
+            </div>
+            <div id="dx-service"></div>
+          </div>
+          <div class="dx-glass dx-panel s3 dx-in">
+            <div class="dx-ph">
+              <div class="dx-pt"><span class="dx-ico" style="--c:#38e1ff"><i class="ti ti-flask"></i></span><div>คุณภาพน้ำ<small id="dx-q-cap">ผลตรวจล่าสุด</small></div></div>
+            </div>
+            <div id="dx-quality"></div>
+          </div>
+          <div class="dx-glass dx-panel s3 dx-in">
+            <div class="dx-ph">
+              <div class="dx-pt"><span class="dx-ico" style="--c:#fbbf24"><i class="ti ti-tools"></i></span><div>งานซ่อมบำรุง<small id="dx-m-cap">ปีนี้</small></div></div>
+              <span class="dx-link" onclick="goPage('maintenance')">ดูงาน <i class="ti ti-arrow-right"></i></span>
+            </div>
+            <div id="dx-maint"></div>
+          </div>
+          <div class="dx-glass dx-panel s3 dx-in">
+            <div class="dx-ph">
+              <div class="dx-pt"><span class="dx-ico" style="--c:#fb7185"><i class="ti ti-alert-triangle"></i></span><div>ใช้น้ำผิดปกติ<small>รั่ว · สูงผิดปกติ · มิเตอร์เสีย</small></div></div>
+              <span class="dx-chip" id="anomaly-count" style="--c:#fb7185">0 เคส</span>
+            </div>
+            <div id="anomaly-list"></div>
           </div>
         </div>
       </div>
@@ -244,7 +276,7 @@
         <div class="kpi-card"><div class="kpi-icon" style="background:var(--cyan-50);color:var(--cyan-800)"><i class="ti ti-droplet"></i></div><div class="kpi-label">การใช้รวมเดือนนี้</div><div class="kpi-val" style="color:var(--cyan-800)">12.4K <span style="font-size:14px">m³</span></div></div>
       </div>
       <div class="filter-bar">
-        <input class="fsearch" type="text" placeholder="🔍 ค้นหาชื่อ หรือ เลขมิเตอร์..."/>
+        <input class="fsearch" type="text" placeholder="ค้นหาชื่อ หรือ เลขมิเตอร์..."/>
         <select class="fselect"><option>หมู่บ้านทั้งหมด</option></select>
         <select class="fselect"><option>สถานะทั้งหมด</option><option>ปกติ</option><option>ค้างชำระ</option><option>ปิดมิเตอร์</option></select>
         <button class="btn btn-secondary btn-sm" onclick="exportMembersCSV()"><i class="ti ti-download"></i>Export CSV</button>
@@ -285,7 +317,7 @@
               <div style="margin-bottom:16px">
                 <div style="font-size:12px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">เลขมิเตอร์ปัจจุบัน</div>
                 <div style="display:flex;gap:10px;align-items:center">
-                  <input class="meter-big-input" type="number" id="meter-new-val" placeholder="0 0 0 0 0" oninput="calcMeter(this.value)"/>
+                  <input class="meter-big-input" type="number" inputmode="decimal" enterkeyhint="done" id="meter-new-val" placeholder="0 0 0 0 0" oninput="calcMeter(this.value)"/>
                   <button class="btn btn-secondary" id="meter-ai-btn" style="white-space:nowrap;padding:14px 16px" onclick="window._startMeterScan()"><i class="ti ti-scan"></i>AI Scan</button>
                 </div>
               </div>
@@ -387,7 +419,7 @@
         <div class="tab" onclick="setTab(this)">ชำระแล้ว</div>
       </div>
       <div class="filter-bar">
-        <input class="fsearch" type="text" placeholder="🔍 ค้นหาเลขบิล หรือ ชื่อสมาชิก..."/>
+        <input class="fsearch" type="text" placeholder="ค้นหาเลขบิล หรือ ชื่อสมาชิก..."/>
         <select class="fselect"><option>ทุกหมู่บ้าน</option></select>
         <select class="fselect"><option>ตุลาคม 2566</option><option>กันยายน 2566</option></select>
       </div>
@@ -583,8 +615,10 @@
           <div class="page-sub">บริหารข้อมูลพื้นฐาน ตัวเลือก Dropdown และการกำหนดค่าทั้งหมดของระบบ</div>
         </div>
       </div>
-      <div id="settings-tabs-bar" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:16px"></div>
-      <div id="settings-panel"></div>
+      <div class="settings-layout">
+        <nav id="settings-tabs-bar" class="settings-nav" aria-label="หมวดการตั้งค่า"></nav>
+        <div id="settings-panel" class="settings-main"></div>
+      </div>
     </div>
 
     <!-- ══════════ MAINTENANCE ══════════ -->
@@ -745,8 +779,11 @@
         <div class="bnav-more-item" data-page="portal"      onclick="(window.goPage||goPage)('portal');window._closeBnavMore()">
           <i class="ti ti-user-search"></i><span>ตรวจสอบบิล</span>
         </div>
+        <div class="bnav-more-item" data-page="users" id="bnav-users" style="display:none" onclick="(window.goPage||goPage)('users');window._closeBnavMore()">
+          <i class="ti ti-users-group"></i><span>จัดการผู้ใช้</span>
+        </div>
       </div>
-      <button class="btn btn-secondary" style="width:100%;margin-top:8px" onclick="window._closeBnavMore()">ปิด</button>
+      <button class="btn btn-secondary bnav-more-close" style="width:100%;margin-top:8px" onclick="window._closeBnavMore()">ปิด</button>
     </div>
   </div>
 
@@ -1314,7 +1351,7 @@
 
 <!-- ══════════ LOADING OVERLAY ══════════ -->
 <div id="loading-overlay" style="display:flex;position:fixed;inset:0;background:rgba(0,16,64,.75);z-index:9998;align-items:center;justify-content:center;flex-direction:column;gap:16px">
-  <div style="width:48px;height:48px;border:4px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite"></div>
+  <div class="lx-loader"><i class="ti ti-droplet"></i></div>
   <div id="loading-text" style="color:#fff;font-size:15px;font-weight:600;font-family:'Sarabun',sans-serif;letter-spacing:.02em">กำลังโหลด...</div>
 </div>
 
@@ -1601,18 +1638,6 @@
   </div>
 </div>
 
-<!-- Mobile Search Overlay -->
-<div id="mobile-search-overlay" style="display:none;position:fixed;inset:0;z-index:10000;background:var(--white,#fff);padding:env(safe-area-inset-top,0) 0 0">
-  <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--gray-200,#e5e7eb)">
-    <div style="flex:1;display:flex;align-items:center;gap:8px;background:var(--gray-50,#f9fafb);border:1px solid var(--gray-200,#e5e7eb);border-radius:24px;padding:9px 14px">
-      <i class="ti ti-search" style="color:var(--gray-400,#9ca3af);font-size:16px;flex-shrink:0"></i>
-      <input id="mobile-search-inp" type="search" placeholder="ค้นหาสมาชิก, มิเตอร์, บ้านเลขที่..." autocomplete="off" style="border:none;background:transparent;outline:none;flex:1;font-size:14px;font-family:Sarabun,sans-serif;color:var(--gray-900,#111)"/>
-    </div>
-    <button onclick="document.getElementById('mobile-search-overlay').style.display='none';document.getElementById('mobile-search-inp').value='';document.getElementById('mobile-search-results').innerHTML=''" style="background:transparent;border:none;font-size:14px;color:var(--blue-700,#1d4ed8);cursor:pointer;font-family:Sarabun,sans-serif;font-weight:600;white-space:nowrap;padding:0 4px">ยกเลิก</button>
-  </div>
-  <div id="mobile-search-results" style="overflow-y:auto;padding:8px 12px;max-height:calc(100vh - 80px)"></div>
-</div>
-
 <!-- Login UI helpers -->
 <script>
 function loTogglePwd(btn) {
@@ -1699,12 +1724,13 @@ function loToggleForgot() {
     const b = document.createElement('div');
     b.id = 'pwa-install-banner';
     b.style.cssText = [
-      'position:fixed','bottom:80px','left:50%','transform:translateX(-50%)',
-      'z-index:9998','background:#fff','color:var(--gray-900,#111)',
+      'position:fixed','bottom:calc(80px + env(safe-area-inset-bottom))','left:12px','right:12px',
+      'margin:0 auto','max-width:440px',
+      'z-index:900','background:#fff','color:var(--gray-900,#111)',
       'border-radius:14px','padding:14px 16px',
       'display:flex','align-items:center','gap:12px',
       'box-shadow:0 8px 32px rgba(0,0,0,.18)','font-size:13.5px',
-      'font-family:Sarabun,sans-serif','max-width:calc(100vw - 32px)',
+      'font-family:Sarabun,sans-serif',
       'border:1px solid var(--gray-200,#e5e7eb)',
       'animation:toastIn .25s ease',
     ].join(';');
@@ -1733,8 +1759,9 @@ function loToggleForgot() {
     const g = document.createElement('div');
     g.id = 'pwa-ios-guide';
     g.style.cssText = [
-      'position:fixed','bottom:80px','left:12px','right:12px',
-      'z-index:9998','background:#fff','color:var(--gray-900,#111)',
+      'position:fixed','bottom:calc(80px + env(safe-area-inset-bottom))','left:12px','right:12px',
+      'margin:0 auto','max-width:440px',
+      'z-index:900','background:#fff','color:var(--gray-900,#111)',
       'border-radius:14px','padding:16px',
       'box-shadow:0 8px 32px rgba(0,0,0,.18)','font-size:13.5px',
       'font-family:Sarabun,sans-serif',

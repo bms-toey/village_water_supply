@@ -27,6 +27,28 @@
 .user-avatar{width:34px;height:34px;border-radius:50%;background:var(--blue-500);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;flex-shrink:0;border:2px solid rgba(255,255,255,.3)}
 .user-name{color:#fff;font-size:13px;font-weight:600;line-height:1.2}
 .user-role{color:rgba(255,255,255,.45);font-size:11px}
+.nav-item{white-space:nowrap}
+.nav-badge:empty{display:none}
+
+/* ─── SIDEBAR COLLAPSED (desktop/tablet ≥769px) — ย่อเหลือแถบไอคอน ─── */
+@media (min-width:769px){
+  .sidebar{transition:width .22s cubic-bezier(.4,0,.2,1),min-width .22s cubic-bezier(.4,0,.2,1)}
+  .app.sidebar-collapsed .sidebar{--sidebar-w:68px}
+  .app.sidebar-collapsed .sidebar-logo{padding:22px 0 18px}
+  .app.sidebar-collapsed .logo-row{justify-content:center}
+  .app.sidebar-collapsed .logo-row>div:last-child{display:none}
+  .app.sidebar-collapsed .nav-section{padding:12px 10px 0}
+  .app.sidebar-collapsed .nav-label{font-size:0;height:1px;padding:0;margin:10px 6px;background:rgba(255,255,255,.12)}
+  .app.sidebar-collapsed .nav-label:first-child{display:none}
+  .app.sidebar-collapsed .nav-item{font-size:0;gap:0;justify-content:center;padding:10px 0}
+  .app.sidebar-collapsed .nav-item i{font-size:20px}
+  .app.sidebar-collapsed .nav-item.active::before{left:-10px}
+  .app.sidebar-collapsed .nav-badge{position:absolute;top:5px;right:8px;width:8px;height:8px;min-width:0;padding:0;margin:0;font-size:0}
+  .app.sidebar-collapsed .sidebar-footer{padding:14px 0}
+  .app.sidebar-collapsed .user-row{flex-direction:column;gap:10px}
+  .app.sidebar-collapsed .user-row>div:nth-child(2){display:none}
+  .app.sidebar-collapsed .user-row>div:last-child{margin-left:0!important;flex-direction:column;gap:10px!important}
+}
 
 /* โ”€โ”€โ”€ MAIN โ”€โ”€โ”€ */
 .main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}

@@ -22,18 +22,26 @@ import { isValidPromptPayId } from '../../utils/promptpay.js';
 
 // ─── Tab Configuration ─────────────────────────────────────────
 const TABS = [
-  { id: 'rates',            label: 'อัตราค่าน้ำ',          icon: 'ti-coin',           type: 'custom' },
-  { id: 'villages',         label: 'หมู่บ้าน',              icon: 'ti-home-2',         type: 'custom' },
-  { id: 'member_type',      label: 'ประเภทสมาชิก',          icon: 'ti-users',          type: 'master' },
-  { id: 'meter_size',       label: 'ขนาดมิเตอร์',           icon: 'ti-gauge',          type: 'master' },
-  { id: 'payment_channel',  label: 'ช่องทางชำระ',           icon: 'ti-credit-card',    type: 'master' },
-  { id: 'maintenance_type', label: 'ประเภทงานซ่อม',          icon: 'ti-tool',           type: 'master' },
-  { id: 'anomaly_type',     label: 'ความผิดปกติ',            icon: 'ti-alert-triangle', type: 'master' },
-  { id: 'reading_method',   label: 'วิธีจดมิเตอร์',          icon: 'ti-pencil',         type: 'master' },
-  { id: 'system_config',    label: 'ตั้งค่าทั่วไป',          icon: 'ti-settings',       type: 'custom' },
-  { id: 'audit_log',        label: 'บันทึกกิจกรรม',          icon: 'ti-history',        type: 'custom' },
-  { id: 'notify',           label: 'แจ้งเตือน & LINE',       icon: 'ti-brand-line',     type: 'custom' },
-  { id: 'backup',           label: 'สำรองข้อมูล',            icon: 'ti-database-export', type: 'custom', visible: canBackup },
+  { id: 'rates',            label: 'อัตราค่าน้ำ',          icon: 'ti-coin',            type: 'custom', group: 'billing', desc: 'อัตราก้าวหน้า ค่าบริการ ค่าปรับ' },
+  { id: 'payment_channel',  label: 'ช่องทางชำระ',           icon: 'ti-credit-card',     type: 'master', group: 'billing', desc: 'เงินสด โอน พร้อมเพย์' },
+  { id: 'villages',         label: 'หมู่บ้าน',              icon: 'ti-home-2',          type: 'custom', group: 'master',  desc: 'หมู่บ้าน/โซนที่ให้บริการ' },
+  { id: 'member_type',      label: 'ประเภทสมาชิก',          icon: 'ti-users',           type: 'master', group: 'master',  desc: 'ครัวเรือน ร้านค้า หน่วยงาน' },
+  { id: 'meter_size',       label: 'ขนาดมิเตอร์',           icon: 'ti-gauge',           type: 'master', group: 'master',  desc: 'ขนาดท่อ/มิเตอร์' },
+  { id: 'reading_method',   label: 'วิธีจดมิเตอร์',          icon: 'ti-pencil',          type: 'master', group: 'master',  desc: 'วิธีบันทึกเลขมิเตอร์' },
+  { id: 'maintenance_type', label: 'ประเภทงานซ่อม',          icon: 'ti-tool',            type: 'master', group: 'ops',     desc: 'หมวดงานซ่อมบำรุง' },
+  { id: 'anomaly_type',     label: 'ความผิดปกติ',            icon: 'ti-alert-triangle',  type: 'master', group: 'ops',     desc: 'ความผิดปกติของมิเตอร์' },
+  { id: 'system_config',    label: 'ตั้งค่าทั่วไป',          icon: 'ti-settings',        type: 'custom', group: 'system',  desc: 'หน่วยงาน การเรียกเก็บ การพิมพ์' },
+  { id: 'notify',           label: 'แจ้งเตือน & LINE',       icon: 'ti-brand-line',      type: 'custom', group: 'system',  desc: 'LINE / SMS การแจ้งเตือน' },
+  { id: 'backup',           label: 'สำรองข้อมูล',            icon: 'ti-database-export', type: 'custom', group: 'system',  desc: 'ส่งออก / กู้คืนข้อมูล', visible: canBackup },
+  { id: 'audit_log',        label: 'บันทึกกิจกรรม',          icon: 'ti-history',         type: 'custom', group: 'system',  desc: 'ประวัติการใช้งานระบบ' },
+];
+
+// กลุ่มเมนูด้านซ้ายของหน้าตั้งค่า (ลำดับตามที่แสดง)
+const TAB_GROUPS = [
+  { id: 'billing', label: 'การเงินและค่าน้ำ' },
+  { id: 'master',  label: 'ข้อมูลพื้นฐาน' },
+  { id: 'ops',     label: 'งานซ่อมบำรุง' },
+  { id: 'system',  label: 'ระบบ' },
 ];
 
 const SYSTEM_CONFIG_FIELDS = [
@@ -85,10 +93,30 @@ export function setSettingsTab(tabId) {
 function _renderTabsBar() {
   const bar = document.getElementById('settings-tabs-bar');
   if (!bar) return;
-  bar.innerHTML = TABS.filter(t => !t.visible || t.visible()).map(t => `
-    <button class="stab-btn${_activeTab === t.id ? ' active' : ''}" onclick="setSettingsTab('${t.id}')">
-      <i class="ti ${t.icon}"></i>${esc(t.label)}
-    </button>`).join('');
+  const tabs = TABS.filter(t => !t.visible || t.visible());
+  bar.innerHTML = TAB_GROUPS.map(g => {
+    const items = tabs.filter(t => t.group === g.id);
+    if (!items.length) return '';
+    return `
+    <div class="snav-group">
+      <div class="snav-group-label">${esc(g.label)}</div>
+      ${items.map(t => {
+        const count = t.type === 'master' ? getMdItems(t.id, false).length : null;
+        return `
+        <button class="snav-item${_activeTab === t.id ? ' active' : ''}" title="${esc(t.desc || '')}"
+          onclick="setSettingsTab('${t.id}')">
+          <i class="ti ${t.icon}"></i>
+          <span class="snav-text"><span class="snav-label">${esc(t.label)}</span><span class="snav-desc">${esc(t.desc || '')}</span></span>
+          ${count !== null ? `<span class="snav-count">${count}</span>` : ''}
+        </button>`;
+      }).join('')}
+    </div>`;
+  }).join('');
+  // มือถือ: เมนูเป็นแถบเลื่อนแนวนอน — เลื่อนให้แท็บที่เลือกอยู่ในจอ
+  const active = bar.querySelector('.snav-item.active');
+  if (active && bar.scrollWidth > bar.clientWidth) {
+    bar.scrollLeft = active.offsetLeft - (bar.clientWidth - active.offsetWidth) / 2;
+  }
 }
 
 function _renderPanel(tabId) {
@@ -279,6 +307,7 @@ function _refreshMasterPanel(category) {
   const footer = document.getElementById(`md-footer-${category}`);
   if (tbody)  tbody.innerHTML = _renderMasterRows(category, _mdSearch);
   if (footer) footer.textContent = _mdFooterText(category);
+  _renderTabsBar();
 }
 
 function _propagateChanges(category) {
