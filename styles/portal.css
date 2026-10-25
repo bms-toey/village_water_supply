@@ -133,3 +133,16 @@ body{background:
 .pt-toast{border-radius:16px;background:linear-gradient(135deg,#0b1d4a,#040b22);box-shadow:0 18px 40px -14px rgba(4,11,34,.8);border:1px solid rgba(214,178,110,.3)}
 .pt-loading{color:var(--lx-gold)}
 @media (prefers-reduced-motion:reduce){.pt-card{animation:none}}
+
+/* ─── PDPA: ประกาศความเป็นส่วนตัว / ข้อมูลของฉัน ─── */
+.pt-privacy{border:1px solid rgba(214,178,110,.55)}
+.pt-privacy b i{color:var(--lx-gold-d)}
+.pt-privacy p{margin-top:6px}
+.pt-link{display:inline-flex;align-items:center;gap:6px;margin-top:10px;color:var(--blue-800);font-weight:600;font-size:14px;text-decoration:none}
+.pt-link:hover{text-decoration:underline}
+.pt-kv{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--lx-line);font-size:14.5px}
+.pt-kv>span:last-child{text-align:right;word-break:break-word}
+.pt-note{margin-top:10px}
+.pt-foot{text-align:center;padding:18px 0 8px}
+.pt-foot a{color:var(--gray-500);font-size:13px;text-decoration:none;display:inline-flex;align-items:center;gap:4px}
+@media (max-width:420px){.pt-tab{font-size:12.5px;flex-direction:column;gap:1px;padding:7px 2px}}

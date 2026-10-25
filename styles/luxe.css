@@ -251,11 +251,6 @@
 .member-card-h:focus-visible{outline:2px solid var(--lx-gold);outline-offset:2px}
 .mavatar{background:var(--lx-navy-grad);box-shadow:0 0 0 2px #fff,0 0 0 3px rgba(214,178,110,.5),0 6px 12px -6px rgba(7,26,82,.8),inset 0 1px 0 rgba(255,255,255,.3)}
 
-/* ─── billing cards (rendered inline by billing.js) ─── */
-#billing-card-list{gap:16px!important}
-#billing-card-list>div{border-radius:20px!important;transition:transform .35s cubic-bezier(.2,.8,.2,1),box-shadow .3s;
-  box-shadow:0 0 0 1px var(--lx-line),var(--lx-bevel),0 18px 34px -20px rgba(10,25,60,.45)!important}
-#billing-card-list>div:hover{transform:translateY(-4px);box-shadow:0 0 0 1px rgba(214,178,110,.4),0 28px 50px -22px rgba(10,25,60,.55)!important}
 
 /* ─── report picker ─── */
 .report-grid{gap:14px}
@@ -368,6 +363,11 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(214,178,110,.09),rgba(59,11
 #cancel-bill-modal .modal-hd{background:transparent;box-shadow:none}
 #cancel-bill-modal .modal-hd::after{display:none}
 #cancel-bill-modal .modal-close{color:var(--gray-600);background:var(--gray-100);border-color:var(--lx-line)}
+/* หัว modal: ชื่อกินพื้นที่ที่เหลือ ปุ่มไม่หด — ชื่อไม่ถูกเบียดจนตัดคำละบรรทัด */
+.modal-hd{gap:10px}
+.modal-title,.modal-hd>span{flex:1 1 auto;min-width:0;line-height:1.3}
+.modal-title i,.modal-hd>i,.modal-close,.modal-hd .btn-close{flex-shrink:0}
+}
 .modal-body{padding:22px 24px}
 .modal-footer{background:linear-gradient(180deg,rgba(243,246,252,.6),#eef2fa);border-top:1px solid var(--lx-line);padding:14px 22px}
 
@@ -443,14 +443,16 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(214,178,110,.09),rgba(59,11
 /* ═══════════════ QUICK ACTION DOCK (FAB) ═══════════════ */
 .lx-fab{position:fixed;right:26px;bottom:26px;z-index:900;display:flex;flex-direction:column-reverse;align-items:flex-end;gap:10px;pointer-events:none}
 .lx-fab>*{pointer-events:auto}
-.lx-fab-main{width:60px;height:60px;min-height:60px;border-radius:20px;border:1px solid rgba(255,235,190,.6);cursor:pointer;display:grid;place-items:center;font-size:28px;color:#1b1406;
+.lx-fab-main{width:46px;height:46px;min-height:46px;border-radius:15px;border:1px solid rgba(255,235,190,.6);cursor:pointer;display:grid;place-items:center;font-size:22px;color:#1b1406;
   background:var(--lx-gold-grad);
-  box-shadow:0 0 0 5px rgba(214,178,110,.16),0 18px 34px -12px rgba(164,124,56,.95),inset 0 2px 0 rgba(255,255,255,.65),inset 0 -3px 0 rgba(120,80,20,.3);
+  box-shadow:0 0 0 3px rgba(214,178,110,.16),0 12px 24px -10px rgba(164,124,56,.95),inset 0 2px 0 rgba(255,255,255,.65),inset 0 -3px 0 rgba(120,80,20,.3);
   transition:transform .35s cubic-bezier(.2,.9,.25,1.3),box-shadow .3s}
 .lx-fab-main:hover{transform:translateY(-2px) scale(1.04)}
 .lx-fab-main i{transition:transform .35s cubic-bezier(.2,.9,.25,1.3)}
 .lx-fab.open .lx-fab-main i{transform:rotate(135deg)}
-.lx-fab-items{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+/* กล่องรายการกินพื้นที่สูงเกือบครึ่งจอแม้ปุ่มซ่อนอยู่ — ห้ามรับการแตะ ไม่งั้นนิ้วที่ลากตรงนั้นเลื่อนหน้าไม่ได้ */
+.lx-fab-items{display:flex;flex-direction:column;align-items:flex-end;gap:10px;pointer-events:none}
+.lx-fab.open .lx-fab-it{pointer-events:auto}
 .lx-fab-it{display:flex;align-items:center;gap:10px;cursor:pointer;opacity:0;visibility:hidden;transform:translateY(16px) scale(.9);
   transition:opacity .25s,transform .35s cubic-bezier(.2,.9,.25,1.2),visibility 0s .35s;border:none;background:none;padding:0;min-height:0}
 .lx-fab.open .lx-fab-it{opacity:1;visibility:visible;transform:none;transition:opacity .25s,transform .35s cubic-bezier(.2,.9,.25,1.2),visibility 0s}
@@ -462,7 +464,7 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(214,178,110,.09),rgba(59,11
 .lx-fab-lb{font:600 13px var(--font-sans);color:#fff;padding:8px 12px;border-radius:12px;white-space:nowrap;
   background:linear-gradient(135deg,rgba(11,29,74,.95),rgba(4,11,34,.95));box-shadow:0 12px 24px -12px rgba(4,11,34,.8);border:1px solid rgba(255,255,255,.1)}
 .lx-fab-lb kbd{margin-left:8px;font:600 10px var(--font-mono);color:var(--lx-gold-hi);opacity:.85}
-.lx-fab-ic{width:48px;height:48px;border-radius:16px;display:grid;place-items:center;font-size:21px;color:#fff;
+.lx-fab-ic{width:40px;height:40px;border-radius:13px;display:grid;place-items:center;font-size:18px;color:#fff;
   background:linear-gradient(145deg,color-mix(in srgb,var(--c) 75%,#fff),var(--c) 55%,color-mix(in srgb,var(--c) 70%,#000));
   box-shadow:0 14px 26px -12px var(--c),inset 0 1px 0 rgba(255,255,255,.45),inset 0 -2px 0 rgba(0,0,0,.2);transition:transform .2s}
 .lx-fab-it:hover .lx-fab-ic{transform:scale(1.08) translateY(-1px)}
@@ -496,7 +498,7 @@ tbody tr:hover{background:linear-gradient(90deg,rgba(214,178,110,.09),rgba(59,11
 
   #toast-container{top:auto;bottom:calc(88px + env(safe-area-inset-bottom))}
   .lx-fab{right:16px;bottom:calc(90px + env(safe-area-inset-bottom))}
-  .lx-fab-main{width:54px;height:54px;min-height:54px;border-radius:18px;font-size:25px}
+  .lx-fab-main{width:44px;height:44px;min-height:44px;border-radius:14px;font-size:21px}
   .lx-cmd{padding:12px 10px}
   .lx-cmd-box{max-height:calc(100vh - 24px);border-radius:22px}
   .lx-cmd-acts button span{display:none}
@@ -582,15 +584,6 @@ td{padding:7px 14px;font-size:13px}
 .tab,.modal-tab{padding:6px 14px;font-size:12.5px;border-radius:10px}
 .stab-btn{padding:6px 12px}
 
-/* billing cards (inline-styled ใน billing.js) */
-#billing-card-list{gap:12px!important;grid-template-columns:repeat(auto-fill,minmax(280px,1fr))!important}
-#billing-card-list>div{border-radius:16px!important}
-#billing-card-list>div>div:nth-child(1){padding:6px 12px!important}
-#billing-card-list>div>div:nth-child(2){padding:8px 12px 2px!important}
-#billing-card-list>div>div:nth-child(2) [style*="font-size:22px"]{font-size:19px!important}
-#billing-card-list>div>div:nth-child(3){padding:2px 12px 8px!important}
-#billing-card-list>div>div:nth-child(4){padding:7px 12px 9px!important}
-#billing-card-list .btn-sm{min-height:34px}
 
 /* report picker: ไอคอนซ้าย ข้อความขวา (desktop/tablet — มือถือใช้ mobile.css) */
 .report-grid{gap:10px;margin-bottom:12px}
@@ -672,7 +665,12 @@ td{padding:7px 14px;font-size:13px}
 
 /* mobile: หัวเพจบรรทัดเดียว ปุ่มเลื่อนแนวนอน */
 @media (max-width:768px){
-  .content-area{padding-top:10px}
+  /* ล่าง: bottom nav 60px + ช่องไฟ 12px เท่าขอบข้าง (compact ด้านบนตั้ง 32px → ท้ายหน้าจมใต้แถบเมนู)
+     ปุ่มลอยไม่ต้องเผื่อ — ซ่อนเองตอนเลื่อนลง (.lx-fab-away) */
+  .content-area{padding-top:10px;padding-bottom:calc(72px + env(safe-area-inset-bottom))}
+  .lx-fab{transition:opacity .2s,transform .25s cubic-bezier(.2,.8,.2,1)}
+  .lx-fab.lx-fab-away{opacity:0;transform:translateY(24px) scale(.7);pointer-events:none}
+  .lx-fab.lx-fab-away>*{pointer-events:none}
   .page-hd{padding:10px 12px;gap:8px;border-radius:14px;margin-bottom:10px}
   .page-title{font-size:17px}
   .page-sub{display:none}
@@ -712,9 +710,6 @@ td{padding:7px 14px;font-size:13px}
   .member-card-h .btn-icon,.h-card .btn-icon,.h-card .btn-xs{width:32px;height:32px;min-height:32px;font-size:15px}
 }
 .member-card-h .mch-av{width:36px!important;height:36px!important;font-size:11.5px!important}
-#billing-card-list>div>div:nth-child(4){gap:6px!important}
-#billing-card-list .btn-sm{padding:4px 9px}
-#billing-card-list .btn-primary{min-width:96px}
 #dx-trend .dx-svg{max-height:230px}
 /* การ์ดพื้นเข้ม (inline navy) — หัวการ์ดโปร่ง ไม่ทับด้วยพื้นสีอ่อน */
 .card[style*="background:var(--blue-900)"]{background:var(--lx-hero-grad)!important;border-color:rgba(214,178,110,.35)!important}
@@ -724,18 +719,19 @@ td{padding:7px 14px;font-size:13px}
 /* ═══════════════ COEXIST WITH mobile.css (loaded after this file) ═══════════════
    selectors here carry extra specificity on purpose so they win over mobile.css */
 /* "จดถัดไป" FAB (meter.js, inline-styled) → luxe look */
-.page button.meter-fab{background:var(--lx-navy-grad)!important;border:1px solid rgba(214,178,110,.65)!important;border-radius:20px!important;
-  box-shadow:0 0 0 4px rgba(214,178,110,.15),0 18px 34px -12px rgba(7,26,82,.9),inset 0 1px 0 rgba(255,255,255,.25)!important}
+.page button.meter-fab{background:var(--lx-navy-grad)!important;border:1px solid rgba(214,178,110,.65)!important;border-radius:15px!important;
+  box-shadow:0 0 0 3px rgba(214,178,110,.15),0 12px 24px -10px rgba(7,26,82,.9),inset 0 1px 0 rgba(255,255,255,.25)!important}
 .page button.meter-fab span{background:var(--lx-gold-grad)!important;color:#1b1406!important}
-.page div.meter-fab{border:1px solid rgba(255,255,255,.5)!important;border-radius:20px!important;background:linear-gradient(180deg,#22c55e,#15803d)!important}
+.page div.meter-fab{border:1px solid rgba(255,255,255,.5)!important;border-radius:15px!important;background:linear-gradient(180deg,#22c55e,#15803d)!important}
 /* fixed FAB lives inside the list card: animate it with opacity only so it doesn't ride the transform */
 .page.active>#meter-member-list{animation-name:lxFade}
 @keyframes lxFade{from{opacity:0}to{opacity:1}}
-/* quick-action dock sits above the meter FAB */
-body:has(#page-meter.active) .lx-fab{bottom:104px}
+/* ปุ่มงานด่วนแสดงเฉพาะ Dashboard (luxe.js) — เว้นท้ายหน้าให้การ์ดสุดท้ายไม่ถูกปุ่มบัง */
+@media (min-width:769px){
+  body:has(#page-dashboard.active) .content-area{padding-bottom:84px}
+}
 @media (max-width:768px){
   #page-meter .meter-fab{bottom:calc(88px + env(safe-area-inset-bottom))}
-  body:has(#page-meter.active) .lx-fab{bottom:calc(160px + env(safe-area-inset-bottom))}
   body #toast-container{bottom:calc(88px + env(safe-area-inset-bottom))}
   .bottom-nav .bnav-more-btn.active{color:var(--lx-gold-hi)}
   .bottom-nav .bnav-more-btn.active::after{display:none}
@@ -798,6 +794,23 @@ body:has(#page-meter.active) .lx-fab{bottom:104px}
 }
 @media print{.settings-nav{display:none}.settings-layout{display:block}}
 
+/* การ์ดสุดท้ายของแต่ละหมวดยืดถึงขอบล่างจอ — ดู .page-fill ใน layout.css */
+@media screen{
+  #page-settings .settings-layout{flex:1 0 auto}
+  #page-settings .settings-main{align-self:stretch;display:flex;flex-direction:column}
+  #settings-panel>:last-child{flex:1 0 auto;margin-bottom:0}
+  #settings-panel>.card:last-child{display:flex;flex-direction:column}
+  #settings-panel>.card:last-child>.tbl-footer{margin-top:auto}
+  #settings-panel>.rt-wrap{display:flex;flex-direction:column}
+  #settings-panel .rt-layout{flex:1 0 auto;grid-template-rows:auto 1fr}
+}
+@media screen and (max-width:768px){
+  /* stretch: align-items:start ที่ค้างจาก grid เดสก์ท็อป ทำให้แถบเมนูกว้างเท่า max-content (~1450px) ดันทั้งหน้าเลื่อนข้าง */
+  #page-settings .settings-layout{display:flex;flex-direction:column;align-items:stretch}
+  #page-settings .settings-nav,#page-settings .settings-main{min-width:0;max-width:100%}
+  #page-settings .settings-main{flex:1 0 auto}
+}
+
 /* SETTINGS: ระยะห่างแบบแน่น — แถวตาราง/ฟอร์ม/เมนูเตี้ยลง เห็นข้อมูลได้มากขึ้น */
 .settings-nav{gap:4px;padding:6px}
 .snav-group{gap:1px}
@@ -817,3 +830,114 @@ body:has(#page-meter.active) .lx-fab{bottom:104px}
 .settings-main .info-box{padding:6px 10px;margin:0 0 2px!important}
 .settings-main .tbl-footer{padding-top:6px;padding-bottom:6px}
 .settings-main .toggle{transform:scale(.9)}
+
+/* SETTINGS › อัตราค่าน้ำ — บน: ตารางช่วง | ค่าบริการ&ค่าปรับ (สูงเท่ากัน), ล่าง: ทดสอบคำนวณเต็มแถว */
+.rt-wrap{container-type:inline-size}
+.rt-layout{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:14px;align-items:stretch}
+.rt-layout>.card{margin:0;min-width:0;display:flex;flex-direction:column}
+.rt-calc{grid-column:1/-1}
+.rt-count{font-family:var(--font-sans);font-size:10.5px;font-weight:700;padding:1px 8px;border-radius:999px;background:rgba(15,35,90,.07);color:var(--gray-600)}
+.rt-hint{font-size:11.5px;color:var(--gray-500);display:inline-flex;align-items:center;gap:4px}
+.rt-hint i{font-size:13px;color:var(--lx-gold-d)}
+
+/* ตารางช่วงอัตรา */
+.rt-tiers .tbl-wrap{flex:1}
+.rt-tiers .tbl-footer{flex-wrap:wrap;gap:4px 14px}
+.rt-tiers td{vertical-align:middle}
+.rt-no{width:34px;color:var(--gray-400);font-weight:600}
+.rt-range{font-weight:700;color:var(--lx-ink);white-space:nowrap}
+.rt-bar-cell{width:34%}
+.rt-bar{display:block;height:6px;width:0;border-radius:999px;background:linear-gradient(90deg,var(--lx-aqua),var(--lx-navy-3));transition:width .35s ease}
+.rt-rate-cell{width:1%;text-align:right;white-space:nowrap}
+.rt-act{width:40px;text-align:right}
+.rt-act .rt-del{color:var(--red-700);border-color:var(--red-100)}
+.rt-empty{text-align:center;padding:20px!important;color:var(--gray-400)}
+
+/* ช่องจำนวนเงินมีหน่วยกำกับ: ฿ [ 0.00 ] /หน่วย */
+.rt-money{display:inline-flex;align-items:center;gap:4px;height:32px;padding:0 9px;border:1px solid var(--lx-line-2);border-radius:9px;
+  background:#fff;cursor:text;box-shadow:inset 0 1px 2px rgba(15,35,90,.06);transition:border-color .15s,box-shadow .15s,opacity .15s}
+.rt-money:hover{border-color:rgba(214,178,110,.6)}
+.rt-money:focus-within{border-color:var(--lx-navy-3);box-shadow:0 0 0 3px rgba(22,48,122,.13)}
+.rt-money>span{font-size:12px;font-weight:600;color:var(--gray-500)}
+.rt-money>em{font-style:normal;font-size:11px;color:var(--gray-500);white-space:nowrap}
+.rt-money input{width:62px;min-width:0;padding:0;border:0;outline:0;background:transparent;font:inherit;font-size:13.5px;font-weight:700;
+  color:var(--lx-ink);text-align:right;-moz-appearance:textfield;appearance:textfield}
+.rt-money input::-webkit-inner-spin-button,.rt-money input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.rt-money.is-saving{opacity:.55;pointer-events:none}
+.rt-money.is-saved{border-color:var(--green-700);box-shadow:0 0 0 3px rgba(34,197,94,.18)}
+.rt-money-lg{height:36px}
+.rt-money-lg input{width:72px;font-size:15px}
+
+/* ค่าบริการ & ค่าปรับ */
+.rt-fees-body{flex:1;display:flex;flex-direction:column}
+.rt-sec{display:flex;align-items:baseline;flex-wrap:wrap;gap:2px 8px;padding:8px 0 2px;font-size:11.5px;font-weight:700;color:var(--lx-gold-d)}
+.rt-sec span{font-weight:500;color:var(--gray-500)}
+.rt-sec:first-child{padding-top:2px}
+.rt-field{display:grid;grid-template-columns:32px minmax(0,1fr) auto;align-items:center;gap:10px;padding:7px 0;border-bottom:1px dashed var(--lx-line-2)}
+.rt-field:last-child{border-bottom:0}
+.rt-field>i{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;font-size:16px;background:var(--blue-50);color:var(--blue-700)}
+.rt-field>label:not(.rt-money){display:flex;flex-direction:column;line-height:1.25;cursor:pointer;min-width:0}
+.rt-field b{font-size:13px;color:var(--lx-ink)}
+.rt-field small{font-size:11px;color:var(--gray-500)}
+.rt-dirty{display:none;font-family:var(--font-sans);font-size:10.5px;font-weight:700;padding:1px 8px;border-radius:999px;background:#fff4dc;color:var(--lx-gold-d);border:1px solid rgba(214,178,110,.6)}
+.rt-fees.is-dirty .rt-dirty{display:inline-block}
+.rt-fees.is-dirty{box-shadow:0 0 0 1.5px rgba(214,178,110,.7),0 10px 24px -14px rgba(10,25,60,.35)}
+#rt-fees-save:disabled{opacity:.45;cursor:default;filter:grayscale(.4)}
+
+/* ทดสอบคำนวณ */
+.settings-main .rt-calc-body{display:grid;grid-template-columns:230px minmax(0,1fr);gap:18px;align-items:start;padding:12px 16px}
+.rt-calc-in{display:flex;flex-direction:column;gap:6px}
+.rt-calc-in .form-label{margin:0}
+.rt-calc-in .form-label+.rt-seg,.rt-chips+.form-label{margin-top:4px}
+.rt-usage{width:100%}
+.rt-usage input{flex:1;text-align:left;font-size:16px}
+.rt-chips{display:flex;gap:4px}
+.rt-chip{flex:1;height:26px;border-radius:8px;border:1px solid var(--lx-line-2);background:#fff;font-size:12px;font-weight:600;color:var(--gray-600);cursor:pointer;transition:var(--transition)}
+.rt-chip:hover{border-color:var(--lx-gold);color:var(--lx-ink);background:#fffaf0}
+.rt-seg{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;padding:3px;border-radius:10px;background:var(--lx-pearl-2)}
+.rt-seg-btn{height:28px;border:0;border-radius:8px;background:transparent;font-size:13px;font-weight:700;color:var(--gray-600);cursor:pointer;transition:var(--transition)}
+.rt-seg-btn:hover{color:var(--lx-ink)}
+.rt-seg-btn.active{background:#fff;color:var(--lx-navy-3);box-shadow:0 1px 3px rgba(10,25,60,.2),0 0 0 1px rgba(214,178,110,.5)}
+.rt-result{display:grid;grid-template-columns:minmax(0,1fr) 230px;gap:14px;align-items:start;min-width:0}
+.rt-break{border:1px solid var(--lx-line-2);border-radius:12px;overflow:hidden;background:#fff}
+.rt-break-row{display:grid;grid-template-columns:minmax(0,1fr) auto 84px;gap:12px;align-items:center;padding:6px 12px;font-size:12.5px;border-top:1px solid var(--lx-line)}
+.rt-break-row>b{text-align:right;color:var(--lx-ink)}
+.rt-break-hd{border-top:0;background:var(--lx-pearl);font-size:11px;font-weight:700;color:var(--gray-500)}
+.rt-break-hd>span:last-child{text-align:right}
+.rt-totals{display:flex;flex-direction:column;gap:6px}
+.rt-totals>div{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:8px 12px;border-radius:10px;background:var(--lx-pearl);border:1px solid var(--lx-line)}
+.rt-totals small{font-size:11.5px;color:var(--gray-600)}
+.rt-totals b{font-size:15px;color:var(--lx-ink);white-space:nowrap}
+.rt-totals .is-total{background:var(--lx-navy-grad);border-color:#071a52;box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 8px 16px -10px rgba(7,26,82,.8)}
+.rt-totals .is-total small{color:rgba(255,255,255,.75)}
+.rt-totals .is-total b{font-size:19px;color:var(--lx-gold-hi)}
+.rt-calc-empty{grid-column:1/-1;display:flex;align-items:center;justify-content:center;gap:8px;min-height:110px;border:1px dashed var(--lx-line-2);border-radius:12px;color:var(--gray-400);font-size:13px}
+
+/* ปรับตามความกว้างพื้นที่จริงของแผง (ไม่ใช่หน้าจอ) */
+@container (max-width:1020px){
+  .rt-result{grid-template-columns:1fr}
+  .rt-totals{flex-direction:row}
+  .rt-totals>div{flex:1;flex-direction:column;align-items:flex-start;gap:0}
+}
+@container (max-width:820px){
+  .rt-layout{grid-template-columns:1fr}
+  #settings-panel .rt-layout{grid-template-rows:auto auto 1fr}
+}
+@container (max-width:560px){
+  .rt-bar-cell{display:none}
+  .settings-main .rt-calc-body{grid-template-columns:1fr}
+  .rt-totals{flex-direction:column}
+  .rt-totals>div{flex-direction:row;align-items:baseline}
+  .rt-tiers td,.rt-tiers th{padding-left:8px;padding-right:8px}
+  .rt-tiers th{white-space:normal}
+  .rt-rate-cell .rt-money>em{display:none}
+  .rt-tiers .tbl-footer{flex-direction:column;align-items:flex-start}
+  .rt-break-row{grid-template-columns:minmax(0,1fr) auto 64px;gap:8px;padding:6px 10px}
+  .rt-break-row>span:first-child{white-space:nowrap}
+}
+/* ยกเลิก min-height 44px ทั่วระบบ (base.css) ให้ปุ่ม/ช่องในแผงนี้แน่นตามดีไซน์ — จอสัมผัสขยายให้กดง่าย */
+.rt-money input,.rt-chip,.rt-seg-btn,.rt-act .btn-icon{min-height:0}
+@media (pointer:coarse){
+  .rt-money{height:38px}
+  .rt-chip,.rt-seg-btn{height:36px}
+}

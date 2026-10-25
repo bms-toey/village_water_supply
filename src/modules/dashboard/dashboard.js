@@ -4,7 +4,7 @@
 // งานซ่อม · ความผิดปกติ — คำนวณจาก appState ทั้งหมด (ไม่ query เพิ่ม)
 // ──────────────────────────────────────────────────────────────
 import { appState } from '../../state/app.state.js';
-import { esc, getAvatarColor, getInitials } from '../../utils/dom.util.js';
+import { esc, getAvatarColor, getInitials, jsArg } from '../../utils/dom.util.js';
 import { periodLabel } from '../../utils/date.util.js';
 import { todayISO, addDaysISO } from '../../utils/time.util.js';
 import { _periodYM } from '../../services/db-mapper.service.js';
@@ -303,7 +303,7 @@ function _renderKpis({ A, sel, cur, prev }) {
   if (!wrap.dataset.built) {
     wrap.dataset.built = '1';
     wrap.innerHTML = KPI_DEF.map((k, i) => `
-      <div class="dx-glass dx-tilt dx-kpi dx-in" style="--c:${k.c};animation-delay:${80 + i * 70}ms" onclick="goPage('${k.page}')">
+      <div class="dx-glass dx-tilt dx-kpi dx-in" style="--c:${k.c};animation-delay:${80 + i * 70}ms" onclick="goPage(${jsArg(k.page)})">
         <div class="dx-kpi-top"><span class="dx-kpi-lbl">${k.label}</span><span class="dx-ico" style="--c:${k.c}"><i class="ti ${k.icon}"></i></span></div>
         <div class="dx-kpi-val"><span id="dx-k-${k.id}">0</span><small>${k.unit}</small></div>
         <div class="dx-kpi-ft"><div class="dx-kpi-note" id="dx-k-${k.id}-n"></div><div id="dx-k-${k.id}-s"></div></div>

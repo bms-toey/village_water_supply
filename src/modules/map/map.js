@@ -1,6 +1,6 @@
 // ─── Map Module ────────────────────────────────────────────────
 import { appState } from '../../state/app.state.js';
-import { esc } from '../../utils/dom.util.js';
+import { esc, jsArg } from '../../utils/dom.util.js';
 import { statusMap } from '../../config/ui.config.js';
 import { _dbVillages } from '../../services/db-mapper.service.js';
 
@@ -102,7 +102,7 @@ export function renderMap() {
     const st           = statusMap[m.status] || statusMap.normal;
     const marker = L.circleMarker([lat, lng], { radius, color: '#fff', weight: 2, fillColor: fill, fillOpacity: 0.9 });
     marker.bindPopup(`<div style="font-family:'Sarabun',sans-serif;min-width:200px;padding:2px">
-        <div style="font-weight:800;font-size:14px">${esc(m.firstName)} ${esc(m.lastName)}</div>
+        <div class="pii" style="font-weight:800;font-size:14px">${esc(m.firstName)} ${esc(m.lastName)}</div>
         <div style="font-size:12px;color:#555;margin-top:2px">${esc(m.houseNo||'—')} ${esc(m.village)}</div>
         <div style="font-size:12px;color:#555">มิเตอร์: <strong>${esc(m.meter)}</strong></div>
         <div style="margin-top:6px;display:flex;align-items:center;gap:6px;font-size:12px">
@@ -113,12 +113,12 @@ export function renderMap() {
         <div style="display:flex;gap:6px;margin-top:10px">
           <button onclick="closeMemberMapPopup();openMemberQuickView(${m.id})"
             style="flex:1;padding:5px;background:#00236f;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-family:'Sarabun',sans-serif;font-weight:600">&#128196; ดูบิล</button>
-          <button onclick="closeMemberMapPopup();gotoMeter('${esc(m.firstName+' '+m.lastName)}','${esc(m.meter)}',${m.id})"
+          <button onclick="closeMemberMapPopup();gotoMeter(${jsArg(m.firstName+' '+m.lastName)},${jsArg(m.meter)},${Number(m.id)})"
             style="flex:1;padding:5px;background:#0ea5e9;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-family:'Sarabun',sans-serif;font-weight:600">&#128338; จดมิเตอร์</button>
         </div>
       </div>`, { maxWidth: 240 });
     marker.addTo(_mapInstance);
-    _mapMarkers.push({ marker, memberId: m.id, village: m.village, status: m.status });
+    _mapMarkers.push({ marker, memberId: m.id, villageId: m.villageId, status: m.status });
   });
 
   setTimeout(() => { if (_mapInstance) _mapInstance.invalidateSize(); }, 200);
@@ -129,8 +129,8 @@ export function closeMemberMapPopup() { if (_mapInstance) _mapInstance.closePopu
 
 export function filterMapByVillage(village) {
   if (!_mapInstance) return;
-  _mapMarkers.forEach(({ marker, village: v }) => {
-    if (!village || v === village) marker.addTo(_mapInstance); else marker.remove();
+  _mapMarkers.forEach(({ marker, villageId: v }) => {
+    if (!village || String(v) === String(village)) marker.addTo(_mapInstance); else marker.remove();
   });
 }
 

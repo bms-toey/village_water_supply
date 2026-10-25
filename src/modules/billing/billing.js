@@ -1,7 +1,7 @@
 // ─── Billing Module ────────────────────────────────────────────
 import { nowLocal, toLocalDate, todayISO } from '../../utils/time.util.js';
 import { appState } from '../../state/app.state.js';
-import { esc, toast } from '../../utils/dom.util.js';
+import { esc, toast, jsArg } from '../../utils/dom.util.js';
 import { currentPeriod, isPeriodClosed } from '../../utils/date.util.js';
 import { serviceCharge } from '../../config/rate.config.js';
 import { channelMap } from '../../config/ui.config.js';
@@ -11,6 +11,7 @@ import { currentUser } from '../../services/auth.service.js';
 import { isBillLocked, canAdjustBill } from './periods.js';
 import { printBillDocument, paperOptions } from '../documents/documents.js';
 import { promptPaySvg } from '../../utils/promptpay.js';
+import { villageOptions } from '../../services/db-mapper.service.js';
 
 let _billSearch    = '';
 let _billPeriod    = '';
@@ -33,114 +34,112 @@ const billStatusMap = {
 
 export function renderBilling(filterStatus) {
   if (filterStatus !== undefined) _billStatusTab = filterStatus;
-  const { bills, members, meterReadings } = appState;
+  const { bills, members, meterReadings, payments } = appState;
   const container = document.getElementById('billing-card-list');
   if (!container) return;
-  let list = _billStatusTab ? bills.filter(b => b.status === _billStatusTab) : bills;
+  const memberOf = b => members.find(x => x.id === b.memberId) || {};
+  const money = n => '฿' + (n || 0).toLocaleString();
+
+  // ขอบเขตก่อนกรองสถานะ (รอบบิล + หมู่บ้าน + ค้นหา) — ใช้นับจำนวนในแท็บและ KPI
+  let scope = bills;
+  if (_billPeriod)  scope = scope.filter(b => b.period === _billPeriod);
+  if (_billVillage) scope = scope.filter(b => String(memberOf(b).villageId) === _billVillage);
   if (_billSearch) {
     const q = _billSearch.toLowerCase();
-    list = list.filter(b => {
-      const m = members.find(x => x.id === b.memberId) || {};
-      return b.id.toLowerCase().includes(q) || (m.firstName+' '+m.lastName).toLowerCase().includes(q);
+    scope = scope.filter(b => {
+      const m = memberOf(b);
+      return [b.id, (m.firstName||'')+' '+(m.lastName||''), m.houseNo, m.meter].some(v => String(v||'').toLowerCase().includes(q));
     });
   }
-  if (_billPeriod)  list = list.filter(b => b.period === _billPeriod);
-  if (_billVillage) list = list.filter(b => { const m = members.find(x => x.id === b.memberId); return m && m.village === _billVillage; });
+  const list = _billStatusTab ? scope.filter(b => b.status === _billStatusTab) : scope;
 
   if (!list.length) {
-    container.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:48px 24px;color:var(--gray-400);font-size:14px">
-      <i class="ti ti-receipt-off" style="font-size:36px;margin-bottom:8px;display:block"></i>ไม่พบรายการ</div>`;
+    container.innerHTML = `<tr class="bill-empty"><td colspan="11"><i class="ti ti-receipt-off"></i>ไม่พบรายการ</td></tr>`;
   } else {
     // Sort: overdue first, then pending, then paid, then cancelled
     const order = { overdue:0, pending:1, paid:2, cancelled:3 };
-    const sorted = [...list].sort((a, b) => (order[a.status]??9) - (order[b.status]??9));
+    const sorted = [...list].sort((a, b) => (order[a.status]??9) - (order[b.status]??9) || String(b.period).localeCompare(String(a.period)));
     container.innerHTML = sorted.map(b => {
-      const m    = members.find(x => x.id === b.memberId) || {};
+      const m    = memberOf(b);
       const mr   = meterReadings.find(r => r.billId === b.id);
       const st   = billStatusMap[b.status] || billStatusMap.pending;
       const unpaid = b.status === 'overdue' || b.status === 'pending';
-      const isOverdue = b.status === 'overdue';
-      const prevNum = mr ? mr.prevReading.toLocaleString() : '—';
-      const currNum = mr ? mr.currReading.toLocaleString() : '—';
+      const locked = isBillLocked(b);
+      const pay  = b.status === 'paid' ? payments.find(p => p.billId === b.id && p.status === 'approved') : null;
+      const ch   = pay ? (channelMap[pay.channel] || { label: pay.channel, icon: 'ti-cash' }) : null;
+
+      // ปรับ/ลด — ตามตรรกะใบแจ้งหนี้: มีใบปรับปรุงยอดใช้ยอดนั้นแทนส่วนลด
+      const adj   = (appState.billAdjustments || []).filter(a => a.billId === b.id);
+      const plus  = (b.lateFee || 0) + adj.filter(a => a.amount > 0).reduce((s, a) => s + a.amount, 0);
+      const minus = adj.length ? -adj.filter(a => a.amount < 0).reduce((s, a) => s + a.amount, 0) : (b.discount || 0);
+      const adjCell = plus || minus
+        ? `${plus ? `<span class="bt-plus">+${plus.toLocaleString()}</span>` : ''}${minus ? `<span class="bt-minus">-${minus.toLocaleString()}</span>` : ''}`
+        : '<span class="bt-dim">—</span>';
 
       const payBtn = unpaid
-        ? `<button class="btn btn-primary btn-sm" style="flex:1;justify-content:center" aria-label="รับชำระบิล ${b.id}" onclick="openCashModalForBill('${esc(b.id)}')">
-             <i class="ti ti-cash"></i>รับชำระ
-           </button>` : '';
-      const alertBtn = isOverdue
-        ? `<button class="btn btn-secondary btn-sm" aria-label="แจ้งเตือนลูกหนี้" onclick="notifyBillDebtor(${b.memberId})" title="แจ้งเตือน">
-             <i class="ti ti-bell-exclamation" style="color:var(--red-700)"></i>
-           </button>` : '';
-      const locked = isBillLocked(b);
+        ? `<button class="btn btn-primary btn-xs" aria-label="รับชำระบิล ${esc(b.id)}" onclick="openCashModalForBill(${jsArg(b.id)})"><i class="ti ti-cash"></i>รับชำระ</button>` : '';
+      const alertBtn = b.status === 'overdue'
+        ? `<button class="btn btn-secondary btn-xs bt-ic" aria-label="แจ้งเตือนลูกหนี้" title="แจ้งเตือน" onclick="notifyBillDebtor(${b.memberId})"><i class="ti ti-bell-exclamation" style="color:var(--red-700)"></i></button>` : '';
       const cancelBtn = unpaid && !locked
-        ? `<button class="btn btn-secondary btn-sm" aria-label="ยกเลิกบิล ${b.id}" onclick="cancelBill('${esc(b.id)}')" title="ยกเลิกบิล">
-             <i class="ti ti-ban" style="color:var(--red-500)"></i>
-           </button>` : '';
+        ? `<button class="btn btn-secondary btn-xs bt-ic" aria-label="ยกเลิกบิล ${esc(b.id)}" title="ยกเลิกบิล" onclick="cancelBill(${jsArg(b.id)})"><i class="ti ti-ban" style="color:var(--red-500)"></i></button>` : '';
 
       return `
-      <div style="background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius-lg);
-        overflow:hidden;box-shadow:var(--shadow-sm);display:flex;flex-direction:column;
-        opacity:${b.status==='cancelled'?.55:1};
-        border-left:4px solid ${isOverdue?'var(--red-500)':b.status==='paid'?'var(--green-600)':b.status==='cancelled'?'var(--gray-300)':'var(--blue-400)'}">
-
-        <!-- Top: bill ID + status -->
-        <div style="display:flex;justify-content:space-between;align-items:center;
-          padding:10px 14px;background:var(--gray-50);border-bottom:1px solid var(--gray-100)">
-          <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--gray-500)">${esc(b.id)}${locked ? ' <i class="ti ti-lock" title="งวดปิดแล้ว" style="color:var(--gray-400)"></i>' : ''}</span>
-          <span class="pill ${st.cls}" style="font-size:11px;padding:2px 10px">${st.label}</span>
-        </div>
-
-        <!-- Member info -->
-        <div style="padding:12px 14px 8px;display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-          <div style="min-width:0">
-            <div style="font-weight:700;font-size:14px;color:var(--blue-900);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-              ${esc(m.firstName||'')} ${esc(m.lastName||'')}
-            </div>
-            <div style="font-size:11.5px;color:var(--gray-500);margin-top:2px">
-              ${esc(m.houseNo||'')} ${esc(m.village||'')}
-            </div>
-          </div>
-          <div style="text-align:right;flex-shrink:0">
-            <div style="font-size:22px;font-weight:800;line-height:1;color:${isOverdue?'var(--red-700)':'var(--blue-900)'}">฿${b.total.toLocaleString()}</div>
-            <div style="font-size:11px;color:var(--gray-400);margin-top:3px">${esc(b.period)}</div>
-          </div>
-        </div>
-
-        <!-- Meter reading -->
-        <div style="padding:6px 14px 12px;font-size:12px;color:var(--gray-500)">
-          <span style="font-family:'IBM Plex Mono',monospace">${prevNum} → ${currNum}</span>
-          <span style="margin:0 6px;color:var(--gray-300)">•</span>
-          <strong style="color:var(--gray-700)">${b.usage} m³</strong>
-          <span style="margin:0 6px;color:var(--gray-300)">•</span>
-          กำหนด ${b.dueDate}
-        </div>
-
-        <!-- Actions -->
-        <div style="padding:10px 14px 12px;display:flex;gap:8px;border-top:1px solid var(--gray-100);flex-wrap:wrap">
-          ${payBtn}
-          <button class="btn btn-secondary btn-sm" onclick="openBillReceipt('${esc(b.id)}')" style="flex:1;justify-content:center;min-width:90px">
-            <i class="ti ti-receipt-2"></i>ดูเอกสาร
-          </button>
-          ${alertBtn}${cancelBtn}
-        </div>
-      </div>`;
+      <tr class="bt-row" data-st="${esc(b.status)}">
+        <td class="bt-id"><span class="mono">${esc(b.id)}</span>${locked ? ' <i class="ti ti-lock" title="งวดปิดแล้ว"></i>' : ''}<small>${esc(b.period)}</small></td>
+        <td class="bt-who"><b>${esc(m.firstName||'')} ${esc(m.lastName||'')}</b>
+          <small>${esc(m.houseNo||'')} ${esc(m.village||'')}${m.meter ? ` · <span class="mono">${esc(m.meter)}</span>` : ''}</small></td>
+        <td class="bt-mtr mono" data-use=" · ใช้ ${b.usage} m³">${mr ? `${mr.prevReading.toLocaleString()} → ${mr.currReading.toLocaleString()}` : '<span class="bt-dim">—</span>'}</td>
+        <td class="r bt-use"><b>${b.usage}</b> m³</td>
+        <td class="r">${(b.waterCharge||0).toLocaleString()}</td>
+        <td class="r">${(b.serviceCharge||0).toLocaleString()}</td>
+        <td class="r bt-adj">${adjCell}</td>
+        <td class="r bt-total">${money(b.total)}</td>
+        <td class="bt-due" data-lbl="${pay ? 'ชำระ' : 'กำหนด'}">${pay
+          ? `<span class="bt-paid">${esc(String(pay.paidAt).substring(0,10))}</span><small><i class="ti ${ch.icon}"></i>${esc(ch.label)}</small>`
+          : `<span class="${b.status==='overdue' ? 'bt-late' : ''}">${esc(b.dueDate||'—')}</span>`}</td>
+        <td class="bt-st"><span class="pill ${st.cls}">${st.label}</span></td>
+        <td class="r bt-act"><div>${payBtn}<button class="btn btn-secondary btn-xs bt-ic" aria-label="ดูเอกสารบิล ${esc(b.id)}" title="ดูเอกสาร" onclick="openBillReceipt(${jsArg(b.id)})"><i class="ti ti-receipt-2"></i></button>${alertBtn}${cancelBtn}</div></td>
+      </tr>`;
     }).join('');
   }
 
+  // แท็บสถานะ: ปุ่ม .on + จำนวนในขอบเขตปัจจุบัน
+  const pg = document.getElementById('page-billing');
+  pg.querySelectorAll('.bill-seg button').forEach(btn => btn.classList.toggle('on', (btn.dataset.v || null) === (_billStatusTab || null)));
+  pg.querySelectorAll('.bill-seg-n').forEach(n => {
+    const c = n.dataset.n ? scope.filter(b => b.status === n.dataset.n).length : scope.length;
+    n.textContent = c || '';
+  });
+
+  const listActive = list.filter(b => b.status !== 'cancelled');
   const footer = document.getElementById('billing-card-footer');
   if (footer) footer.textContent = `แสดง ${list.length} จาก ${bills.length} รายการ`;
+  const sumFoot = document.getElementById('billing-sum-footer');
+  if (sumFoot) sumFoot.innerHTML = listActive.length
+    ? `รวม <b>${listActive.reduce((s, b) => s + b.usage, 0).toLocaleString()}</b> m³ · <b>${money(listActive.reduce((s, b) => s + b.total, 0))}</b>` : '';
 
-  const activeBills   = bills.filter(b => b.status !== 'cancelled');
-  const totalAmount   = activeBills.reduce((s, b) => s + b.total, 0);
-  const paidAmount    = activeBills.filter(b => b.status === 'paid').reduce((s, b) => s + b.total, 0);
-  const overdueAmount = activeBills.filter(b => b.status === 'overdue').reduce((s, b) => s + b.total, 0);
-  const overdueCount  = activeBills.filter(b => b.status === 'overdue').length;
-  const kpis = document.querySelectorAll('#page-billing .kpi-val');
-  if (kpis[0]) kpis[0].textContent = '฿' + totalAmount.toLocaleString();
-  if (kpis[1]) kpis[1].textContent = '฿' + paidAmount.toLocaleString();
-  if (kpis[2]) kpis[2].textContent = '฿' + overdueAmount.toLocaleString();
-  const overdueKpiBadge = document.querySelector('#page-billing .kpi-card:nth-child(3) .kpi-badge');
-  if (overdueKpiBadge) overdueKpiBadge.textContent = overdueCount + ' รายการ →';
+  // KPI — ตามรอบบิล/หมู่บ้านที่เลือก (ไม่ขึ้นกับแท็บสถานะ/คำค้น)
+  let kpiBase = bills.filter(b => b.status !== 'cancelled');
+  if (_billPeriod)  kpiBase = kpiBase.filter(b => b.period === _billPeriod);
+  if (_billVillage) kpiBase = kpiBase.filter(b => String(memberOf(b).villageId) === _billVillage);
+  const sum = arr => arr.reduce((s, b) => s + b.total, 0);
+  const byStatus = s => kpiBase.filter(b => b.status === s);
+  const totalAmount = sum(kpiBase), paid = byStatus('paid'), pending = byStatus('pending'), overdue = byStatus('overdue');
+  const paidAmount  = sum(paid);
+  const pct = totalAmount ? Math.round(paidAmount / totalAmount * 100) : 0;
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('bk-period',    _billPeriod ? '· ' + _billPeriod : '· ทุกรอบ');
+  set('bk-total',     money(totalAmount));
+  set('bk-total-n',   kpiBase.length + ' บิล');
+  set('bk-paid',      money(paidAmount));
+  set('bk-paid-n',    `${paid.length} บิล · ${pct}%`);
+  set('bk-pending',   money(sum(pending)));
+  set('bk-pending-n', pending.length + ' บิล');
+  set('bk-overdue',   money(sum(overdue)));
+  set('bk-overdue-n', overdue.length + ' บิล');
+  const bar = document.getElementById('bk-paid-bar');
+  if (bar) bar.style.width = pct + '%';
+  pg.querySelectorAll('.bill-kpi').forEach(k => k.classList.toggle('on', !!_billStatusTab && k.dataset.v === _billStatusTab));
 }
 
 export function populateBillingFilters() {
@@ -149,8 +148,7 @@ export function populateBillingFilters() {
   const villageEl = selects[0];
   const periodEl  = selects[1];
   if (villageEl && villageEl.options.length <= 1) {
-    const villages = [...new Set(appState.members.map(m => m.village))].sort();
-    villageEl.innerHTML = '<option>ทุกหมู่บ้าน</option>' + villages.map(v => `<option>${esc(v)}</option>`).join('');
+    villageEl.innerHTML = '<option value="">ทุกหมู่บ้าน</option>' + villageOptions();
   }
   if (periodEl) {
     const periods = [...new Set(appState.bills.map(b => b.period))].sort().reverse();
@@ -319,107 +317,90 @@ export function openBillReceipt(billId) {
   // ── ใบลดหนี้/เพิ่มหนี้ ของบิลนี้ ──
   const adjustments = (appState.billAdjustments || []).filter(a => a.billId === billId);
   const adjustRows = adjustments.map(a => `
-    <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12.5px">
-      <span class="text-muted">${a.amount < 0 ? 'ลดหนี้' : 'เพิ่มหนี้'} <span class="mono">${esc(a.docNo)}</span> — ${esc(a.reason)}</span>
-      <span style="color:${a.amount < 0 ? 'var(--green-700)' : 'var(--red-700)'};white-space:nowrap">${a.amount < 0 ? '-' : '+'}฿${Math.abs(a.amount).toLocaleString()}</span>
-    </div>`).join('');
+      <div class="rc-line"><span>${a.amount < 0 ? 'ลดหนี้' : 'เพิ่มหนี้'} <span class="mono">${esc(a.docNo)}</span> — ${esc(a.reason)}</span>
+        <b class="${a.amount < 0 ? 'rc-minus' : 'rc-plus'}">${a.amount < 0 ? '-' : '+'}฿${Math.abs(a.amount).toLocaleString()}</b></div>`).join('');
   const adjustBtn = isUnpaid && canAdjustBill()
-    ? `<button class="btn btn-secondary btn-sm no-print" style="margin-top:8px" onclick="openAdjustBill('${esc(b.id)}')"><i class="ti ti-adjustments-dollar"></i>ปรับปรุงยอด</button>`
+    ? `<button class="btn btn-secondary btn-sm no-print" onclick="openAdjustBill(${jsArg(b.id)})"><i class="ti ti-adjustments-dollar"></i>ปรับปรุงยอด</button>`
     : '';
   const lockNote = locked
-    ? `<div class="no-print" style="font-size:11.5px;color:var(--gray-500);margin-top:8px"><i class="ti ti-lock"></i> งวด ${esc(b.period)} ปิดแล้ว — แก้ยอดได้ผ่านการปรับปรุงยอดเท่านั้น</div>`
+    ? `<span class="rc-note no-print"><i class="ti ti-lock"></i> งวด ${esc(b.period)} ปิดแล้ว — แก้ยอดได้ผ่านการปรับปรุงยอดเท่านั้น</span>`
     : '';
 
   // ── Channel helper ──
   const chLabel = pay ? (channelMap[pay.channel]?.label || pay.channel) : '';
+  const kv = (k, v, cls = '') => `<div><span>${k}</span><b class="${cls}">${v}</b></div>`;
 
-  // ── Meter reading section ──
+  // ── เลขมิเตอร์: แถบเดียว ก่อน → หลัง · หน่วยที่ใช้ ──
   const meterSection = mr ? `
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;text-align:center">
-    <div style="background:var(--gray-50);padding:10px 8px;border-radius:var(--radius-md)">
-      <div class="text-muted" style="font-size:10px;margin-bottom:3px">เลขก่อน</div>
-      <div class="text-bold mono">${mr.prevReading.toLocaleString()}</div>
-    </div>
-    <div style="background:var(--blue-50);padding:10px 8px;border-radius:var(--radius-md)">
-      <div class="text-muted" style="font-size:10px;margin-bottom:3px">เลขหลัง</div>
-      <div class="text-bold mono" style="color:var(--blue-900)">${mr.currReading.toLocaleString()}</div>
-    </div>
-    <div style="background:var(--cyan-50);padding:10px 8px;border-radius:var(--radius-md)">
-      <div class="text-muted" style="font-size:10px;margin-bottom:3px">หน่วยที่ใช้</div>
-      <div class="text-bold" style="color:var(--cyan-800)">${b.usage} m³</div>
-    </div>
-  </div>` : '';
+    <div class="rc-meter">
+      <div><span>เลขก่อน</span><b class="mono">${mr.prevReading.toLocaleString()}</b></div>
+      <i class="ti ti-arrow-right" aria-hidden="true"></i>
+      <div><span>เลขหลัง</span><b class="mono">${mr.currReading.toLocaleString()}</b></div>
+      <div class="rc-use"><span>หน่วยที่ใช้</span><b>${b.usage} m³</b></div>
+    </div>` : '';
 
-  // ── Charges section ──
+  // ── รายการค่าใช้จ่าย + ยอดสุทธิ ──
   const chargesSection = `
-  <div style="border-top:1px solid var(--gray-100);padding-top:12px;font-size:13px">
-    <div style="display:flex;justify-content:space-between;padding:5px 0;color:var(--gray-700)"><span>ค่าน้ำ (${b.usage} m³)</span><span>฿${(b.waterCharge||0).toLocaleString()}</span></div>
-    <div style="display:flex;justify-content:space-between;padding:5px 0;color:var(--gray-700)"><span>ค่าบริการรายเดือน</span><span>฿${(b.serviceCharge||0).toLocaleString()}</span></div>
-    ${b.lateFee  ? `<div style="display:flex;justify-content:space-between;padding:5px 0"><span class="text-muted">ค่าปรับล่าช้า</span><span class="text-error">+฿${b.lateFee.toLocaleString()}</span></div>` : ''}
-    ${adjustments.length ? adjustRows
-      : b.discount ? `<div style="display:flex;justify-content:space-between;padding:5px 0"><span class="text-muted">ส่วนลด</span><span style="color:var(--green-700)">-฿${b.discount.toLocaleString()}</span></div>` : ''}
-    <div style="display:flex;justify-content:space-between;padding:10px 0;border-top:2px solid var(--gray-200);margin-top:5px">
-      <span class="text-bold" style="font-size:15px">รวมสุทธิ</span>
-      <span class="text-bold" style="font-size:20px;color:var(--blue-900)">฿${b.total.toLocaleString()}</span>
+    <div class="rc-lines">
+      <div class="rc-line"><span>ค่าน้ำ (${b.usage} m³)</span><b>฿${(b.waterCharge||0).toLocaleString()}</b></div>
+      <div class="rc-line"><span>ค่าบริการรายเดือน</span><b>฿${(b.serviceCharge||0).toLocaleString()}</b></div>
+      ${b.lateFee ? `<div class="rc-line"><span>ค่าปรับล่าช้า</span><b class="rc-plus">+฿${b.lateFee.toLocaleString()}</b></div>` : ''}
+      ${adjustments.length ? adjustRows
+        : b.discount ? `<div class="rc-line"><span>ส่วนลด</span><b class="rc-minus">-฿${b.discount.toLocaleString()}</b></div>` : ''}
     </div>
-    ${adjustBtn}${lockNote}
-  </div>`;
+    <div class="rc-total"><span>รวมสุทธิ</span><b>฿${b.total.toLocaleString()}</b></div>
+    ${adjustBtn || lockNote ? `<div class="rc-acts">${adjustBtn}${lockNote}</div>` : ''}`;
 
-  // ── Receipt-specific section (shown only when paid) ──
+  // ── คอลัมน์ข้าง: ชำระแล้ว → รายละเอียดรับเงิน / ยกเลิก → เหตุผล / ค้างชำระ → QR ──
+  // ช่องลงชื่อ/ประทับตราอยู่ในเอกสารที่พิมพ์ (printBillDocument) ไม่ต้องกินที่บนจอ
   const receiptSection = isPaid && pay ? `
-  <div style="background:var(--green-50);border:1px solid var(--green-200);border-radius:var(--radius-md);padding:12px 14px;margin-top:12px">
-    <div style="font-size:11px;font-weight:700;color:var(--green-800);text-transform:uppercase;margin-bottom:8px;letter-spacing:.5px">รายละเอียดการชำระเงิน</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12.5px">
-      <div><span class="text-muted">เลขที่ใบเสร็จ</span><div class="text-bold mono" style="color:var(--green-900)">${esc(pay.receiptNo||'—')}</div></div>
-      <div><span class="text-muted">วันที่รับเงิน</span><div class="text-bold">${esc(pay.paidAt)}</div></div>
-      <div><span class="text-muted">ช่องทาง</span><div class="text-bold">${esc(chLabel)}</div></div>
-      <div><span class="text-muted">ยอดรับ</span><div class="text-bold" style="color:var(--green-700)">฿${pay.amount.toLocaleString()}</div></div>
-      ${pay.txRef ? `<div><span class="text-muted">เลขอ้างอิง</span><div class="mono" style="font-size:11px">${esc(pay.txRef)}</div></div>` : ''}
-      ${pay.payerName ? `<div><span class="text-muted">ผู้ชำระ</span><div>${esc(pay.payerName)}</div></div>` : ''}
-    </div>
-  </div>
-  <div style="margin-top:16px;padding-top:14px;border-top:1px dashed var(--gray-200);display:flex;justify-content:space-between;align-items:flex-end;font-size:12px;color:var(--gray-500)">
-    <div>ลงชื่อผู้รับเงิน .....................................<br><span style="margin-top:4px;display:block;padding-left:8px">(${esc(pay.receivedByName || '')})</span></div>
-    <div style="text-align:right">ประทับตรา<br><div style="width:60px;height:60px;border:1px dashed var(--gray-300);border-radius:50%;margin-top:4px;margin-left:auto"></div></div>
-  </div>` : '';
+    <div class="rc-box rc-box-ok">
+      <div class="rc-box-hd"><i class="ti ti-circle-check"></i>รายละเอียดการชำระเงิน</div>
+      <div class="rc-kv">
+        ${kv('เลขที่ใบเสร็จ', esc(pay.receiptNo || '—'), 'mono')}
+        ${kv('วันที่รับเงิน', esc(pay.paidAt))}
+        ${kv('ช่องทาง', esc(chLabel))}
+        ${kv('ยอดรับ', `฿${pay.amount.toLocaleString()}`, 'rc-minus')}
+        ${pay.txRef ? kv('เลขอ้างอิง', esc(pay.txRef), 'mono') : ''}
+        ${pay.payerName ? kv('ผู้ชำระ', esc(pay.payerName)) : ''}
+        ${pay.receivedByName ? kv('ผู้รับเงิน', esc(pay.receivedByName)) : ''}
+      </div>
+    </div>` : '';
 
-  // ── Cancelled section ──
   const cancelSection = isCancelled ? `
-  <div style="background:#fff8f0;border:1px solid #f97316;border-radius:var(--radius-md);padding:12px 14px;margin-top:12px">
-    <div style="font-size:11px;font-weight:700;color:#c2410c;margin-bottom:6px;text-transform:uppercase">ใบแจ้งหนี้ถูกยกเลิก</div>
-    <div style="font-size:12.5px;color:var(--gray-700)">เหตุผล: <strong>${esc(b.cancelReason||'—')}</strong></div>
-    <div style="font-size:11.5px;color:var(--gray-500);margin-top:4px">ยกเลิกเมื่อ ${esc(b.cancelledAt||'—')}</div>
-  </div>` : '';
+    <div class="rc-box rc-box-warn">
+      <div class="rc-box-hd"><i class="ti ti-ban"></i>ใบแจ้งหนี้ถูกยกเลิก</div>
+      <div class="rc-kv rc-kv-1">
+        ${kv('เหตุผล', esc(b.cancelReason || '—'))}
+        ${kv('ยกเลิกเมื่อ', esc(b.cancelledAt || '—'))}
+      </div>
+    </div>` : '';
+
+  const side = (isUnpaid ? _payQrBlock(b) : '') + receiptSection + cancelSection;
 
   const body = document.getElementById('receipt-body');
   if (!body) return;
   body.innerHTML = `
-  <div style="text-align:center;padding:0 0 16px;border-bottom:2px solid var(--gray-100);margin-bottom:16px">
-    <div style="font-size:20px;font-weight:800;color:var(--blue-900)"><i class="ti ti-droplet" style="color:var(--blue-500)"></i> AquaFlow Pro</div>
-    <div style="font-size:12px;color:var(--gray-500);margin-top:2px">${isPaid ? 'ใบเสร็จรับเงิน' : 'ใบแจ้งหนี้ค่าน้ำประปาหมู่บ้าน'}</div>
-  </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;font-size:12.5px">
-    <div>
-      <div class="text-muted" style="font-size:10.5px;font-weight:700;text-transform:uppercase">${isPaid ? 'เลขที่ใบเสร็จ' : 'เลขที่ใบแจ้งหนี้'}</div>
-      <div class="text-bold mono" style="font-size:12px;margin-top:3px;color:var(--blue-900)">${isPaid && pay?.receiptNo ? esc(pay.receiptNo) : esc(b.id)}</div>
+  <div class="rc-top">
+    <div class="rc-who">
+      <div class="rc-name">${esc((m.firstName||'')+' '+(m.lastName||''))}</div>
+      <div class="rc-sub">
+        <span><i class="ti ti-home"></i>${esc(m.houseNo||'')} ${esc(m.village||'')}</span>
+        <span><i class="ti ti-gauge"></i><span class="mono">${esc(m.meter||'—')}</span></span>
+      </div>
     </div>
-    <div><div class="text-muted" style="font-size:10.5px;font-weight:700;text-transform:uppercase">รอบบิล</div><div class="text-bold" style="margin-top:3px">${esc(b.period)}</div></div>
-    <div><div class="text-muted" style="font-size:10.5px;font-weight:700;text-transform:uppercase">วันที่ออก</div><div style="margin-top:3px">${b.issueDate}</div></div>
-    <div><div class="text-muted" style="font-size:10.5px;font-weight:700;text-transform:uppercase">${isPaid ? 'วันที่ชำระ' : 'กำหนดชำระ'}</div><div style="margin-top:3px" class="${b.status==='overdue'?'text-error text-bold':''}">${isPaid && pay ? pay.paidAt.substring(0,10) : b.dueDate}</div></div>
+    <span class="pill ${st.cls}">${st.label}</span>
   </div>
-  <div style="background:var(--gray-50);border-radius:var(--radius-md);padding:12px 14px;margin-bottom:16px">
-    <div class="text-bold" style="font-size:14px;margin-bottom:5px">${esc((m.firstName||'')+' '+(m.lastName||''))}</div>
-    <div class="text-muted" style="font-size:12px">${esc(m.houseNo||'')} ${esc(m.village||'')}</div>
-    <div class="text-muted" style="font-size:12px">มิเตอร์: <span class="mono">${esc(m.meter||'—')}</span></div>
+  <div class="rc-meta">
+    ${kv(isPaid ? 'เลขที่ใบเสร็จ' : 'เลขที่ใบแจ้งหนี้', isPaid && pay?.receiptNo ? esc(pay.receiptNo) : esc(b.id), 'mono rc-id')}
+    ${kv('รอบบิล', esc(b.period))}
+    ${kv('วันที่ออก', esc(b.issueDate))}
+    ${kv(isPaid ? 'วันที่ชำระ' : 'กำหนดชำระ', esc(isPaid && pay ? pay.paidAt.substring(0,10) : b.dueDate), b.status === 'overdue' ? 'rc-plus' : '')}
   </div>
-  ${meterSection}
-  ${chargesSection}
-  <div style="text-align:center;margin-top:14px">
-    <span class="pill ${st.cls}" style="font-size:13px;padding:5px 18px">${st.label}</span>
-  </div>
-  ${isUnpaid ? _payQrBlock(b) : ''}
-  ${receiptSection}
-  ${cancelSection}`;
+  <div class="rc-grid${side ? '' : ' rc-solo'}">
+    <div class="rc-main">${meterSection}${chargesSection}</div>
+    ${side ? `<aside class="rc-side">${side}</aside>` : ''}
+  </div>`;
 
   const paperSel = document.getElementById('receipt-paper');
   if (paperSel) paperSel.innerHTML = paperOptions();
@@ -429,17 +410,18 @@ export function openBillReceipt(billId) {
 // QR พร้อมเพย์บนหน้าจอ — สมาชิกสแกนจ่ายได้ทันทีตอนเจ้าหน้าที่เปิดใบแจ้งให้ดู
 function _payQrBlock(b) {
   const ppId = appState.systemConfig?.promptpay_id;
-  const svg  = ppId ? promptPaySvg(ppId, b.total, 150) : '';
+  const svg  = ppId ? promptPaySvg(ppId, b.total, 132) : '';
   if (!svg) return '';
   return `
-  <div class="no-print" style="display:flex;gap:14px;align-items:center;margin-top:14px;padding:12px;border:1px solid var(--gray-200);border-radius:var(--radius-md)">
-    <div style="flex-shrink:0">${svg}</div>
-    <div style="font-size:12.5px;line-height:1.6;color:var(--gray-700)">
-      <b>สแกนจ่ายด้วยแอปธนาคาร</b><br>พร้อมเพย์ ${esc(appState.systemConfig?.promptpay_name || '')}<br>
-      ยอด <b>฿${b.total.toLocaleString()}</b><br>
-      <span style="color:var(--gray-500)">ส่งสลิปให้เจ้าหน้าที่เพื่อยืนยันการชำระ</span>
-    </div>
-  </div>`;
+    <div class="rc-box rc-qr no-print">
+      <div class="rc-qr-img">${svg}</div>
+      <div class="rc-qr-txt">
+        <b>สแกนจ่ายด้วยแอปธนาคาร</b>
+        <span>พร้อมเพย์ ${esc(appState.systemConfig?.promptpay_name || '')}</span>
+        <span>ยอด <b>฿${b.total.toLocaleString()}</b></span>
+        <small>ส่งสลิปให้เจ้าหน้าที่เพื่อยืนยันการชำระ</small>
+      </div>
+    </div>`;
 }
 
 export function closeReceiptModal() {

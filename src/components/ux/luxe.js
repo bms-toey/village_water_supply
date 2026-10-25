@@ -35,12 +35,13 @@ const ACTIONS = [
   { label: 'บันทึกเปลี่ยนมิเตอร์',    sub: 'ประวัติเปลี่ยนมิเตอร์',      icon: 'ti-replace',         c: '#b45309', kw: 'meter replace',         run: () => { go('maintenance'); call('openMeterReplaceModal'); } },
   { label: 'พิมพ์ใบแจ้งหนี้หลายใบ',   sub: 'พิมพ์เป็นชุด',             icon: 'ti-printer',         c: '#7c3aed', kw: 'print bill',            run: () => call('openBatchPrint') },
   { label: 'งวดบิล / ปิดงวด',        sub: 'ล็อกงวดบัญชี',             icon: 'ti-calendar-stats',  c: '#7c3aed', kw: 'period close',          run: () => call('openBillingPeriods') },
-  { label: 'ปิดยอดประจำวัน',         sub: 'สรุปเงินสดรับวันนี้',        icon: 'ti-cash-register',   c: '#15803d', kw: 'cash close daily',      run: () => call('openCashClose') },
+  { label: 'ปิดยอดประจำวัน',         sub: 'สรุปเงินสดรับวันนี้',        icon: 'ti-report-money',   c: '#15803d', kw: 'cash close daily',      run: () => call('openCashClose') },
   { label: 'พิมพ์หนังสือแจ้งลูกหนี้',  sub: 'ทวงถามค้างชำระ',           icon: 'ti-mail',            c: '#d93036', kw: 'notice debtor',         run: () => call('openNoticePrint') },
   { label: 'สำรองข้อมูล',            sub: 'ดาวน์โหลดไฟล์ backup',      icon: 'ti-database-export', c: '#0e7490', kw: 'backup',                run: () => call('downloadBackup') },
   { label: 'รีเฟรชข้อมูล',           sub: 'ดึงข้อมูลล่าสุดจากเซิร์ฟเวอร์', icon: 'ti-refresh',       c: '#0891b2', kw: 'refresh reload',        run: () => call('_manualRefresh') },
   { label: 'ย่อ / ขยายเมนูด้านข้าง',  sub: '',                         icon: 'ti-layout-sidebar',  c: '#5c6175', kw: 'sidebar menu',          run: () => document.querySelector('.btn-menu')?.click() },
   { label: 'เปลี่ยนรหัสผ่าน',        sub: '',                         icon: 'ti-key',             c: '#5c6175', kw: 'password',              run: () => call('openChangePwdModal') },
+  { label: 'โหมดความเป็นส่วนตัว',     sub: 'เบลอชื่อ/เบอร์บนจอ (เปิดให้คนอื่นเห็นหน้าจอ)', icon: 'ti-eye-off', c: '#5b6b86', kw: 'privacy pdpa blur ซ่อนชื่อ', run: () => call('togglePrivacyMode') },
   { label: 'ออกจากระบบ',            sub: '',                         icon: 'ti-logout',          c: '#d93036', kw: 'logout signout',        run: () => call('doSignOut') },
 ];
 
@@ -91,7 +92,7 @@ function buildPalette() {
       <div class="lx-cmd-in">
         <i class="ti ti-sparkles"></i>
         <input type="text" id="lx-cmd-q" autocomplete="off" spellcheck="false"
-          placeholder="พิมพ์ชื่อสมาชิก เลขมิเตอร์ เลขบิล หรือคำสั่ง..." aria-label="ค้นหา" aria-controls="lx-cmd-list"/>
+          placeholder="ค้นหาสมาชิก / มิเตอร์ / บิล / คำสั่ง" aria-label="ค้นหา" aria-controls="lx-cmd-list"/>
         <button class="lx-cmd-x" type="button" aria-label="ปิด"><span class="lx-kbd">Esc</span><i class="ti ti-x"></i></button>
       </div>
       <div class="lx-cmd-list" id="lx-cmd-list" role="listbox"></div>
@@ -289,6 +290,20 @@ function buildFab() {
   _fab.querySelector('.lx-fab-main').addEventListener('click', () => (_fab.classList.contains('open') ? closeFab() : openFab()));
   _fab.querySelectorAll('.lx-fab-it').forEach(b => b.addEventListener('click', () => { closeFab(); FAB_ITEMS[+b.dataset.i].run(); }));
   document.body.append(_scrim, _fab);
+  autoHideFab();
+}
+
+// เลื่อนลง = ซ่อนปุ่มลอยให้เห็นเนื้อหาท้ายหน้า, เลื่อนขึ้น/อยู่บนสุด = แสดงกลับ (ใช้ผลเฉพาะมือถือ ดู luxe.css)
+function autoHideFab() {
+  const ca = document.querySelector('.content-area');
+  if (!ca) return;
+  let last = ca.scrollTop;
+  ca.addEventListener('scroll', () => {
+    const y = ca.scrollTop, d = y - last;
+    if (Math.abs(d) < 8) return;
+    _fab.classList.toggle('lx-fab-away', d > 0 && y > 80 && !_fab.classList.contains('open'));
+    last = y;
+  }, { passive: true });
 }
 
 function openFab() {
@@ -396,16 +411,20 @@ export function initLuxe() {
   document.addEventListener('pointerdown', onRipple, { passive: true });
   watchKpis();
 
-  // ซ่อนปุ่มงานด่วนขณะยังไม่ล็อกอิน / กำลังโหลด
+  // ปุ่มงานด่วนแสดงเฉพาะหน้า Dashboard (หน้าอื่นมีปุ่มของตัวเอง ปุ่มลอยไปบังเนื้อหา)
+  // และซ่อนขณะยังไม่ล็อกอิน / กำลังโหลด
+  const dash = document.getElementById('page-dashboard');
   const syncFab = () => {
     const ready = appReady();
-    _fab.style.display = ready ? '' : 'none';
-    if (!ready) { closeFab(); closeCommandPalette(false); }
+    _fab.style.display = ready && dash?.classList.contains('active') ? '' : 'none';
+    if (_fab.style.display === 'none') closeFab();
+    if (!ready) closeCommandPalette(false);
   };
   const mo = new MutationObserver(syncFab);
   ['auth-overlay', 'loading-overlay'].forEach(id => {
     const el = document.getElementById(id);
     if (el) mo.observe(el, { attributes: true, attributeFilter: ['style'] });
   });
+  if (dash) mo.observe(dash, { attributes: true, attributeFilter: ['class'] });
   syncFab();
 }

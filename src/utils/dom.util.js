@@ -13,6 +13,22 @@ export function esc(s) {
     .replace(/'/g, '&#39;');
 }
 
+/**
+ * ค่าที่ใส่เป็นอาร์กิวเมนต์ใน inline handler — onclick="fn(${jsArg(x)})"
+ * esc() อย่างเดียวไม่พอ: browser แปลง &#39; กลับเป็น ' ก่อนรัน JS → ข้อความหลุดออกจาก string ได้
+ * JSON.stringify ทำให้เป็น JS literal ที่ถูกต้อง แล้ว esc() กันไม่ให้หลุดออกจาก attribute
+ */
+export function jsArg(v) {
+  return esc(JSON.stringify(v ?? null));
+}
+
+/** เบอร์โทรแบบปิดบัง (081-xxx-5678) สำหรับรายการ/เอกสารที่ไม่จำเป็นต้องเห็นเบอร์เต็ม */
+export function maskPhone(p) {
+  const d = String(p || '').replace(/[^0-9]/g, '');
+  if (d.length < 7) return p ? '•••' : '';
+  return `${d.slice(0, 3)}-xxx-${d.slice(-4)}`;
+}
+
 const _avatarColors = [
   'var(--blue-800)', 'var(--blue-500)', '#7c3aed',
   '#0891b2', '#dc2626', '#059669', '#d97706',

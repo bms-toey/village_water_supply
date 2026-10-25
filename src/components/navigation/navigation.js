@@ -14,6 +14,7 @@ const _pageLabels = {
   maintenance: 'ซ่อมบำรุง',
   settings:    'ตั้งค่า',
   users:       'จัดการผู้ใช้',
+  portal:      'ตรวจสอบบิล',
 };
 
 export function goPage(id) {

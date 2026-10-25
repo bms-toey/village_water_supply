@@ -1,0 +1,154 @@
+/* payments.css - หน้ารับชำระเงิน (#page-payments)
+   โครง: แถบสรุป 4 ช่อง (แถวเดียว) → รายการชำระ (ซ้าย) + รับชำระใหม่/สรุปวันนี้ (ขวา)
+   ≤1100px: แผงขวาย้ายขึ้นบนเป็น 2 คอลัมน์ · ≤768px: รับชำระใหม่ → รายการ → สรุปวันนี้
+   โหลดหลัง luxe.css + mobile.css → ทุก selector ขึ้นต้นด้วย #page-payments
+---------------------------------------------------- */
+
+/* ─── แถบสรุปตัวเลข ─── */
+#page-payments .pay-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:12px}
+#page-payments .pay-kpi{--tc:var(--blue-600);--tb:rgba(29,95,214,.1);
+  display:flex;align-items:center;gap:10px;min-width:0;padding:8px 12px;border-radius:14px;cursor:pointer;text-align:left;font:inherit;
+  background:var(--lx-card-grad);border:1px solid var(--lx-line-2);box-shadow:var(--lx-bevel),0 6px 14px -12px rgba(10,25,60,.45);
+  transition:border-color .2s,box-shadow .2s,transform .2s}
+#page-payments .pay-kpi:hover{border-color:rgba(214,178,110,.6);transform:translateY(-1px);box-shadow:var(--lx-bevel),0 12px 22px -14px rgba(10,25,60,.5)}
+#page-payments .pay-kpi:focus-visible{outline:2px solid var(--lx-gold);outline-offset:2px}
+#page-payments .pay-kpi>i{flex-shrink:0;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:18px;color:var(--tc);background:var(--tb)}
+#page-payments .pay-kpi-txt{display:flex;flex-direction:column;min-width:0;flex:1}
+#page-payments .pay-kpi-lbl{font-size:11px;font-weight:600;color:var(--gray-500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#page-payments .pay-kpi-val{font-family:'Prompt',var(--font-sans);font-size:18px;font-weight:700;line-height:1.25;color:var(--tc);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#page-payments .pay-kpi-sub{flex-shrink:0;align-self:flex-end;font-size:11px;font-weight:600;color:var(--gray-500);white-space:nowrap}
+#page-payments .pay-kpi[data-tone="green"]{--tc:var(--green-700);--tb:rgba(22,163,74,.1)}
+#page-payments .pay-kpi[data-tone="amber"]{--tc:var(--amber-700);--tb:rgba(245,158,11,.13)}
+#page-payments .pay-kpi[data-tone="red"]{--tc:var(--red-600);--tb:rgba(229,72,77,.1)}
+#page-payments .pay-kpi.alert{border-color:rgba(245,158,11,.55);background:linear-gradient(180deg,#fffaf0,#fff4dd)}
+
+/* ─── โครงหลัก ─── */
+#page-payments .pay-layout{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:12px;align-items:start}
+#page-payments .pay-layout .card{margin-bottom:0}
+#page-payments .pay-main{align-self:stretch}   /* ยืดเต็มจอ — ดู .page-fill ใน layout.css */
+#page-payments .pay-side{display:flex;flex-direction:column;gap:12px;min-width:0}
+
+/* ─── แถบเครื่องมือรายการ ─── */
+#page-payments .pay-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 10px;border-bottom:1px solid var(--lx-line)}
+#page-payments .pay-seg{display:inline-flex;gap:2px;padding:3px;border-radius:11px;background:var(--lx-pearl-2);border:1px solid var(--lx-line);flex-shrink:0}
+#page-payments .pay-seg button{display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 11px;border:0;border-radius:8px;background:transparent;
+  font:inherit;font-size:12.5px;font-weight:600;color:var(--gray-600);cursor:pointer;white-space:nowrap;transition:background .15s,color .15s}
+#page-payments .pay-seg button:hover{color:var(--lx-ink)}
+#page-payments .pay-seg button.on{background:#fff;color:var(--lx-navy-2);box-shadow:0 1px 3px rgba(10,25,60,.14)}
+#page-payments .pay-seg-n:empty{display:none}
+#page-payments .pay-seg-n{min-width:18px;height:18px;padding:0 5px;border-radius:9px;display:inline-grid;place-items:center;font-size:10.5px;font-weight:700;color:#fff;background:var(--amber-600,#d97706)}
+#page-payments .pay-search{flex:1 1 200px;max-width:none;min-height:34px;height:34px;font-size:13px}
+
+/* ─── รายการ ─── */
+#page-payments .pay-list{padding:4px 10px 6px}
+#page-payments .pay-day{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:8px 4px 4px;
+  font-size:12px;font-weight:700;color:var(--lx-gold-d);border-bottom:1px dashed var(--lx-line-2);margin-bottom:2px}
+#page-payments .pay-day small{font-size:11px;font-weight:600;color:var(--gray-500)}
+#page-payments .pay-row{display:grid;grid-template-columns:44px 100px minmax(0,1fr) auto 92px 140px;align-items:center;gap:10px;
+  min-height:46px;padding:4px 6px;border-radius:10px;border-left:3px solid transparent;transition:background .15s}
+#page-payments .pay-row+.pay-row{border-top:1px solid var(--lx-line)}
+#page-payments .pay-row:hover{background:rgba(29,95,214,.035)}
+#page-payments .pay-row[data-st="pending"]{border-left-color:var(--amber-500,#f59e0b);background:rgba(245,158,11,.06)}
+#page-payments .pay-row[data-st="cancelled"],#page-payments .pay-row[data-st="rejected"]{opacity:.55}
+#page-payments .pay-row[data-st="cancelled"] .pay-row-amt,#page-payments .pay-row[data-st="rejected"] .pay-row-amt{text-decoration:line-through}
+#page-payments .pay-row-time{font-size:12px;color:var(--gray-500)}
+#page-payments .pay-row-ch{--cc:var(--blue-600);display:flex;align-items:center;gap:6px;min-width:0;font-size:12px;font-weight:600;color:var(--gray-600)}
+#page-payments .pay-row-ch i{flex-shrink:0;width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:15px;color:var(--cc);
+  background:color-mix(in srgb,var(--cc) 11%,transparent)}
+#page-payments .pay-row-ch span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#page-payments [data-ch="cash"]{--cc:var(--green-700)}
+#page-payments [data-ch="promptpay"]{--cc:var(--blue-600)}
+#page-payments [data-ch="bank"]{--cc:var(--lx-navy-3)}
+#page-payments [data-ch="mobile"]{--cc:var(--cyan-700,#0e7490)}
+#page-payments .pay-row-info{min-width:0}
+#page-payments .pay-row-name{font-size:13.5px;font-weight:700;color:var(--lx-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#page-payments .pay-row-sub{font-size:11.5px;color:var(--gray-500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#page-payments .pay-row-sub .mono{color:var(--blue-700)}
+#page-payments .pay-row-amt{font-family:'Prompt',var(--font-sans);font-size:15.5px;font-weight:700;color:var(--lx-navy-2);text-align:right;white-space:nowrap}
+#page-payments .pay-row-st .pill{font-size:11px}
+#page-payments .pay-row-act{display:flex;gap:4px;justify-content:flex-end;align-items:center}
+#page-payments .pay-row-act .btn-xs{min-height:28px;height:28px;padding:0 8px;font-size:12px;gap:3px}
+#page-payments .pay-btn-void{color:var(--red-600);background:#fff;border:1px solid var(--red-200)}
+#page-payments .pay-btn-void:hover{background:var(--red-50)}
+
+#page-payments .pay-more{display:block;width:100%;margin:8px 0 2px;padding:8px;border:1px dashed var(--lx-line-2);border-radius:10px;
+  background:transparent;font:inherit;font-size:12.5px;font-weight:600;color:var(--blue-600);cursor:pointer}
+#page-payments .pay-more:hover{background:rgba(29,95,214,.05)}
+#page-payments .pay-empty{display:flex;flex-direction:column;align-items:center;gap:8px;padding:32px 16px;color:var(--gray-400);font-size:13.5px}
+#page-payments .pay-empty>i{font-size:32px}
+#page-payments .pay-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 14px;border-top:1px solid var(--lx-line);font-size:11.5px;color:var(--gray-500)}
+#page-payments .pay-live{display:inline-flex;align-items:center;gap:6px}
+#page-payments .pay-live i{width:7px;height:7px;border-radius:50%;background:var(--green-700);animation:pulse 1.5s infinite}
+
+/* ─── แผงข้าง ─── */
+#page-payments .pay-side-hd{display:flex;align-items:center;gap:7px;padding:9px 12px 0;font-size:13px;font-weight:700;color:var(--lx-ink)}
+#page-payments .pay-side-hd>i{font-size:16px;color:var(--lx-gold-d)}
+#page-payments .pay-side-date{margin-left:auto;font-size:11px;font-weight:600;color:var(--gray-500)}
+#page-payments .pay-new-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:9px 12px 12px}
+#page-payments .pay-ch{display:flex;align-items:center;gap:8px;height:42px;padding:0 10px;border-radius:11px;cursor:pointer;font:inherit;font-size:12.5px;font-weight:700;
+  color:var(--lx-ink);background:var(--lx-card-grad);border:1px solid var(--lx-line-2);box-shadow:var(--lx-bevel);transition:border-color .15s,transform .15s,box-shadow .15s}
+#page-payments .pay-ch i{font-size:19px;color:var(--blue-600)}
+#page-payments .pay-ch span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#page-payments .pay-ch:hover{border-color:rgba(214,178,110,.65);transform:translateY(-1px);box-shadow:var(--lx-bevel),0 8px 16px -12px rgba(10,25,60,.5)}
+#page-payments .pay-ch:active{transform:scale(.97)}
+#page-payments .pay-ch-main{grid-column:1/-1;justify-content:center;height:44px;font-size:14px;color:#1b1406;background:var(--lx-gold-grad);border-color:rgba(164,124,56,.5)}
+#page-payments .pay-ch-main i{color:#1b1406}
+
+#page-payments .pay-today-total{display:flex;align-items:baseline;gap:8px;margin:8px 12px 6px;padding:8px 12px;border-radius:12px;
+  background:linear-gradient(180deg,rgba(22,163,74,.08),rgba(22,163,74,.03));border:1px solid rgba(22,163,74,.2)}
+#page-payments .pay-today-total span{font-size:11.5px;font-weight:600;color:var(--gray-600)}
+#page-payments .pay-today-total b{font-family:'Prompt',var(--font-sans);font-size:20px;color:var(--green-700);margin-left:auto}
+#page-payments .pay-today-total small{font-size:11px;color:var(--gray-500)}
+#page-payments .pay-tch-list{padding:0 12px 10px}
+#page-payments .pay-tch{display:grid;grid-template-columns:22px minmax(0,1fr) auto auto;align-items:center;gap:8px;padding:5px 2px;font-size:12.5px}
+#page-payments .pay-tch+.pay-tch{border-top:1px solid var(--lx-line)}
+#page-payments .pay-tch i{font-size:16px;color:var(--cc)}
+#page-payments .pay-tch-lbl{font-weight:600;color:var(--gray-700);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#page-payments .pay-tch-n{font-size:11px;color:var(--gray-500);min-width:22px;text-align:right}
+#page-payments .pay-tch-amt{font-weight:700;color:var(--lx-ink);min-width:64px;text-align:right}
+#page-payments .pay-tch.zero{opacity:.45}
+
+/* ─── แท็บเล็ต: แผงข้างขึ้นบน 2 คอลัมน์ ─── */
+@media (max-width:1100px){
+  #page-payments .pay-layout{grid-template-columns:minmax(0,1fr);grid-template-rows:auto 1fr}
+  #page-payments .pay-side{order:-1;display:grid;grid-template-columns:1fr 1fr;align-items:stretch}
+  #page-payments .pay-new-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+  #page-payments .pay-ch-main{grid-column:auto}
+  #page-payments .pay-ch{flex-direction:column;justify-content:center;gap:2px;height:56px;padding:4px;font-size:11.5px}
+  #page-payments .pay-ch-main{font-size:12.5px}
+  #page-payments .pay-row{grid-template-columns:44px 32px minmax(0,1fr) auto 88px 136px}
+  #page-payments .pay-row-ch span{display:none}
+}
+
+/* ─── มือถือ: รับชำระใหม่ → รายการ → สรุปวันนี้ ─── */
+@media (max-width:768px){
+  #page-payments .pay-kpis{grid-template-columns:1fr 1fr;gap:8px}
+  #page-payments .pay-kpi{padding:7px 10px;gap:8px}
+  #page-payments .pay-kpi>i{width:30px;height:30px;font-size:16px}
+  #page-payments .pay-kpi-val{font-size:16px}
+  #page-payments .pay-kpi-sub{display:none}
+  #page-payments .pay-layout{grid-template-rows:auto 1fr auto}
+  #page-payments .pay-side{display:contents}
+  #page-payments .pay-new{order:-1}
+  #page-payments .pay-today{order:1}
+  #page-payments .pay-toolbar{gap:6px;padding:8px}
+  #page-payments .pay-toolbar .pay-seg{overflow-x:auto;max-width:100%;scrollbar-width:none}
+  #page-payments .pay-search{flex-basis:100%;order:-1}
+  #page-payments .pay-list{padding:2px 6px 6px}
+  #page-payments .pay-row{grid-template-columns:32px auto minmax(0,1fr) auto;
+    grid-template-areas:"ch info info amt" "ch tm st act";gap:3px 8px;padding:6px 4px}
+  #page-payments .pay-row-ch{grid-area:ch;align-self:start;padding-top:2px}
+  #page-payments .pay-row-ch i{width:30px;height:30px}
+  #page-payments .pay-row-info{grid-area:info}
+  #page-payments .pay-row-amt{grid-area:amt;font-size:15px}
+  #page-payments .pay-row-time{grid-area:tm;font-size:11px}
+  #page-payments .pay-row-st{grid-area:st}
+  #page-payments .pay-row-act{grid-area:act}
+  #page-payments .pay-row-act .btn-xs{min-height:32px;height:32px;padding:0 9px}
+  #page-payments .pay-row-sub{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+}
+@media (max-width:400px){
+  #page-payments .pay-new-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+  #page-payments .pay-ch-main{grid-column:1/-1;flex-direction:row;height:44px}
+  #page-payments .pay-ch{height:50px}
+}

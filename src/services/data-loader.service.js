@@ -73,6 +73,7 @@ export async function loadAllFromSupabase() {
     _loadMeterReplacements();
     await loadBillingPeriods();
     loadMeterSkips();
+    loadStaffDirectory();
 
     const tiers = rt.data || [];
     if (tiers.length) {
@@ -127,14 +128,9 @@ export async function sbInsertMember(m) {
   return data?.id || null;
 }
 
-// deletedBy: UUID ของ user ที่กดลบ (รับจาก caller เพื่อหลีกเลี่ยง circular import)
-export function sbDeleteMember(id, deletedBy) {
-  const now = new Date().toISOString();
-  _sb.from('members').update({
-    is_deleted: true,
-    deleted_at: now,
-    deleted_by: deletedBy || null,
-  }).eq('id', id).then(({ error }) => {
+// ผู้ลบ/เวลาที่ลบ server กำหนดจาก JWT
+export function sbDeleteMember(id) {
+  _sb.from('members').update({ is_deleted: true }).eq('id', id).then(({ error }) => {
     if (error) _sbErr('deleteMember', error);
   });
 }
@@ -236,10 +232,12 @@ export async function sbExportBackup() {
 }
 
 // ─── Payment Write Helpers ────────────────────────────────────
-// server ออกเลขใบเสร็จเมื่อสถานะเป็น approved — คืนรายการที่บันทึกแล้ว หรือ null
+// server ออกเลขที่รายการ + เลขใบเสร็จ (เมื่ออนุมัติ) — คืนรายการที่บันทึกแล้ว หรือ null
+// สถานะบิล (ชำระแล้ว/กลับเป็นค้าง) server ปรับเองจากใบเสร็จ
 export async function sbInsertPayment(p) {
+  const { id: _clientId, ...row } = _pToDB(p);
   const { data, error } = await _sb.from('payments')
-    .insert({ ..._pToDB(p), receipt_no: null }).select().single();
+    .insert({ ...row, receipt_no: null }).select().single();
   if (error) { _sbErr('insertPayment', error); return null; }
   return _pFromDB(data);
 }
@@ -360,11 +358,13 @@ export async function sbOutboxStats() {
   return data;
 }
 
-// ─── Audit (server กำหนดผู้ทำรายการเอง) ──────────────────────
+// ─── Audit ────────────────────────────────────────────────────
+// การแก้ข้อมูลทุกตารางหลัก server บันทึกเอง — ใช้ฟังก์ชันนี้กับเหตุการณ์ที่ไม่ใช่การแก้ข้อมูล (พิมพ์/ส่งออก/ระงับน้ำ)
+// server กำหนดผู้ทำรายการและเวลา และทำเครื่องหมายว่ามาจากแอป (source = client)
 export function sbLogAudit(tableName, recordId, action, oldData, newData) {
-  _sb.from('audit_logs').insert({
-    table_name: tableName, record_id: String(recordId ?? ''), action,
-    old_data: oldData ?? null, new_data: newData ?? null,
+  const detail = oldData == null ? (newData ?? null) : { old: oldData, new: newData ?? null };
+  _sb.rpc('log_event', {
+    p_table: tableName, p_record: String(recordId ?? ''), p_action: action, p_detail: detail,
   }).then(({ error }) => { if (error) console.warn('[audit]', error.message); });
 }
 
@@ -382,6 +382,26 @@ export function sbUpdatePayment(id, patch) {
 }
 
 // ─── Meter Reading Write Helpers ──────────────────────────────
+/**
+ * จดมิเตอร์: server ออก/อัปเดตบิล + บันทึกการอ่าน + last_read ใน transaction เดียว และคิดค่าน้ำเอง
+ * คืน { bill, reading } (แถวจาก DB) หรือ { error } — error.code: DUPLICATE_READING / PREV_MISMATCH / อื่นๆ
+ */
+export async function sbSaveMeterReading(e) {
+  const { data, error } = await _sb.rpc('save_meter_reading', {
+    p_member_id: e.memberId, p_period_year: e.periodYear, p_period_month: e.periodMonth,
+    p_reading_date: e.readingDate, p_prev: e.prev, p_curr: e.curr, p_rollover: !!e.rollover,
+    p_client_ref: e.id || null, p_method: e.method || 'manual', p_anomaly: e.anomaly || null,
+    p_photo_path: e.photoPath || null,
+  });
+  if (error) {
+    lastSbError = error;
+    const code = /DUPLICATE_READING/.test(error.message) ? 'DUPLICATE_READING'
+               : /PREV_MISMATCH/.test(error.message) ? 'PREV_MISMATCH' : null;
+    return { error, code, message: error.message.replace(/^(DUPLICATE_READING|PREV_MISMATCH):\s*/, '') };
+  }
+  return { bill: _bFromDB(data.bill), reading: _rFromDB(data.reading), duplicate: !!data.duplicate };
+}
+
 export function sbUpsertReading(r) {
   return _sb.from('meter_readings').upsert(_rToDB(r)).then(({ error }) => {
     if (error) _sbErr('upsertReading', error);
@@ -427,10 +447,32 @@ export async function sbDeleteRateTier(fromUnit) {
 }
 
 // ─── Maintenance Write Helpers ────────────────────────────────
-export function sbUpsertMaintenance(m) {
-  _sb.from('maintenance_jobs').upsert(_ntToDB(m)).then(({ error }) => {
-    if (error) _sbErr('upsertMaintenance', error);
-  });
+/** งานใหม่ (ไม่มี id) → server ออกเลขงานให้ — คืนแถวที่บันทึกแล้ว หรือ null */
+export async function sbSaveMaintenance(m) {
+  const { id, ...row } = _ntToDB(m);
+  const q = id ? _sb.from('maintenance_jobs').update(row).eq('id', id)
+               : _sb.from('maintenance_jobs').insert(row);
+  const { data, error } = await q.select().single();
+  if (error) { _sbErr('saveMaintenance', error); return null; }
+  return _ntFromDB(data);
+}
+
+// ─── Staff / session / PII ────────────────────────────────────
+/** id → ชื่อเจ้าหน้าที่ (แสดงผู้จด/ผู้ออกบิล/ผู้รับผิดชอบงาน) */
+export async function loadStaffDirectory() {
+  const { data, error } = await _sb.rpc('staff_directory');
+  if (error) { console.warn('[sb] staff_directory:', error.message); return; }
+  appState.staff = data || [];
+}
+export function staffName(id) {
+  return (appState.staff || []).find(s => s.id === id)?.full_name || '';
+}
+
+/** เลขบัตรประชาชนเต็ม (admin เท่านั้น — server บันทึก audit ทุกครั้ง) */
+export async function sbRevealNationalId(memberId) {
+  const { data, error } = await _sb.rpc('reveal_national_id', { p_member_id: memberId });
+  if (error) { _sbErr('revealNationalId', error); return null; }
+  return data;
 }
 
 // ─── Meter Replacement Load (non-blocking) ───────────────────

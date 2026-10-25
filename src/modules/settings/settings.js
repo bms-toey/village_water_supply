@@ -3,13 +3,15 @@
 // village management, rate tiers, system config, and audit log.
 // ──────────────────────────────────────────────────────────────
 import { appState } from '../../state/app.state.js';
-import { esc, toast, showConfirm } from '../../utils/dom.util.js';
+import { esc, jsArg, toast, showConfirm } from '../../utils/dom.util.js';
+import { _sb } from '../../services/supabase.service.js';
+import { hasRole } from '../../services/auth.service.js';
 import { rateConfig, calcWaterCharge, calcWaterBreakdown } from '../../config/rate.config.js';
 import { saveRateConfig } from '../../services/storage.service.js';
 import {
   sbSaveRateTier, sbUpdateTierTo, sbInsertRateTier, sbDeleteRateTier,
 } from '../../services/data-loader.service.js';
-import { _dbVillages } from '../../services/db-mapper.service.js';
+import { _dbVillages, _vName } from '../../services/db-mapper.service.js';
 import {
   getMdItems, saveMdItem, deleteMdItem, toggleMdItem,
   saveVillage, deleteVillage, toggleVillage,
@@ -19,6 +21,7 @@ import { buildBackupPanel, canBackup } from './backup.js';
 import { buildNotifyPanel } from '../notify/notify.js';
 import { PAPERS } from '../documents/print.js';
 import { isValidPromptPayId } from '../../utils/promptpay.js';
+import { openModal, closeModal, busyButton } from '../../components/modal/modal.js';
 
 // ─── Tab Configuration ─────────────────────────────────────────
 const TABS = [
@@ -34,6 +37,7 @@ const TABS = [
   { id: 'notify',           label: 'แจ้งเตือน & LINE',       icon: 'ti-brand-line',      type: 'custom', group: 'system',  desc: 'LINE / SMS การแจ้งเตือน' },
   { id: 'backup',           label: 'สำรองข้อมูล',            icon: 'ti-database-export', type: 'custom', group: 'system',  desc: 'ส่งออก / กู้คืนข้อมูล', visible: canBackup },
   { id: 'audit_log',        label: 'บันทึกกิจกรรม',          icon: 'ti-history',         type: 'custom', group: 'system',  desc: 'ประวัติการใช้งานระบบ' },
+  { id: 'pdpa',             label: 'คำขอ PDPA',              icon: 'ti-shield-lock',     type: 'custom', group: 'system',  desc: 'คำขอใช้สิทธิ์ของเจ้าของข้อมูล', visible: () => hasRole('super_admin', 'village_admin') },
 ];
 
 // กลุ่มเมนูด้านซ้ายของหน้าตั้งค่า (ลำดับตามที่แสดง)
@@ -65,7 +69,7 @@ const SYSTEM_CONFIG_FIELDS = [
   { section: 'การพิมพ์' },
   { key: 'print_paper',        label: 'กระดาษเริ่มต้น (แต่ละเครื่องเปลี่ยนเองได้)', type: 'select', options: PAPERS },
   { section: 'อื่นๆ' },
-  { key: 'openrouter_api_key', label: 'OpenRouter API Key (จดมิเตอร์ AI)', type: 'password', placeholder: 'sk-or-v1-...' },
+  { note: 'AI อ่านมิเตอร์ใช้ key ที่ตั้งบน server (Edge Function meter-ocr) — ไม่เก็บใน browser' },
 ];
 
 let _activeTab = 'rates';
@@ -104,7 +108,7 @@ function _renderTabsBar() {
         const count = t.type === 'master' ? getMdItems(t.id, false).length : null;
         return `
         <button class="snav-item${_activeTab === t.id ? ' active' : ''}" title="${esc(t.desc || '')}"
-          onclick="setSettingsTab('${t.id}')">
+          onclick="setSettingsTab(${jsArg(t.id)})">
           <i class="ti ${t.icon}"></i>
           <span class="snav-text"><span class="snav-label">${esc(t.label)}</span><span class="snav-desc">${esc(t.desc || '')}</span></span>
           ${count !== null ? `<span class="snav-count">${count}</span>` : ''}
@@ -141,6 +145,9 @@ function _renderPanel(tabId) {
     el.innerHTML = buildNotifyPanel();
   } else if (tabId === 'backup') {
     el.innerHTML = buildBackupPanel();
+  } else if (tabId === 'pdpa') {
+    el.innerHTML = _buildPdpaPanel();
+    _loadAndRenderPdpa();
   }
 }
 
@@ -152,8 +159,8 @@ function _buildMasterPanel(tab) {
       <div class="card-title"><i class="ti ${tab.icon}" style="color:var(--blue-500)"></i>${esc(tab.label)}</div>
       <div style="display:flex;gap:8px;align-items:center">
         <input class="form-input" id="md-search" placeholder="ค้นหา..." style="width:200px"
-          oninput="window._mdFilter(this.value,'${tab.id}')"/>
-        <button class="btn btn-primary btn-sm" onclick="openMdModal('${tab.id}')">
+          oninput="window._mdFilter(this.value,${jsArg(tab.id)})"/>
+        <button class="btn btn-primary btn-sm" onclick="openMdModal(${jsArg(tab.id)})">
           <i class="ti ti-plus"></i>เพิ่ม
         </button>
       </div>
@@ -200,15 +207,15 @@ function _renderMasterRows(category, search) {
       <td style="text-align:center">${iconPreview}</td>
       <td>
         <div class="toggle${x.isActive ? ' on' : ''}"
-          onclick="window.toggleMdItemHandler('${x.id}','${esc(category)}',${!x.isActive})">
+          onclick="window.toggleMdItemHandler(${jsArg(x.id)},${jsArg(category)},${!x.isActive})">
           <div class="toggle-thumb"></div>
         </div>
       </td>
       <td>
         <div style="display:flex;gap:4px;justify-content:flex-end">
-          <button class="btn-icon" title="แก้ไข" onclick="openMdModal('${esc(category)}','${x.id}')"><i class="ti ti-edit"></i></button>
+          <button class="btn-icon" title="แก้ไข" onclick="openMdModal(${jsArg(category)},${jsArg(x.id)})"><i class="ti ti-edit"></i></button>
           <button class="btn-icon" title="ลบ" style="color:var(--red-700);border-color:var(--red-100)"
-            onclick="window.deleteMdItemConfirm('${x.id}','${esc(category)}')"><i class="ti ti-trash"></i></button>
+            onclick="window.deleteMdItemConfirm(${jsArg(x.id)},${jsArg(category)})"><i class="ti ti-trash"></i></button>
         </div>
       </td>
     </tr>`;
@@ -319,6 +326,7 @@ function _propagateChanges(category) {
     window.renderMaintenance?.();
     _populateMaintenanceTypeSelect();
   }
+  if (category === 'payment_channel') window.renderPayments?.();
 }
 
 // ─── Villages Panel ────────────────────────────────────────────
@@ -330,8 +338,8 @@ export function renderSettingsVillages() {
     el.innerHTML = '<div style="text-align:center;color:var(--gray-400);padding:20px">ยังไม่มีหมู่บ้าน</div>';
   } else {
     el.innerHTML = rows.map(v => {
-      const count   = appState.members.filter(m => m.village === v.name).length;
-      const overdue = appState.members.filter(m => m.village === v.name && m.status === 'overdue').length;
+      const count   = appState.members.filter(m => m.villageId === v.id).length;
+      const overdue = appState.members.filter(m => m.villageId === v.id && m.status === 'overdue').length;
       const active  = v.is_active !== false;
       return `<div class="md-village-row${active ? '' : ' inactive'}">
         <div style="display:flex;align-items:center;gap:10px;flex:1">
@@ -401,6 +409,8 @@ export async function saveVillageHandler() {
   if (error) { toast(`⚠ ${error}`, 'error'); return; }
   closeVillageModal();
   toast(`${_villageEditId ? 'แก้ไข' : 'เพิ่ม'} หมู่บ้าน "${name}" แล้ว`, 'success');
+  // สมาชิกผูกหมู่บ้านด้วย id — แค่อัปเดตชื่อที่แสดง
+  appState.members.forEach(m => { m.village = _vName(m.villageId); });
   renderSettingsVillages();
   populateVillageDropdowns();
   window.renderMembers?.();
@@ -409,7 +419,7 @@ export async function saveVillageHandler() {
 export function deleteVillageConfirm(id) {
   const v = _dbVillages.find(x => x.id === id);
   if (!v) return;
-  const count = appState.members.filter(m => m.village === v.name).length;
+  const count = appState.members.filter(m => m.villageId === v.id).length;
   if (count > 0) { toast(`ไม่สามารถลบได้ มีสมาชิก ${count} รายในหมู่บ้านนี้`, 'error'); return; }
   showConfirm({
     title:   `ลบหมู่บ้าน "${v.name}"?`,
@@ -433,54 +443,89 @@ export async function toggleVillageHandler(id, isActive) {
 }
 
 // ─── Rate Tiers Panel ─────────────────────────────────────────
+const _rangeLabel = t => (t.to === Infinity || t.to === null) ? `${t.from}+ หน่วย` : `${t.from}–${t.to} หน่วย`;
+const _baht       = n => `฿${Number(n).toLocaleString('th-TH', { maximumFractionDigits: 2 })}`;
+
+const FEE_FIELDS = [
+  { id: 'svc-small-val', key: 'svc_charge_small',   cfg: 'svcSmall',        icon: 'ti-droplet',      label: 'มิเตอร์เล็ก',    hint: 'ขนาด ½" และ ¾"' },
+  { id: 'svc-large-val', key: 'svc_charge_large',   cfg: 'svcLarge',        icon: 'ti-droplet-half', label: 'มิเตอร์ใหญ่',    hint: 'ขนาด 1" ขึ้นไป' },
+  { id: 'late-fee-val',  key: 'late_fee_per_month', cfg: 'lateFeePerMonth', icon: 'ti-clock-dollar', label: 'ค่าปรับล่าช้า', hint: 'คิดเพิ่มต่อเดือนที่ค้างชำระ' },
+];
+const METER_SIZES = [['0.5', '½"'], ['0.75', '¾"'], ['1', '1"'], ['1.5', '1½"']];
+let _rtSize = '0.5';
+
 export function renderSettingsRates() {
   const el = document.getElementById('rate-tiers-list');
   if (!el) return;
   const n = rateConfig.tiers.length;
+  const count = document.getElementById('rt-tier-count');
+  if (count) count.textContent = `${n} ช่วง`;
+
   if (!n) {
-    el.innerHTML = `<tr><td colspan="3" style="text-align:center;padding:20px;color:var(--gray-400)">ยังไม่มีข้อมูลอัตราค่าน้ำ</td></tr>`;
+    el.innerHTML = `<tr><td colspan="5" class="rt-empty">ยังไม่มีข้อมูลอัตราค่าน้ำ</td></tr>`;
   } else {
-    el.innerHTML = rateConfig.tiers.map((t, i) => {
-      const isLast    = i === n - 1;
-      const rangeLabel = t.to === Infinity ? `${t.from}+ หน่วย` : `${t.from}–${t.to} หน่วย`;
-      return `<tr>
-        <td>${i + 1}</td>
-        <td style="font-weight:600;color:var(--blue-900)">${rangeLabel}</td>
-        <td style="text-align:right;font-weight:700;color:var(--blue-700)">฿${t.rate.toFixed(2)}</td>
-        <td>
-          <div style="display:flex;gap:4px;justify-content:flex-end">
-            <button class="btn-icon" title="แก้ไขอัตรา" onclick="openRateEditModal(${i})">
-              <i class="ti ti-edit"></i>
-            </button>
-            ${isLast && n > 1
-              ? `<button class="btn-icon" title="ลบช่วงนี้"
-                  style="color:var(--red-700);border-color:var(--red-100)"
-                  onclick="window.deleteLastTierConfirm()">
-                  <i class="ti ti-trash"></i></button>`
-              : ''}
-          </div>
-        </td>
-      </tr>`;
-    }).join('');
+    el.innerHTML = rateConfig.tiers.map((t, i) => `<tr>
+      <td class="rt-no">${i + 1}</td>
+      <td class="rt-range">${_rangeLabel(t)}</td>
+      <td class="rt-bar-cell"><span class="rt-bar"></span></td>
+      <td class="rt-rate-cell">
+        <label class="rt-money" title="แก้ตัวเลขแล้วกด Enter เพื่อบันทึก · Esc ยกเลิก">
+          <span>฿</span>
+          <input type="number" step="0.25" min="0" value="${t.rate.toFixed(2)}" data-orig="${t.rate}"
+            aria-label="อัตราช่วง ${_rangeLabel(t)}"
+            onkeydown="if(event.key==='Enter')this.blur();else if(event.key==='Escape'){this.value=(+this.dataset.orig).toFixed(2);this.blur()}"
+            onblur="window._rtSaveTierRate(${i}, this)"/>
+          <em>/หน่วย</em>
+        </label>
+      </td>
+      <td class="rt-act">${i === n - 1 && n > 1
+        ? `<button class="btn-icon rt-del" title="ลบช่วงสุดท้าย" onclick="window.deleteLastTierConfirm()"><i class="ti ti-trash"></i></button>`
+        : ''}</td>
+    </tr>`).join('');
+    _rtRefreshBars();
   }
-  // Sync svc + late-fee inputs when visible
-  const sSmall = document.getElementById('svc-small-val');
-  const sLarge = document.getElementById('svc-large-val');
-  const lFee   = document.getElementById('late-fee-val');
-  if (sSmall) sSmall.value = rateConfig.svcSmall;
-  if (sLarge) sLarge.value = rateConfig.svcLarge;
-  if (lFee)   lFee.value   = rateConfig.lateFeePerMonth;
+
+  // Sync ช่องค่าบริการ/ค่าปรับ — ไม่ทับค่าที่ผู้ใช้กำลังแก้แต่ยังไม่บันทึก
+  if (!document.querySelector('.rt-fees.is-dirty')) {
+    FEE_FIELDS.forEach(f => {
+      const inp = document.getElementById(f.id);
+      if (inp) inp.value = rateConfig[f.cfg];
+    });
+  }
+  window._rateTestCalc();
 }
+
+// แถบเทียบอัตรา: ยาวตามสัดส่วนอัตราของช่วง เทียบกับช่วงที่แพงที่สุด
+function _rtRefreshBars() {
+  const maxRate = Math.max(...rateConfig.tiers.map(t => t.rate), 1);
+  document.querySelectorAll('#rate-tiers-list .rt-bar').forEach((bar, i) => {
+    const t = rateConfig.tiers[i];
+    if (t) bar.style.width = `${Math.max(t.rate / maxRate * 100, 4)}%`;
+  });
+}
+
+const _feeField = f => `
+  <div class="rt-field">
+    <i class="ti ${f.icon}"></i>
+    <label for="${f.id}"><b>${f.label}</b><small>${f.hint}</small></label>
+    <label class="rt-money rt-money-lg">
+      <span>฿</span>
+      <input id="${f.id}" type="number" step="1" min="0" value="${rateConfig[f.cfg]}"
+        oninput="window._rtFeesDirty()" onkeydown="if(event.key==='Enter')window.saveFeesHandler()"/>
+      <em>/เดือน</em>
+    </label>
+  </div>`;
 
 function _buildRatesPanel() {
   return `
-  <div class="grid-2" style="align-items:start;gap:14px">
+  <div class="rt-wrap"><div class="rt-layout">
 
     <!-- ─── อัตราค่าน้ำก้าวหน้า ─── -->
-    <div class="card">
+    <div class="card rt-tiers">
       <div class="card-hd">
         <div class="card-title">
           <i class="ti ti-coin" style="color:var(--blue-500)"></i>อัตราค่าน้ำ (ก้าวหน้า)
+          <span class="rt-count" id="rt-tier-count"></span>
         </div>
         <button class="btn btn-primary btn-sm" onclick="openAddTierModal()">
           <i class="ti ti-plus"></i>เพิ่มช่วง
@@ -489,112 +534,102 @@ function _buildRatesPanel() {
       <div class="tbl-wrap">
         <table>
           <thead><tr>
-            <th style="width:40px">ที่</th>
+            <th>ที่</th>
             <th>ช่วงการใช้น้ำ</th>
+            <th class="rt-bar-cell">เทียบอัตรา</th>
             <th style="text-align:right">อัตรา (บาท/หน่วย)</th>
-            <th style="width:80px;text-align:right">จัดการ</th>
+            <th></th>
           </tr></thead>
           <tbody id="rate-tiers-list"></tbody>
         </table>
       </div>
       <div class="tbl-footer">
-        <span class="text-muted" style="font-size:12px">
-          <i class="ti ti-info-circle"></i>
-          ใช้น้ำในแต่ละช่วง คิดตามอัตราของช่วงนั้น — รวมทุกช่วงเป็นค่าน้ำรวม
-        </span>
+        <span class="rt-hint"><i class="ti ti-pencil"></i>คลิกตัวเลขเพื่อแก้ แล้วกด Enter บันทึกทันที</span>
+        <span class="rt-hint"><i class="ti ti-stairs-up"></i>คิดแยกตามช่วง แล้วรวมเป็นค่าน้ำ</span>
       </div>
     </div>
 
-    <!-- ─── คอลัมน์ขวา ─── -->
-    <div style="display:flex;flex-direction:column;gap:14px">
-
-      <!-- ค่าบริการรายเดือน -->
-      <div class="card">
-        <div class="card-hd">
-          <div class="card-title">
-            <i class="ti ti-tool" style="color:var(--blue-500)"></i>ค่าบริการรายเดือน
-          </div>
+    <!-- ─── ค่าบริการ & ค่าปรับ ─── -->
+    <div class="card rt-fees">
+      <div class="card-hd">
+        <div class="card-title">
+          <i class="ti ti-receipt-2" style="color:var(--blue-500)"></i>ค่าบริการ & ค่าปรับ
+          <span class="rt-dirty">ยังไม่บันทึก</span>
         </div>
-        <div class="card-body" style="display:flex;flex-direction:column;gap:12px">
-          <div class="info-box" style="margin:0 0 4px">
-            <i class="ti ti-info-circle"></i>
-            คิดตามขนาดมิเตอร์ ไม่ขึ้นกับปริมาณการใช้น้ำ
-          </div>
-          <div class="syconf-row">
-            <label class="form-label">มิเตอร์เล็ก ½" / ¾" (บาท/เดือน)</label>
-            <input class="form-input" id="svc-small-val" type="number" step="1" min="0"
-              value="${rateConfig.svcSmall}" style="width:110px"/>
-          </div>
-          <div class="syconf-row">
-            <label class="form-label">มิเตอร์ใหญ่ 1" / 1½" (บาท/เดือน)</label>
-            <input class="form-input" id="svc-large-val" type="number" step="1" min="0"
-              value="${rateConfig.svcLarge}" style="width:110px"/>
-          </div>
-          <div style="display:flex;justify-content:flex-end">
-            <button class="btn btn-primary btn-sm" onclick="window.saveSvcChargesHandler()">
-              <i class="ti ti-device-floppy"></i>บันทึก
-            </button>
-          </div>
-        </div>
+        <button class="btn btn-primary btn-sm" id="rt-fees-save" onclick="window.saveFeesHandler()" disabled>
+          <i class="ti ti-device-floppy"></i>บันทึก
+        </button>
       </div>
-
-      <!-- ค่าปรับล่าช้า -->
-      <div class="card">
-        <div class="card-hd">
-          <div class="card-title">
-            <i class="ti ti-clock-dollar" style="color:var(--blue-500)"></i>ค่าปรับล่าช้า
-          </div>
-        </div>
-        <div class="card-body" style="display:flex;flex-direction:column;gap:12px">
-          <div class="syconf-row">
-            <label class="form-label">ค่าปรับล่าช้าต่อเดือน (บาท)</label>
-            <input class="form-input" id="late-fee-val" type="number" step="1" min="0"
-              value="${rateConfig.lateFeePerMonth}" style="width:110px"/>
-          </div>
-          <div style="display:flex;justify-content:flex-end">
-            <button class="btn btn-primary btn-sm" onclick="window.saveLateFeeHandler()">
-              <i class="ti ti-device-floppy"></i>บันทึก
-            </button>
-          </div>
-        </div>
+      <div class="card-body rt-fees-body">
+        <div class="rt-sec">ค่าบริการรายเดือน <span>คิดตามขนาดมิเตอร์ ไม่ขึ้นกับปริมาณน้ำ</span></div>
+        ${_feeField(FEE_FIELDS[0])}
+        ${_feeField(FEE_FIELDS[1])}
+        <div class="rt-sec">ค่าปรับ <span>สำหรับบิลที่เลยกำหนดชำระ</span></div>
+        ${_feeField(FEE_FIELDS[2])}
       </div>
-
-      <!-- ทดสอบคำนวณ -->
-      <div class="card">
-        <div class="card-hd">
-          <div class="card-title">
-            <i class="ti ti-calculator" style="color:var(--blue-500)"></i>ทดสอบคำนวณ
-          </div>
-        </div>
-        <div class="card-body">
-          <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:flex-end">
-            <div>
-              <label class="form-label">การใช้น้ำ (หน่วย)</label>
-              <input class="form-input" id="rate-test-usage" type="number"
-                placeholder="50" min="0" style="width:110px"/>
-            </div>
-            <div>
-              <label class="form-label">ขนาดมิเตอร์</label>
-              <select class="form-input" id="rate-test-size" style="width:110px">
-                <option value="0.5">½"</option>
-                <option value="0.75">¾"</option>
-                <option value="1">1"</option>
-                <option value="1.5">1½"</option>
-              </select>
-            </div>
-            <button class="btn btn-secondary btn-sm" onclick="window._rateTestCalc()">
-              <i class="ti ti-calculator"></i>คำนวณ
-            </button>
-          </div>
-          <div id="rate-test-result" style="font-size:13px;color:var(--gray-500)">
-            กรอกปริมาณแล้วกดคำนวณ
-          </div>
-        </div>
-      </div>
-
     </div>
-  </div>`;
+
+    <!-- ─── ทดสอบคำนวณ ─── -->
+    <div class="card rt-calc">
+      <div class="card-hd">
+        <div class="card-title">
+          <i class="ti ti-calculator" style="color:var(--blue-500)"></i>ทดสอบคำนวณบิล
+        </div>
+        <span class="rt-hint"><i class="ti ti-bolt"></i>คำนวณทันทีจากอัตราปัจจุบัน</span>
+      </div>
+      <div class="card-body rt-calc-body">
+        <div class="rt-calc-in">
+          <label class="form-label" for="rate-test-usage">ปริมาณการใช้น้ำ</label>
+          <label class="rt-money rt-money-lg rt-usage">
+            <input id="rate-test-usage" type="number" min="0" step="1" value="25"
+              oninput="window._rateTestCalc()"/>
+            <em>หน่วย</em>
+          </label>
+          <div class="rt-chips">
+            ${[10, 20, 30, 50, 100].map(u =>
+              `<button type="button" class="rt-chip" onclick="window._rtSetUsage(${u})">${u}</button>`).join('')}
+          </div>
+          <span class="form-label">ขนาดมิเตอร์</span>
+          <div class="rt-seg" role="group" aria-label="ขนาดมิเตอร์">
+            ${METER_SIZES.map(([v, label]) =>
+              `<button type="button" class="rt-seg-btn${v === _rtSize ? ' active' : ''}" data-size="${v}"
+                onclick="window._rtSetSize(${jsArg(v)})">${label}</button>`).join('')}
+          </div>
+        </div>
+        <div class="rt-result" id="rate-test-result"></div>
+      </div>
+    </div>
+
+  </div></div>`;
 }
+
+window._rtSaveTierRate = async function(idx, input) {
+  const tier = rateConfig.tiers[idx];
+  if (!tier || !input) return;
+  const v = parseFloat(input.value);
+  if (isNaN(v) || v < 0) {
+    toast('กรุณากรอกอัตราที่ถูกต้อง', 'error');
+    input.value = tier.rate.toFixed(2);
+    return;
+  }
+  if (v === tier.rate) { input.value = tier.rate.toFixed(2); return; }
+
+  const box = input.closest('.rt-money');
+  box?.classList.add('is-saving');
+  const ok = await sbSaveRateTier(tier.from, v);
+  box?.classList.remove('is-saving');
+  if (!ok) { input.value = tier.rate.toFixed(2); return; }
+
+  tier.rate = v;
+  saveRateConfig();
+  input.value = v.toFixed(2);
+  input.dataset.orig = v;
+  box?.classList.add('is-saved');
+  setTimeout(() => box?.classList.remove('is-saved'), 1400);
+  _rtRefreshBars();
+  window._rateTestCalc();
+  toast(`บันทึกอัตรา ${_rangeLabel(tier)} = ฿${v.toFixed(2)}/หน่วย แล้ว`, 'success');
+};
 
 export function openRateEditModal(idx) {
   const tier = rateConfig.tiers[idx]; if (!tier) return;
@@ -708,35 +743,57 @@ export function deleteLastTierConfirm() {
   });
 }
 
-// ─── Save Service Charges ─────────────────────────────────────
-export async function saveSvcChargesHandler() {
-  const small = parseFloat(document.getElementById('svc-small-val')?.value);
-  const large = parseFloat(document.getElementById('svc-large-val')?.value);
-  if (isNaN(small) || small < 0 || isNaN(large) || large < 0) {
-    toast('กรุณากรอกค่าบริการที่ถูกต้อง', 'error'); return;
+// ─── Save Service Charges / Late Fee ──────────────────────────
+// บันทึกเฉพาะช่องที่ค่าเปลี่ยน คืน false ถ้ากรอกไม่ถูกต้องหรือบันทึกไม่สำเร็จ
+async function _saveFees(fields) {
+  const vals = fields.map(f => parseFloat(document.getElementById(f.id)?.value));
+  if (vals.some(v => isNaN(v) || v < 0)) {
+    toast('กรุณากรอกจำนวนเงินที่ถูกต้อง', 'error');
+    return false;
   }
-  await Promise.all([
-    saveSystemConfig('svc_charge_small', String(small)),
-    saveSystemConfig('svc_charge_large', String(large)),
-  ]);
-  rateConfig.svcSmall = small;
-  rateConfig.svcLarge = large;
-  appState.systemConfig.svc_charge_small = String(small);
-  appState.systemConfig.svc_charge_large = String(large);
+  const changed = fields.map((f, i) => ({ f, v: vals[i] })).filter(({ f, v }) => v !== rateConfig[f.cfg]);
+  const results = await Promise.all(changed.map(({ f, v }) => saveSystemConfig(f.key, String(v))));
+  const failed  = results.find(r => r?.error);
+
+  changed.forEach(({ f, v }, i) => {
+    if (results[i]?.error) return;
+    rateConfig[f.cfg] = v;
+    appState.systemConfig[f.key] = String(v);
+  });
   saveRateConfig();
-  toast('บันทึกค่าบริการรายเดือนแล้ว', 'success');
+  if (failed) { toast(`⚠ ${failed.error}`, 'error'); return false; }
+  return true;
 }
 
-// ─── Save Late Fee ────────────────────────────────────────────
-export async function saveLateFeeHandler() {
-  const fee = parseFloat(document.getElementById('late-fee-val')?.value);
-  if (isNaN(fee) || fee < 0) { toast('กรุณากรอกค่าปรับที่ถูกต้อง', 'error'); return; }
-  await saveSystemConfig('late_fee_per_month', String(fee));
-  rateConfig.lateFeePerMonth = fee;
-  appState.systemConfig.late_fee_per_month = String(fee);
-  saveRateConfig();
-  toast('บันทึกค่าปรับล่าช้าแล้ว', 'success');
+export async function saveSvcChargesHandler() {
+  if (await _saveFees(FEE_FIELDS.slice(0, 2))) toast('บันทึกค่าบริการรายเดือนแล้ว', 'success');
 }
+
+export async function saveLateFeeHandler() {
+  if (await _saveFees(FEE_FIELDS.slice(2))) toast('บันทึกค่าปรับล่าช้าแล้ว', 'success');
+}
+
+export async function saveFeesHandler() {
+  const btn = document.getElementById('rt-fees-save');
+  if (btn?.disabled) return;
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2"></i>กำลังบันทึก...'; }
+  const ok = await _saveFees(FEE_FIELDS);
+  if (btn) btn.innerHTML = '<i class="ti ti-device-floppy"></i>บันทึก';
+  window._rtFeesDirty();
+  window._rateTestCalc();
+  if (ok) toast('บันทึกค่าบริการและค่าปรับแล้ว', 'success');
+}
+
+// เปิดปุ่มบันทึกเมื่อมีช่องใดค่าไม่ตรงกับที่บันทึกไว้
+window._rtFeesDirty = function() {
+  const dirty = FEE_FIELDS.some(f => {
+    const inp = document.getElementById(f.id);
+    return inp && parseFloat(inp.value) !== rateConfig[f.cfg];
+  });
+  document.querySelector('.rt-fees')?.classList.toggle('is-dirty', dirty);
+  const btn = document.getElementById('rt-fees-save');
+  if (btn) btn.disabled = !dirty;
+};
 
 export function saveSettings() { saveRateConfig(); renderSettingsRates(); toast('บันทึกแล้ว', 'success'); }
 
@@ -752,6 +809,8 @@ function _buildSystemConfigPanel() {
   };
   const rows = SYSTEM_CONFIG_FIELDS.map(f => f.section
     ? `<div style="font-weight:700;color:var(--blue-900);margin-top:6px;padding-top:10px;border-top:1px solid var(--gray-100)">${esc(f.section)}</div>`
+    : f.note
+    ? `<div style="font-size:12.5px;color:var(--gray-600)"><i class="ti ti-lock" style="margin-right:4px"></i>${esc(f.note)}</div>`
     : `<div class="syconf-row">
       <label class="form-label" for="scf-${f.key}" style="min-width:200px">${esc(f.label)}</label>
       ${input(f)}
@@ -808,6 +867,8 @@ function _buildAuditPanel() {
   <div class="card">
     <div class="card-hd">
       <div class="card-title"><i class="ti ti-history" style="color:var(--blue-500)"></i>บันทึกกิจกรรม</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      ${hasRole('super_admin', 'village_admin') ? `<button class="btn btn-secondary btn-sm" id="audit-verify-btn" onclick="window._verifyAuditChain()"><i class="ti ti-shield-check"></i>ตรวจความถูกต้องของ audit log</button>` : ''}
       <select class="form-input" id="audit-filter" style="width:180px" onchange="window._loadAuditFilter(this.value)">
         <option value="">ทุกตาราง</option>
         <option value="master_data">Master Data</option>
@@ -818,7 +879,10 @@ function _buildAuditPanel() {
         <option value="bill_adjustments">ใบลดหนี้/เพิ่มหนี้</option>
         <option value="billing_periods">งวดบิล</option>
         <option value="members">สมาชิก</option>
+        <option value="meter_readings">การอ่านมิเตอร์</option>
+        <option value="privacy_requests">คำขอ PDPA</option>
       </select>
+      </div>
     </div>
     <div class="tbl-wrap">
       <table>
@@ -844,7 +908,8 @@ async function _loadAndRenderAudit(tableFilter = '') {
     return;
   }
   const actionClsMap = { insert: 'pill-paid', update: 'pill-pending', delete: 'pill-overdue', activate: 'pill-normal', deactivate: 'pill-closed', 'cancel': 'pill-overdue' };
-  const actionLabelMap = { insert: 'เพิ่ม', update: 'แก้ไข', delete: 'ลบ', activate: 'เปิดใช้', deactivate: 'ปิดใช้', cancel: 'ยกเลิก' };
+  const actionLabelMap = { insert: 'เพิ่ม', update: 'แก้ไข', delete: 'ลบ', activate: 'เปิดใช้', deactivate: 'ปิดใช้', cancel: 'ยกเลิก',
+    reveal_pii: 'ดูเลขบัตร', anonymise: 'นิรนาม', export: 'ส่งออก' };
   tbody.innerHTML = logs.map(l => {
     const label   = actionLabelMap[l.action] || l.action;
     const cls     = actionClsMap[l.action]   || 'pill-normal';
@@ -853,9 +918,10 @@ async function _loadAndRenderAudit(tableFilter = '') {
     return `<tr>
       <td class="mono text-muted" style="font-size:11px">${ts}</td>
       <td><code style="font-size:11px;background:var(--gray-100);padding:1px 6px;border-radius:5px">${esc(l.table_name)}</code></td>
-      <td><span class="pill ${cls}" style="font-size:10.5px">${label}</span></td>
+      <td><span class="pill ${cls}" style="font-size:10.5px">${esc(label)}</span></td>
       <td style="font-size:12px;color:var(--gray-700)">${summary}</td>
-      <td class="text-muted" style="font-size:11.5px">${esc(l.performed_by || '—')}</td>
+      <td class="text-muted" style="font-size:11.5px">${esc(l.performed_by || '—')}${l.source === 'client'
+        ? ' <span class="pill pill-pending" style="font-size:9.5px;padding:1px 6px" title="บันทึกจากแอป (ไม่ใช่ trigger ของฐานข้อมูล)">แอป</span>' : ''}</td>
     </tr>`;
   }).join('');
 }
@@ -869,7 +935,7 @@ function _auditSummary(log) {
   const o = log.old_data || {};
   const baht = v => '฿' + Number(v || 0).toLocaleString();
   if (log.table_name === 'bills') {
-    const parts = [`<span class="mono">${esc(d.id)}</span> ${esc(d.period_label || '')}`];
+    const parts = [`<span class="mono">${esc(d.id || log.record_id || '')}</span> ${esc(d.period_label || '')}`];
     if (o.status && o.status !== d.status) parts.push(`${esc(_AUDIT_STATUS[o.status] || o.status)} → ${esc(_AUDIT_STATUS[d.status] || d.status)}`);
     if (o.total !== undefined && Number(o.total) !== Number(d.total)) parts.push(`${baht(o.total)} → ${baht(d.total)}`);
     else if (!log.old_data) parts.push(baht(d.total));
@@ -877,8 +943,12 @@ function _auditSummary(log) {
     return parts.join(' · ');
   }
   if (log.table_name === 'payments') {
-    return [`<span class="mono">${esc(d.receipt_no || d.id)}</span>`, `บิล ${esc(d.bill_id)}`, baht(d.amount),
-      esc(_AUDIT_STATUS[d.status] || d.status)].join(' · ');
+    // UPDATE เก็บเฉพาะคอลัมน์ที่เปลี่ยน — แสดงเท่าที่มี
+    return [`<span class="mono">${esc(d.receipt_no || d.id || log.record_id || '')}</span>`,
+      d.bill_id !== undefined ? `บิล ${esc(d.bill_id)}` : '',
+      d.amount !== undefined ? baht(d.amount) : '',
+      d.status !== undefined ? (o.status && o.status !== d.status ? `${esc(_AUDIT_STATUS[o.status] || o.status)} → ` : '') + esc(_AUDIT_STATUS[d.status] || d.status) : '',
+    ].filter(Boolean).join(' · ');
   }
   if (log.table_name === 'bill_adjustments') {
     return `<span class="mono">${esc(d.doc_no)}</span> บิล ${esc(d.bill_id)} · ${Number(d.amount) < 0 ? 'ลด' : 'เพิ่ม'} ${baht(Math.abs(d.amount))} · ${esc(d.reason)}`;
@@ -890,6 +960,10 @@ function _auditSummary(log) {
   if (d.nameTh)   return esc(d.nameTh);
   if (d.name)     return esc(d.name);
   if (d.key)      return `${esc(d.key)} = ${esc(String(d.value || ''))}`;
+  if (log.action === 'update' && log.old_data && log.new_data) {
+    const keys = Object.keys(log.new_data).slice(0, 4);
+    return `ID: ${esc(log.record_id || '—')} · ` + keys.map(k => `${esc(k)}: ${esc(String(o[k] ?? '—'))} → ${esc(String(d[k] ?? '—'))}`).join(', ');
+  }
   return `ID: ${esc(log.record_id || '—')}`;
 }
 
@@ -926,8 +1000,9 @@ export function populateVillageDropdowns() {
     .filter(v => v.is_active !== false)
     .sort((a, b) => (a.moo_number || 0) - (b.moo_number || 0));
 
+  // value = village id (ตัวเชื่อมเป็น id เสมอ — ชื่อเปลี่ยนได้)
   const villageOpts = active.map(v =>
-    `<option value="${esc(v.name)}">${esc(v.name)}</option>`
+    `<option value="${v.id}">${esc(v.name)}</option>`
   ).join('');
 
   // Member form village select
@@ -935,14 +1010,14 @@ export function populateVillageDropdowns() {
   if (fVillage) {
     const cur = fVillage.value;
     fVillage.innerHTML = villageOpts;
-    if (cur && active.find(v => v.name === cur)) fVillage.value = cur;
+    if (cur && active.find(v => String(v.id) === cur)) fVillage.value = cur;
   }
 
   // Members page filter (first .fselect in #page-members .filter-bar)
   const memberVillSel = document.querySelector('#page-members .filter-bar .fselect');
   if (memberVillSel) {
     const cur = memberVillSel.value;
-    memberVillSel.innerHTML = `<option value="หมู่บ้านทั้งหมด">หมู่บ้านทั้งหมด</option>${villageOpts}`;
+    memberVillSel.innerHTML = `<option value="">หมู่บ้านทั้งหมด</option>${villageOpts}`;
     if (cur) memberVillSel.value = cur;
   }
 
@@ -950,7 +1025,7 @@ export function populateVillageDropdowns() {
   const billVillSel = document.querySelector('#page-billing .filter-bar .fselect');
   if (billVillSel) {
     const cur = billVillSel.value;
-    billVillSel.innerHTML = `<option value="ทุกหมู่บ้าน">ทุกหมู่บ้าน</option>${villageOpts}`;
+    billVillSel.innerHTML = `<option value="">ทุกหมู่บ้าน</option>${villageOpts}`;
     if (cur) billVillSel.value = cur;
   }
 
@@ -958,7 +1033,7 @@ export function populateVillageDropdowns() {
   const mapVillSel = document.querySelector('#page-map .page-hd-actions .fselect');
   if (mapVillSel) {
     const cur = mapVillSel.value;
-    mapVillSel.innerHTML = `<option value="ทุกหมู่บ้าน">ทุกหมู่บ้าน</option>${villageOpts}`;
+    mapVillSel.innerHTML = `<option value="">ทุกหมู่บ้าน</option>${villageOpts}`;
     if (cur) mapVillSel.value = cur;
   }
 
@@ -983,41 +1058,48 @@ window._mdFilter = function(val, category) {
 
 window._loadAuditFilter = function(val) { _loadAndRenderAudit(val); };
 
-window._rateTestCalc = function() {
-  const usage  = parseFloat(document.getElementById('rate-test-usage')?.value) || 0;
-  const size   = document.getElementById('rate-test-size')?.value || '0.5';
-  const el     = document.getElementById('rate-test-result');
-  if (!el || !usage) return;
-  const result    = calcWaterCharge(usage, size);
-  const breakdown = calcWaterBreakdown(usage);
+window._rtSetUsage = function(units) {
+  const inp = document.getElementById('rate-test-usage');
+  if (inp) inp.value = units;
+  window._rateTestCalc();
+};
 
-  const bRows = breakdown.map(b => {
-    const label = b.to === Infinity || b.to === null
-      ? `${b.from}+ หน่วย`
-      : `${b.from}–${b.to} หน่วย`;
-    return `<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid var(--gray-100)">
-      <span class="text-muted">${label} × ${b.units} หน่วย @ ฿${b.rate}/หน่วย</span>
-      <span style="font-weight:600">฿${Math.round(b.charge).toLocaleString()}</span>
-    </div>`;
-  }).join('');
+window._rtSetSize = function(size) {
+  _rtSize = size;
+  document.querySelectorAll('.rt-seg-btn').forEach(b => b.classList.toggle('active', b.dataset.size === size));
+  window._rateTestCalc();
+};
+
+window._rateTestCalc = function() {
+  const el  = document.getElementById('rate-test-result');
+  const raw = document.getElementById('rate-test-usage')?.value;
+  if (!el) return;
+  const usage = parseFloat(raw);
+  if (raw === '' || isNaN(usage) || usage < 0) {
+    el.innerHTML = `<div class="rt-calc-empty"><i class="ti ti-droplet"></i>กรอกปริมาณการใช้น้ำเพื่อดูผลคำนวณ</div>`;
+    return;
+  }
+  const result    = calcWaterCharge(usage, _rtSize);
+  const breakdown = calcWaterBreakdown(usage);
+  const sizeLabel = METER_SIZES.find(([v]) => v === _rtSize)?.[1] || '';
+
+  const rows = breakdown.length
+    ? breakdown.map(b => `<div class="rt-break-row">
+        <span>${_rangeLabel(b)}</span>
+        <span class="text-muted">${b.units.toLocaleString()} × ฿${b.rate.toFixed(2)}</span>
+        <b>${_baht(Math.round(b.charge))}</b>
+      </div>`).join('')
+    : `<div class="rt-break-row"><span class="text-muted">ไม่มีการใช้น้ำ</span><span></span><b>฿0</b></div>`;
 
   el.innerHTML = `
-    <div style="background:var(--gray-50);border-radius:8px;padding:10px 12px;margin-top:8px;font-size:12.5px">
-      ${bRows}
+    <div class="rt-break">
+      <div class="rt-break-row rt-break-hd"><span>ช่วงการใช้น้ำ</span><span>หน่วย × อัตรา</span><span>เป็นเงิน</span></div>
+      ${rows}
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:10px">
-      <div style="padding:10px;background:var(--blue-50);border-radius:8px;text-align:center">
-        <div class="text-muted" style="font-size:11px">ค่าน้ำ</div>
-        <div style="font-size:16px;font-weight:700;color:var(--blue-700)">฿${result.waterCharge.toLocaleString()}</div>
-      </div>
-      <div style="padding:10px;background:var(--gray-50);border-radius:8px;text-align:center">
-        <div class="text-muted" style="font-size:11px">ค่าบริการรายเดือน</div>
-        <div style="font-size:16px;font-weight:700">฿${result.serviceCharge.toLocaleString()}</div>
-      </div>
-      <div style="padding:10px;background:#f0fdf4;border-radius:8px;text-align:center">
-        <div class="text-muted" style="font-size:11px">รวมทั้งสิ้น</div>
-        <div style="font-size:16px;font-weight:700;color:var(--green-700)">฿${result.total.toLocaleString()}</div>
-      </div>
+    <div class="rt-totals">
+      <div><small>ค่าน้ำ (${usage.toLocaleString()} หน่วย)</small><b>${_baht(result.waterCharge)}</b></div>
+      <div><small>ค่าบริการ (มิเตอร์ ${sizeLabel})</small><b>${_baht(result.serviceCharge)}</b></div>
+      <div class="is-total"><small>รวมทั้งสิ้น</small><b>${_baht(result.total)}</b></div>
     </div>`;
 };
 
@@ -1038,3 +1120,147 @@ window._mdSyncColor = function(val) {
   if (inp) inp.value = val;
   _syncIconPreview();
 };
+
+// ─── Audit chain verify (admin) ────────────────────────────────
+window._verifyAuditChain = async function () {
+  const btn = document.getElementById('audit-verify-btn');
+  if (btn) btn.disabled = true;
+  const { data, error } = await _sb.rpc('verify_audit_chain');
+  if (btn) btn.disabled = false;
+  if (error) { toast(error.message, 'error'); return; }
+  if (data?.ok) toast(`audit log ถูกต้อง — ตรวจแล้ว ${Number(data.checked || 0).toLocaleString()} รายการ`, 'success', 5000);
+  else toast(`พบ audit log ถูกแก้ไข/ลบ ที่ลำดับ ${data?.broken_at_seq ?? '?'} (${data?.record || ''}) — ตรวจสอบด่วน`, 'error', 10000);
+};
+
+// ─── PDPA: คำขอใช้สิทธิ์ของเจ้าของข้อมูล (admin) ────────────────
+const _PDPA_KIND = {
+  access: 'ขอเข้าถึง/สำเนา', rectify: 'ขอแก้ไข', erase: 'ขอลบ', object: 'คัดค้าน',
+  restrict: 'ระงับการใช้', withdraw_consent: 'ถอนความยินยอม', portability: 'ขอโอนย้าย',
+};
+const _PDPA_STATUS = {
+  open:        { label: 'รอดำเนินการ',   cls: 'pill-pending' },
+  in_progress: { label: 'กำลังดำเนินการ', cls: 'pill-normal' },
+  done:        { label: 'เสร็จสิ้น',      cls: 'pill-paid' },
+  rejected:    { label: 'ปฏิเสธ',         cls: 'pill-overdue' },
+};
+let _pdpaOpenOnly = true;
+let _pdpaRows = [];
+
+function _buildPdpaPanel() {
+  return `
+  <div class="card">
+    <div class="card-hd">
+      <div class="card-title"><i class="ti ti-shield-lock" style="color:var(--blue-500)"></i>คำขอใช้สิทธิ์ข้อมูลส่วนบุคคล (PDPA)</div>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12.5px">
+        <input type="checkbox" id="pdpa-open-only"${_pdpaOpenOnly ? ' checked' : ''}/>เฉพาะที่ยังไม่เสร็จ
+      </label>
+    </div>
+    <div class="card-body" style="font-size:12px;color:var(--gray-600);padding-bottom:0">
+      ต้องตอบเจ้าของข้อมูลภายใน 30 วัน (พ.ร.บ.คุ้มครองข้อมูลส่วนบุคคล ม.30–36) · คำขอลบ: ปิดสมาชิกและเคลียร์บิลค้างก่อน แล้วกด "ทำข้อมูลนิรนาม"
+      (บิล/ใบเสร็จยังเก็บไว้ตามกฎหมายบัญชี แต่ไม่มีข้อมูลที่ระบุตัวตน)
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th style="width:120px">วันที่ขอ</th>
+          <th>สมาชิก</th>
+          <th style="width:120px">ประเภท</th>
+          <th>รายละเอียด</th>
+          <th style="width:110px">ครบกำหนด</th>
+          <th style="width:110px">สถานะ</th>
+          <th style="width:150px;text-align:right">จัดการ</th>
+        </tr></thead>
+        <tbody id="pdpa-tbody"><tr><td colspan="7" style="text-align:center;padding:24px;color:var(--gray-400)">กำลังโหลด...</td></tr></tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+async function _loadAndRenderPdpa() {
+  const tbody = document.getElementById('pdpa-tbody');
+  if (!tbody) return;
+  const chk = document.getElementById('pdpa-open-only');
+  if (chk && !chk.dataset.wired) {
+    chk.dataset.wired = '1';
+    chk.addEventListener('change', () => { _pdpaOpenOnly = chk.checked; _loadAndRenderPdpa(); });
+  }
+  const { data, error } = await _sb.rpc('list_privacy_requests', { p_open_only: _pdpaOpenOnly });
+  if (error) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--red-700)">${esc(error.message)}</td></tr>`;
+    return;
+  }
+  _pdpaRows = data || [];
+  if (!_pdpaRows.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--gray-400)">ไม่มีคำขอ</td></tr>';
+    return;
+  }
+  const now = Date.now();
+  const fmt = v => v ? new Date(v).toLocaleDateString('th-TH', { dateStyle: 'medium' }) : '—';
+  tbody.innerHTML = _pdpaRows.map(q => {
+    const st   = _PDPA_STATUS[q.status] || { label: q.status, cls: 'pill-normal' };
+    const open = q.status === 'open' || q.status === 'in_progress';
+    const left = (new Date(q.due_at).getTime() - now) / 86400000;
+    const dueColor = !open ? 'var(--gray-500)' : left < 0 ? 'var(--red-700)' : left < 7 ? 'var(--amber-700)' : 'var(--gray-700)';
+    return `<tr>
+      <td class="text-muted" style="font-size:11.5px">${esc(fmt(q.created_at))}</td>
+      <td><b>${esc(q.member_name || '')}</b><div class="mono text-muted" style="font-size:11px">${esc(q.meter_no || '')} · #${esc(q.member_id)}</div></td>
+      <td>${esc(_PDPA_KIND[q.kind] || q.kind)}</td>
+      <td style="font-size:12px">${esc(q.detail || '—')}${q.response ? `<div class="text-muted" style="font-size:11px;margin-top:2px">ตอบ: ${esc(q.response)}</div>` : ''}</td>
+      <td style="font-size:11.5px;color:${dueColor};font-weight:${open && left < 7 ? 700 : 400}">${esc(fmt(q.due_at))}${open && left < 0 ? '<br>เลยกำหนด' : ''}</td>
+      <td><span class="pill ${st.cls}" style="font-size:10.5px">${esc(st.label)}</span></td>
+      <td><div style="display:flex;gap:4px;justify-content:flex-end;flex-wrap:wrap">
+        ${open ? `<button class="btn btn-secondary btn-xs" data-pdpa-handle="${esc(q.id)}"><i class="ti ti-edit"></i>ดำเนินการ</button>` : ''}
+        ${q.kind === 'erase' && open ? `<button class="btn btn-danger btn-xs" data-pdpa-anon="${esc(q.id)}"><i class="ti ti-user-off"></i>ทำข้อมูลนิรนาม</button>` : ''}
+      </div></td>
+    </tr>`;
+  }).join('');
+  tbody.querySelectorAll('[data-pdpa-handle]').forEach(b => b.addEventListener('click', () => _openPdpaHandle(Number(b.dataset.pdpaHandle))));
+  tbody.querySelectorAll('[data-pdpa-anon]').forEach(b => b.addEventListener('click', () => _pdpaAnonymise(Number(b.dataset.pdpaAnon))));
+}
+
+function _openPdpaHandle(id) {
+  const q = _pdpaRows.find(x => Number(x.id) === id);
+  if (!q) return;
+  openModal({
+    id: 'pdpa-modal', title: `คำขอ #${q.id} — ${_PDPA_KIND[q.kind] || q.kind}`, icon: 'ti-shield-lock', width: 480,
+    body: `
+      <div style="font-size:13px;margin-bottom:10px"><b>${esc(q.member_name || '')}</b> (${esc(q.meter_no || '')})<br>
+        <span class="text-muted">${esc(q.detail || 'ไม่มีรายละเอียด')}</span></div>
+      <label class="form-label" for="pdpa-status">สถานะ</label>
+      <select class="form-input" id="pdpa-status">
+        ${['in_progress', 'done', 'rejected'].map(k => `<option value="${k}"${k === q.status ? ' selected' : ''}>${esc(_PDPA_STATUS[k].label)}</option>`).join('')}
+      </select>
+      <label class="form-label" for="pdpa-response" style="margin-top:10px">คำตอบถึงเจ้าของข้อมูล (จำเป็นเมื่อเสร็จสิ้น/ปฏิเสธ — ปฏิเสธต้องระบุเหตุผล)</label>
+      <textarea class="form-input" id="pdpa-response" rows="3">${esc(q.response || '')}</textarea>`,
+    footer: `<button class="btn btn-secondary" data-close>ยกเลิก</button>
+      <button class="btn btn-primary" id="pdpa-save"><i class="ti ti-check"></i>บันทึก</button>`,
+  });
+  document.getElementById('pdpa-save').addEventListener('click', async e => {
+    const status   = document.getElementById('pdpa-status').value;
+    const response = document.getElementById('pdpa-response').value.trim();
+    if ((status === 'done' || status === 'rejected') && !response) { toast('กรุณาระบุคำตอบถึงเจ้าของข้อมูล', 'error'); return; }
+    const done = busyButton(e.currentTarget);
+    const { error } = await _sb.rpc('update_privacy_request', { p_id: q.id, p_status: status, p_response: response });
+    done();
+    if (error) { toast(error.message, 'error'); return; }
+    closeModal('pdpa-modal');
+    toast('บันทึกแล้ว', 'success');
+    _loadAndRenderPdpa();
+  });
+}
+
+function _pdpaAnonymise(id) {
+  const q = _pdpaRows.find(x => Number(x.id) === id);
+  if (!q) return;
+  showConfirm({
+    title: `ทำข้อมูลนิรนาม: ${q.member_name || '#' + q.member_id}?`,
+    message: 'ชื่อ ที่อยู่ เลขบัตร เบอร์โทร อีเมล LINE พิกัด และหมายเหตุ จะถูกลบถาวร (ย้อนกลับไม่ได้)\nบิลและใบเสร็จยังเก็บไว้ตามกฎหมายบัญชี\n\nต้องปิด (ลบ) สมาชิกและไม่มีบิลค้างชำระก่อน',
+    okText: 'ทำข้อมูลนิรนาม',
+    onOk: async () => {
+      const { error } = await _sb.rpc('anonymise_member', { p_member_id: q.member_id, p_reason: `คำขอ PDPA #${q.id}` });
+      if (error) { toast(error.message, 'error', 6000); return; }
+      toast('ทำข้อมูลนิรนามแล้ว — อย่าลืมปิดคำขอพร้อมแจ้งผลเจ้าของข้อมูล', 'success', 6000);
+      _loadAndRenderPdpa();
+    },
+  });
+}

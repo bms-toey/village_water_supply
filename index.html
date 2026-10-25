@@ -2,6 +2,10 @@
 <html lang="th">
 <head>
 <meta charset="utf-8"/>
+<!-- ความปลอดภัย: จำกัดแหล่งที่โหลดได้ (CSP) — frame-ancestors/X-Frame-Options ต้องตั้งที่ hosting (ดู docs/SECURITY_PDPA.md) -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data: blob: https://*.supabase.co https://*.tile.openstreetmap.org https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co wss://*.supabase.co; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
+<meta name="referrer" content="strict-origin-when-cross-origin"/>
+<script>if (window.top !== window.self) { try { window.top.location = window.self.location; } catch (e) { document.documentElement.style.display = 'none'; } }</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 <title>AquaFlow Pro — ระบบประปาหมู่บ้าน</title>
 <!-- PWA -->
@@ -18,7 +22,7 @@
 <meta name="description" content="ระบบบริหารจัดการประปาหมู่บ้านครบวงจร"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&family=Prompt:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.0.0/dist/tabler-icons.min.css"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.0.0/dist/tabler-icons.min.css" integrity="sha384-rynabiTO5kT9TjYgv0j5x+lUgMx1ggMIozOlHFB+W7PksUEFHoMQ5chOlsTJfb62" crossorigin="anonymous"/>
 <link rel="stylesheet" href="styles/variables.css"/>
 <link rel="stylesheet" href="styles/base.css"/>
 <link rel="stylesheet" href="styles/layout.css"/>
@@ -28,9 +32,16 @@
 <link rel="stylesheet" href="styles/dashboard.css"/>
 <link rel="stylesheet" href="styles/login.css"/>
 <link rel="stylesheet" href="styles/luxe.css"/>
+<link rel="stylesheet" href="styles/select-picker.css"/>
 <link rel="stylesheet" href="styles/mobile.css"/>
+<link rel="stylesheet" href="styles/meter.css"/>
+<link rel="stylesheet" href="styles/payment-form.css"/>
+<link rel="stylesheet" href="styles/receipt.css"/>
+<link rel="stylesheet" href="styles/payments.css"/>
+<link rel="stylesheet" href="styles/billing.css"/>
+<link rel="stylesheet" href="styles/mobile-polish.css"/>
 <link rel="stylesheet" href="styles/print.css"/>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous"/>
 </head>
 <body>
 <div class="app">
@@ -259,14 +270,14 @@
     </div>
 
     <!-- ══════════ MEMBERS ══════════ -->
-    <div class="page" id="page-members">
+    <div class="page page-fill" id="page-members">
       <div class="page-hd">
         <div>
           <div class="page-title">การจัดการสมาชิก</div>
           <div class="page-sub">จัดการฐานข้อมูลผู้ใช้น้ำ ใน 4 หมู่บ้าน</div>
         </div>
         <div class="page-hd-actions">
-          <button class="btn btn-primary" onclick="openAddMember()"><i class="ti ti-user-plus"></i>เพิ่มสมาชิกใหม่</button>
+          <button class="btn btn-primary" onclick="openAddMember()" title="เพิ่มสมาชิกใหม่" aria-label="เพิ่มสมาชิกใหม่"><i class="ti ti-user-plus"></i>เพิ่มสมาชิกใหม่</button>
         </div>
       </div>
       <div class="kpi-grid">
@@ -281,7 +292,7 @@
         <select class="fselect"><option>สถานะทั้งหมด</option><option>ปกติ</option><option>ค้างชำระ</option><option>ปิดมิเตอร์</option></select>
         <button class="btn btn-secondary btn-sm" onclick="exportMembersCSV()"><i class="ti ti-download"></i>Export CSV</button>
       </div>
-      <div class="card" style="padding:0">
+      <div class="card fill-grow" style="padding:0">
         <div id="members-card-list" style="display:flex;flex-direction:column;gap:6px;padding:10px 10px 4px"></div>
         <div class="tbl-footer">
           <span id="members-count-footer">แสดง...</span>
@@ -292,215 +303,280 @@
     <!-- ══════════ METER ══════════ -->
     <div class="page" id="page-meter">
       <div class="page-hd">
-        <div><div class="page-title" id="meter-hd-name">จดมิเตอร์</div><div class="page-sub" id="meter-hd-id">เลือกสมาชิกด้านล่างเพื่อเริ่มจดมิเตอร์</div></div>
+        <div><div class="page-title" id="meter-hd-name">จดมิเตอร์</div><div class="page-sub" id="meter-hd-id">แตะรายชื่อเพื่อเริ่มจด</div></div>
+        <div class="mtl-hd-prog" id="meter-hd-progress"></div>
         <div class="page-hd-actions" id="meter-hd-actions" style="display:none">
-          <button class="btn btn-secondary" onclick="resetMeterSelection()"><i class="ti ti-list"></i>รายการสมาชิก</button>
+          <button class="btn btn-secondary" onclick="resetMeterSelection()" title="รายการสมาชิก" aria-label="รายการสมาชิก"><i class="ti ti-list"></i>รายการสมาชิก</button>
         </div>
       </div>
 
       <!-- ── Member selection list (shown when no member selected) ── -->
       <!-- member list panel — visible when no member selected -->
-      <div id="meter-member-list" class="card" style="padding:0"></div>
+      <div id="meter-member-list"></div>
 
       <!-- meter form area — hidden until member selected -->
       <div id="meter-form-area" style="display:none">
-        <div class="kpi-grid-3" style="margin-bottom:20px">
-          <div class="kpi-card" style="cursor:default"><div class="kpi-label">เลขอ่านครั้งก่อน</div><div class="kpi-val text-primary" id="m-prev">—</div><div class="kpi-footer"><span class="text-muted" style="font-size:11px">หน่วย</span></div></div>
-          <div class="kpi-card" style="cursor:default"><div class="kpi-label">หน่วยที่ใช้เดือนนี้</div><div class="kpi-val" id="m-usage" style="color:var(--blue-500)">—</div><div class="kpi-footer"><span id="m-pct" class="text-muted" style="font-size:11px">รอกรอกข้อมูล</span></div></div>
-          <div class="kpi-card" style="cursor:default"><div class="kpi-label">ค่าน้ำประมาณการ</div><div class="kpi-val" id="m-est" style="color:var(--green-700)">—</div><div class="kpi-footer"><span class="text-muted" style="font-size:11px">บาท (ยังไม่ยืนยัน)</span></div></div>
+        <!-- ข้อมูลบ้าน + เครื่องมือภาคสนาม (นำทาง/โทร/จดไม่ได้ — field.js) -->
+        <div class="mtr-strip">
+          <div class="mtr-chips" id="meter-member-chips"></div>
+          <div class="mtr-tools" id="meter-field-bar"></div>
         </div>
-        <div id="m-charge-breakdown" style="display:none;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:10px;padding:10px 14px;margin-bottom:16px"></div>
-        <div class="grid-2-3" style="align-items:start">
-          <div class="card">
-            <div class="card-hd"><div class="card-title"><i class="ti ti-pencil-check" style="color:var(--blue-500)"></i>บันทึกเลขอ่านปัจจุบัน</div></div>
-            <div class="card-body">
-              <div style="margin-bottom:16px">
-                <div style="font-size:12px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">เลขมิเตอร์ปัจจุบัน</div>
-                <div style="display:flex;gap:10px;align-items:center">
-                  <input class="meter-big-input" type="number" inputmode="decimal" enterkeyhint="done" id="meter-new-val" placeholder="0 0 0 0 0" oninput="calcMeter(this.value)"/>
-                  <button class="btn btn-secondary" id="meter-ai-btn" style="white-space:nowrap;padding:14px 16px" onclick="window._startMeterScan()"><i class="ti ti-scan"></i>AI Scan</button>
-                </div>
+
+        <div class="mtr-layout">
+          <div class="mtr-col mtr-col-main">
+            <div class="card mtr-entry">
+              <div class="card-hd">
+                <div class="card-title"><i class="ti ti-pencil-check" style="color:var(--blue-500)"></i>บันทึกเลขอ่านมิเตอร์</div>
+                <span class="mtr-period" id="meter-period-tag"></span>
               </div>
-              <div id="meter-warn" style="display:none;margin-bottom:16px">
-                <div class="warning-box">
+              <div class="card-body">
+                <div class="mtr-reading">
+                  <div class="mtr-prev">
+                    <div class="mtr-lbl">เลขครั้งก่อน</div>
+                    <div class="mtr-prev-val" id="m-prev">—</div>
+                  </div>
+                  <i class="ti ti-arrow-right mtr-arrow" aria-hidden="true"></i>
+                  <div class="mtr-input">
+                    <label class="mtr-lbl" for="meter-new-val">เลขมิเตอร์ปัจจุบัน</label>
+                    <input class="meter-big-input" type="number" inputmode="decimal" enterkeyhint="done" id="meter-new-val" placeholder="0 0 0 0 0" autocomplete="off"
+                      oninput="calcMeter(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();saveMeter()}"/>
+                  </div>
+                  <button class="btn btn-secondary mtr-scan" id="meter-ai-btn" onclick="window._startMeterScan()" title="ถ่ายรูปมิเตอร์ให้ AI อ่านตัวเลข"><i class="ti ti-scan"></i>AI Scan</button>
+                </div>
+
+                <div class="mtr-stats">
+                  <div class="mtr-stat mtr-stat-usage">
+                    <div class="mtr-lbl"><i class="ti ti-droplet"></i>ใช้น้ำรอบนี้</div>
+                    <div class="mtr-stat-val" id="m-usage">—</div>
+                    <div class="mtr-stat-sub" id="m-pct">รอกรอกเลขมิเตอร์</div>
+                  </div>
+                  <div class="mtr-stat mtr-stat-money">
+                    <div class="mtr-lbl"><i class="ti ti-receipt"></i>ค่าน้ำประมาณการ</div>
+                    <div class="mtr-stat-val" id="m-est">—</div>
+                    <div class="mtr-stat-sub" id="m-est-sub">ยังไม่ยืนยัน</div>
+                  </div>
+                  <div class="mtr-stat mtr-stat-avg" id="m-avg-box">
+                    <div class="mtr-lbl"><i class="ti ti-chart-bar"></i>เทียบค่าเฉลี่ย <span id="m-avg">15 m³</span></div>
+                    <div class="mtr-stat-val" id="m-pct2">—</div>
+                    <div class="progress-bar"><div class="progress-fill" id="m-prog" style="width:0%"></div></div>
+                  </div>
+                </div>
+
+                <div id="meter-warn" class="warning-box mtr-warn" style="display:none">
                   <i class="ti ti-alert-octagon"></i>
                   <div><div class="text-bold text-error" style="font-size:13px">ใช้น้ำสูงผิดปกติ!</div><div class="text-error" style="font-size:12px">โปรดตรวจสอบการรั่วไหลหรือยืนยันความถูกต้องของตัวเลข</div></div>
                 </div>
+
+                <button class="btn btn-primary mtr-save" onclick="saveMeter()">
+                  <i class="ti ti-file-invoice"></i>บันทึกและออกใบแจ้งหนี้<kbd>Enter</kbd>
+                </button>
               </div>
-              <div style="margin-bottom:20px">
-                <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px">
-                  <span class="text-muted">เทียบกับค่าเฉลี่ย (15 m³/เดือน)</span><strong id="m-pct2">—</strong>
-                </div>
-                <div class="progress-bar"><div class="progress-fill" id="m-prog" style="width:0%"></div></div>
+            </div>
+
+            <div class="card mtr-history">
+              <div class="card-hd"><div class="card-title"><i class="ti ti-history" style="color:var(--blue-500)"></i>ประวัติการอ่านมิเตอร์ (6 รอบล่าสุด)</div></div>
+              <div class="tbl-wrap">
+                <table>
+                  <thead><tr><th>วันที่อ่าน</th><th>เลขก่อนหน้า</th><th>เลขปัจจุบัน</th><th>หน่วยใช้</th><th>ยอดเรียกเก็บ</th><th>สถานะ</th><th>ผู้จด / วิธีจด</th></tr></thead>
+                  <tbody id="meter-history-tbody">
+                    <tr><td colspan="7" style="text-align:center;color:var(--gray-500);padding:20px">เลือกสมาชิกเพื่อดูประวัติ</td></tr>
+                  </tbody>
+                </table>
               </div>
-              <button class="btn btn-primary" style="width:100%;justify-content:center;padding:13px;font-size:14px" onclick="saveMeter()">
-                <i class="ti ti-file-invoice"></i>บันทึกและออกใบแจ้งหนี้
-              </button>
             </div>
           </div>
-          <div style="display:flex;flex-direction:column;gap:14px">
-            <div class="card">
+
+          <div class="mtr-col mtr-col-side">
+            <div class="card mtr-photo">
               <div class="card-hd">
                 <div class="card-title"><i class="ti ti-photo" style="color:var(--blue-500)"></i>รูปถ่ายมิเตอร์</div>
                 <button class="btn btn-secondary btn-xs" onclick="window._clearMeterPhoto()" id="meter-photo-clear-btn" style="display:none"><i class="ti ti-trash"></i>ลบรูป</button>
               </div>
-              <div class="card-body" style="padding:14px">
+              <div class="card-body">
                 <!-- Drop zone -->
-                <div id="meter-photo-drop"
-                  style="background:var(--gray-50);border:2px dashed var(--gray-300);border-radius:var(--radius-md);
-                    min-height:140px;display:flex;flex-direction:column;align-items:center;justify-content:center;
-                    gap:8px;cursor:pointer;transition:var(--transition);padding:20px"
+                <div id="meter-photo-drop" class="mtr-drop" role="button" tabindex="0"
                   onclick="window._openMeterGallery()"
-                  ondragover="event.preventDefault();this.style.borderColor='var(--blue-400)';this.style.background='var(--blue-50)'"
-                  ondragleave="this.style.borderColor='var(--gray-300)';this.style.background='var(--gray-50)'"
-                  ondrop="window._handleMeterDrop(event)">
-                  <i class="ti ti-camera-plus" style="font-size:32px;color:var(--gray-400)"></i>
-                  <div style="font-size:13px;color:var(--gray-500);font-weight:500">แตะเพื่อถ่ายรูป / เลือกรูปภาพ</div>
-                  <div style="font-size:11px;color:var(--gray-400)">หรือลาก &amp; วางไฟล์ที่นี่</div>
-                  <div style="font-size:11px;color:var(--blue-500);margin-top:2px">
-                    <i class="ti ti-scan" style="font-size:12px"></i> กด AI Scan เพื่ออ่านตัวเลขอัตโนมัติ
+                  onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window._openMeterGallery()}"
+                  ondragover="event.preventDefault();this.classList.add('is-over')"
+                  ondragleave="this.classList.remove('is-over')"
+                  ondrop="this.classList.remove('is-over');window._handleMeterDrop(event)">
+                  <i class="ti ti-camera-plus"></i>
+                  <div>
+                    <div class="mtr-drop-title">แตะเพื่อถ่ายรูป / เลือกรูปภาพ</div>
+                    <div class="mtr-drop-sub">หรือลากไฟล์มาวาง — AI จะอ่านตัวเลขให้อัตโนมัติ</div>
                   </div>
                 </div>
                 <!-- Photo preview -->
-                <div id="meter-photo-wrap" style="display:none;position:relative">
-                  <img id="meter-photo-preview" style="width:100%;border-radius:var(--radius-md);display:block;max-height:220px;object-fit:cover"/>
+                <div id="meter-photo-wrap" style="display:none">
+                  <img id="meter-photo-preview" class="mtr-photo-img" alt="รูปมิเตอร์"/>
                 </div>
                 <!-- OCR status -->
-                <div id="meter-ocr-status" style="display:none;margin-top:10px;padding:10px 12px;
-                  border-radius:var(--radius-md);font-size:12.5px;background:var(--gray-50);
-                  border:1px solid var(--gray-200)"></div>
+                <div id="meter-ocr-status" class="mtr-ocr" style="display:none"></div>
               </div>
             </div>
-            <div class="card">
-              <div class="card-hd"><div class="card-title"><i class="ti ti-info-circle" style="color:var(--blue-500)"></i>อัตราค่าน้ำ</div></div>
-              <div class="card-body" style="padding:14px 18px">
-                <div class="rate-row"><div class="rate-col text-muted">0–10 หน่วย</div><div class="rate-val">5.00 ฿/หน่วย</div></div>
-                <div class="rate-row"><div class="rate-col text-muted">11–30 หน่วย</div><div class="rate-val">8.50 ฿/หน่วย</div></div>
-                <div class="rate-row"><div class="rate-col text-muted">31–60 หน่วย</div><div class="rate-val">12.00 ฿/หน่วย</div></div>
-                <div class="rate-row"><div class="rate-col text-muted">61+ หน่วย</div><div class="rate-val">15.00 ฿/หน่วย</div></div>
-                <div class="info-box" style="margin-top:12px"><i class="ti ti-calculator"></i><span>คำนวณแบบก้าวหน้าอัตโนมัติ + ค่าบำรุง 20–30 ฿</span></div>
+
+            <div class="card mtr-rates">
+              <div class="card-hd">
+                <div class="card-title"><i class="ti ti-calculator" style="color:var(--blue-500)"></i>อัตราค่าน้ำ (ขั้นบันได)</div>
               </div>
+              <div class="card-body" id="meter-rate-list"></div>
             </div>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-hd"><div class="card-title"><i class="ti ti-history" style="color:var(--blue-500)"></i>ประวัติการอ่านมิเตอร์ (6 รอบล่าสุด)</div></div>
-          <div class="tbl-wrap">
-            <table>
-              <thead><tr><th>วันที่อ่าน</th><th>เลขก่อนหน้า</th><th>เลขปัจจุบัน</th><th>หน่วยใช้</th><th>ยอดเรียกเก็บ</th><th>สถานะ</th><th>ผู้จด / วิธีจด</th></tr></thead>
-              <tbody id="meter-history-tbody">
-                <tr><td colspan="7" style="text-align:center;color:var(--gray-500);padding:20px">เลือกสมาชิกเพื่อดูประวัติ</td></tr>
-              </tbody>
-            </table>
           </div>
         </div>
       </div><!-- end #meter-form-area -->
     </div>
 
     <!-- ══════════ BILLING ══════════ -->
-    <div class="page" id="page-billing">
+    <div class="page page-fill" id="page-billing">
       <div class="page-hd">
         <div><div class="page-title">ระบบออกบิลค่าน้ำ</div><div class="page-sub">จัดการการเรียกเก็บค่าน้ำรายเดือนและสถานะการชำระ</div></div>
         <div class="page-hd-actions">
-          <button class="btn btn-secondary" onclick="openBatchPrint()"><i class="ti ti-printer"></i>พิมพ์ใบแจ้งหลายใบ</button>
-          <button class="btn btn-secondary" onclick="openBillingPeriods()"><i class="ti ti-calendar-stats"></i>งวดบิล / ปิดงวด</button>
+          <button class="btn btn-secondary" onclick="openBatchPrint()" title="พิมพ์ใบแจ้งหลายใบ" aria-label="พิมพ์ใบแจ้งหลายใบ"><i class="ti ti-printer"></i>พิมพ์ใบแจ้งหลายใบ</button>
+          <button class="btn btn-secondary" onclick="openBillingPeriods()" title="งวดบิล / ปิดงวด" aria-label="งวดบิล / ปิดงวด"><i class="ti ti-calendar-stats"></i>งวดบิล / ปิดงวด</button>
         </div>
       </div>
-      <div class="kpi-grid">
-        <div class="kpi-card"><div class="kpi-icon" style="background:var(--blue-50);color:var(--blue-700)"><i class="ti ti-coin"></i></div><div class="kpi-label">ยอดเรียกเก็บเดือนนี้</div><div class="kpi-val text-primary">—</div><div class="kpi-footer"><span class="kpi-badge kb-green">+12.5%</span></div></div>
-        <div class="kpi-card"><div class="kpi-icon" style="background:var(--green-50);color:var(--green-700)"><i class="ti ti-check"></i></div><div class="kpi-label">ชำระแล้ว</div><div class="kpi-val" style="color:var(--green-700)">—</div><div class="kpi-footer"><div class="progress-bar" style="width:100%"><div class="progress-fill" style="width:68%;background:var(--green-700)"></div></div></div></div>
-        <div class="kpi-card" onclick="goPage('debtors')"><div class="kpi-icon" style="background:var(--red-50);color:var(--red-700)"><i class="ti ti-clock-exclamation"></i></div><div class="kpi-label">ค้างชำระ</div><div class="kpi-val text-error">—</div><div class="kpi-footer"><span class="kpi-badge kb-red">— รายการ →</span></div></div>
-        <div class="kpi-card"><div class="kpi-icon" style="background:var(--cyan-50);color:var(--cyan-800)"><i class="ti ti-qrcode"></i></div><div class="kpi-label">ชำระผ่าน QR Code</div><div class="kpi-val" style="color:var(--cyan-800)">85%</div><div class="kpi-footer"><span class="kpi-badge kb-blue">ช่องทางหลัก</span></div></div>
+      <!-- สรุปตัวเลข: แถวเดียว คลิกเพื่อกรองสถานะ — ตัวเลขตามรอบบิลที่เลือก (ไม่เลือก = ทุกรอบ) -->
+      <div class="bill-kpis">
+        <button type="button" class="bill-kpi" data-tone="blue" data-v="" title="ดูบิลทั้งหมด">
+          <i class="ti ti-file-invoice"></i>
+          <span class="bill-kpi-txt"><span class="bill-kpi-lbl">ยอดเรียกเก็บ <small id="bk-period"></small></span><span class="bill-kpi-val" id="bk-total">—</span></span>
+          <span class="bill-kpi-sub" id="bk-total-n"></span>
+        </button>
+        <button type="button" class="bill-kpi" data-tone="green" data-v="paid" title="ดูบิลที่ชำระแล้ว">
+          <i class="ti ti-circle-check"></i>
+          <span class="bill-kpi-txt"><span class="bill-kpi-lbl">ชำระแล้ว</span><span class="bill-kpi-val" id="bk-paid">—</span><span class="bill-kpi-bar"><span id="bk-paid-bar"></span></span></span>
+          <span class="bill-kpi-sub" id="bk-paid-n"></span>
+        </button>
+        <button type="button" class="bill-kpi" data-tone="amber" data-v="pending" title="ดูบิลรอยืนยัน">
+          <i class="ti ti-hourglass"></i>
+          <span class="bill-kpi-txt"><span class="bill-kpi-lbl">รอยืนยัน</span><span class="bill-kpi-val" id="bk-pending">—</span></span>
+          <span class="bill-kpi-sub" id="bk-pending-n"></span>
+        </button>
+        <button type="button" class="bill-kpi" data-tone="red" data-v="overdue" title="ดูบิลค้างชำระ">
+          <i class="ti ti-clock-exclamation"></i>
+          <span class="bill-kpi-txt"><span class="bill-kpi-lbl">ค้างชำระ</span><span class="bill-kpi-val" id="bk-overdue">—</span></span>
+          <span class="bill-kpi-sub" id="bk-overdue-n"></span>
+        </button>
       </div>
-      <div class="tabs">
-        <div class="tab active" onclick="setTab(this)">บิลทั้งหมด</div>
-        <div class="tab" onclick="setTab(this)">ค้างชำระ</div>
-        <div class="tab" onclick="setTab(this)">รอยืนยัน</div>
-        <div class="tab" onclick="setTab(this)">ชำระแล้ว</div>
+
+      <div class="card bill-main fill-grow">
+        <div class="bill-toolbar filter-bar">
+          <div class="bill-seg">
+            <button type="button" data-v="" class="on">ทั้งหมด<b class="bill-seg-n" data-n=""></b></button>
+            <button type="button" data-v="overdue">ค้างชำระ<b class="bill-seg-n" data-n="overdue"></b></button>
+            <button type="button" data-v="pending">รอยืนยัน<b class="bill-seg-n" data-n="pending"></b></button>
+            <button type="button" data-v="paid">ชำระแล้ว<b class="bill-seg-n" data-n="paid"></b></button>
+            <button type="button" data-v="cancelled">ยกเลิก<b class="bill-seg-n" data-n="cancelled"></b></button>
+          </div>
+          <input class="fsearch bill-search" type="text" placeholder="ค้นหาเลขบิล ชื่อ บ้านเลขที่ เลขมิเตอร์..."/>
+          <select class="fselect"><option>ทุกหมู่บ้าน</option></select>
+          <select class="fselect"><option>ทุกรอบบิล</option></select>
+        </div>
+        <div class="bill-tbl-wrap">
+          <table class="bill-tbl">
+            <thead><tr>
+              <th>เลขบิล / รอบ</th><th>สมาชิก</th><th>มิเตอร์ ก่อน → หลัง</th><th class="r">หน่วย</th>
+              <th class="r">ค่าน้ำ</th><th class="r">ค่าบริการ</th><th class="r">ปรับ / ลด</th><th class="r">ยอดรวม</th>
+              <th>กำหนด / ชำระ</th><th>สถานะ</th><th class="r">จัดการ</th>
+            </tr></thead>
+            <tbody id="billing-card-list"></tbody>
+          </table>
+        </div>
+        <div class="bill-foot"><span id="billing-card-footer">แสดง...</span><span id="billing-sum-footer"></span></div>
       </div>
-      <div class="filter-bar">
-        <input class="fsearch" type="text" placeholder="ค้นหาเลขบิล หรือ ชื่อสมาชิก..."/>
-        <select class="fselect"><option>ทุกหมู่บ้าน</option></select>
-        <select class="fselect"><option>ตุลาคม 2566</option><option>กันยายน 2566</option></select>
-      </div>
-      <div id="billing-card-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;margin-top:4px"></div>
-      <div id="billing-card-footer" style="margin-top:12px;font-size:12px;color:var(--gray-500);text-align:center">แสดง...</div>
     </div>
 
     <!-- ══════════ PAYMENTS ══════════ -->
-    <div class="page" id="page-payments">
+    <div class="page page-fill" id="page-payments">
       <div class="page-hd">
-        <div><div class="page-title">ระบบรับชำระเงิน</div><div class="page-sub">Payment Collection &amp; Slip Verification</div></div>
+        <div><div class="page-title">รับชำระเงิน</div><div class="page-sub">บันทึกรับเงิน · ตรวจสลิป · ปิดยอดประจำวัน</div></div>
         <div class="page-hd-actions">
-          <button class="btn btn-secondary" onclick="openCashClose()"><i class="ti ti-cash-register"></i>ปิดยอดประจำวัน</button>
-          <button class="btn btn-primary" onclick="openCashModal()"><i class="ti ti-plus"></i>บันทึกรับเงินสด</button>
+          <button class="btn btn-secondary" onclick="openCashClose()" title="ปิดยอดประจำวัน" aria-label="ปิดยอดประจำวัน"><i class="ti ti-report-money"></i>ปิดยอดประจำวัน</button>
         </div>
       </div>
-      <div class="kpi-grid">
-        <div class="kpi-card"><div class="kpi-icon" style="background:var(--red-50);color:var(--red-700)"><i class="ti ti-coins"></i></div><div class="kpi-label">ยอดค้างชำระทั้งหมด</div><div class="kpi-val text-error">—</div><div class="kpi-footer"><span class="kpi-badge kb-red">+2.4%</span></div></div>
-        <div class="kpi-card"><div class="kpi-icon" style="background:var(--green-50);color:var(--green-700)"><i class="ti ti-cash"></i></div><div class="kpi-label">ยอดจัดเก็บวันนี้</div><div class="kpi-val" style="color:var(--green-700)">—</div><div class="kpi-footer"><span class="kpi-badge kb-green">วันนี้</span></div></div>
-        <div class="kpi-card"><div class="kpi-icon" style="background:var(--amber-100);color:var(--amber-700)"><i class="ti ti-hourglass"></i></div><div class="kpi-label">รอตรวจสอบสลิป</div><div class="kpi-val" style="color:var(--amber-700)">—</div><div class="kpi-footer"><span class="kpi-badge kb-amber">รายการ</span></div></div>
-        <div class="kpi-card" onclick="goPage('debtors')"><div class="kpi-icon" style="background:var(--red-50);color:var(--red-700)"><i class="ti ti-clock-x"></i></div><div class="kpi-label">เกินกำหนดชำระ</div><div class="kpi-val text-error">—</div><div class="kpi-footer"><span class="kpi-badge kb-red">→</span></div></div>
+
+      <!-- สรุปตัวเลข: แถวเดียว คลิกเพื่อกรอง/ไปหน้าที่เกี่ยวข้อง -->
+      <div class="pay-kpis">
+        <button type="button" class="pay-kpi" data-tone="blue" onclick="goPage('billing')" title="ไปหน้าระบบออกบิล">
+          <i class="ti ti-file-invoice"></i>
+          <span class="pay-kpi-txt"><span class="pay-kpi-lbl">ค้างชำระทั้งหมด</span><span class="pay-kpi-val" id="pk-unpaid">—</span></span>
+          <span class="pay-kpi-sub" id="pk-unpaid-n"></span>
+        </button>
+        <button type="button" class="pay-kpi" data-tone="green" onclick="window._payFilter('range','today')" title="ดูรายการวันนี้">
+          <i class="ti ti-cash"></i>
+          <span class="pay-kpi-txt"><span class="pay-kpi-lbl">รับแล้ววันนี้</span><span class="pay-kpi-val" id="pk-today">—</span></span>
+          <span class="pay-kpi-sub" id="pk-today-n"></span>
+        </button>
+        <button type="button" class="pay-kpi" data-tone="amber" id="pk-pending-card" onclick="window._payFilter('status','pending')" title="ดูรายการรอตรวจสลิป">
+          <i class="ti ti-hourglass"></i>
+          <span class="pay-kpi-txt"><span class="pay-kpi-lbl">รอตรวจสลิป</span><span class="pay-kpi-val" id="pk-pending">—</span></span>
+          <span class="pay-kpi-sub" id="pk-pending-n"></span>
+        </button>
+        <button type="button" class="pay-kpi" data-tone="red" onclick="goPage('debtors')" title="ไปหน้าลูกหนี้">
+          <i class="ti ti-clock-x"></i>
+          <span class="pay-kpi-txt"><span class="pay-kpi-lbl">เกินกำหนดชำระ</span><span class="pay-kpi-val" id="pk-overdue">—</span></span>
+          <span class="pay-kpi-sub" id="pk-overdue-n"></span>
+        </button>
       </div>
-      <div class="grid-3-2" style="align-items:start">
-        <div class="card">
-          <div class="card-hd">
-            <div class="card-title"><i class="ti ti-activity" style="color:var(--blue-500)"></i>รายการชำระเงินล่าสุด</div>
-            <div style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;background:var(--green-700);border-radius:50%;display:inline-block;animation:pulse 1.5s infinite"></span><span class="text-muted" style="font-size:11.5px">Real-time</span></div>
-          </div>
-          <div id="payments-card-list" class="h-card-list"></div>
-          <div class="tbl-footer"><span>แสดง...</span></div>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:14px">
-          <div class="card" style="background:var(--blue-900);border-color:var(--blue-800)">
-            <div class="card-hd" style="border-bottom-color:rgba(255,255,255,.1)"><div class="card-title" style="color:#fff"><i class="ti ti-sparkles" style="color:var(--cyan-400)"></i>AI Verification Tool</div></div>
-            <div class="card-body">
-              <div style="background:rgba(255,255,255,.08);border-radius:var(--radius-md);padding:14px;margin-bottom:12px">
-                <div style="font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">ฟีเจอร์การตรวจสอบ</div>
-                <div style="display:flex;flex-direction:column;gap:8px">
-                  <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:rgba(255,255,255,.85)"><i class="ti ti-circle-check" style="color:var(--cyan-400)"></i>อ่านยอดเงินและวันเวลาอัตโนมัติ</div>
-                  <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:rgba(255,255,255,.85)"><i class="ti ti-circle-check" style="color:var(--cyan-400)"></i>ตรวจชื่อบัญชีผู้รับโอน</div>
-                  <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:rgba(255,255,255,.85)"><i class="ti ti-circle-check" style="color:var(--cyan-400)"></i>ป้องกันสลิปซ้ำ (Duplicate)</div>
-                </div>
-              </div>
-              <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.06);border-radius:var(--radius-sm);padding:10px 12px;font-size:12.5px;color:rgba(255,255,255,.7)">
-                <i class="ti ti-shield-check" style="color:var(--cyan-400)"></i>ความแม่นยำ: <strong style="color:var(--cyan-400)">99.8%</strong>
-              </div>
+
+      <div class="pay-layout fill-grow">
+        <!-- รายการชำระ -->
+        <div class="card pay-main fill-grow">
+          <div class="pay-toolbar">
+            <div class="pay-seg" data-pay-key="status">
+              <button type="button" data-v="all" class="on">ทั้งหมด</button>
+              <button type="button" data-v="pending">รอตรวจ<b class="pay-seg-n" id="pay-seg-pending"></b></button>
+              <button type="button" data-v="approved">อนุมัติแล้ว</button>
+              <button type="button" data-v="void">ยกเลิก/ปฏิเสธ</button>
             </div>
-          </div>
-          <div class="card">
-            <div class="card-hd"><div class="card-title"><i class="ti ti-credit-card" style="color:var(--blue-500)"></i>ช่องทางการรับชำระ</div></div>
-            <div class="card-body" style="padding:14px">
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-                <div class="pay-channel-btn" onclick="openCashModal('cash')" onmouseenter="this.style.borderColor='var(--blue-400)'" onmouseleave="this.style.borderColor='var(--gray-200)'"><i class="ti ti-cash" style="font-size:24px;color:var(--blue-700)"></i><span style="font-size:12px;font-weight:600">เงินสด</span></div>
-                <div class="pay-channel-btn" onclick="openCashModal('promptpay')" onmouseenter="this.style.borderColor='var(--blue-400)'" onmouseleave="this.style.borderColor='var(--gray-200)'"><i class="ti ti-qrcode" style="font-size:24px;color:var(--blue-700)"></i><span style="font-size:12px;font-weight:600">PromptPay</span></div>
-                <div class="pay-channel-btn" onclick="openCashModal('bank')" onmouseenter="this.style.borderColor='var(--blue-400)'" onmouseleave="this.style.borderColor='var(--gray-200)'"><i class="ti ti-building-bank" style="font-size:24px;color:var(--blue-700)"></i><span style="font-size:12px;font-weight:600">ธนาคาร</span></div>
-                <div class="pay-channel-btn" onclick="openCashModal('mobile')" onmouseenter="this.style.borderColor='var(--blue-400)'" onmouseleave="this.style.borderColor='var(--gray-200)'"><i class="ti ti-device-mobile" style="font-size:24px;color:var(--blue-700)"></i><span style="font-size:12px;font-weight:600">Mobile App</span></div>
-              </div>
+            <div class="pay-seg" data-pay-key="range">
+              <button type="button" data-v="today">วันนี้</button>
+              <button type="button" data-v="7">7 วัน</button>
+              <button type="button" data-v="30">30 วัน</button>
+              <button type="button" data-v="all" class="on">ทั้งหมด</button>
             </div>
+            <input class="fsearch pay-search" id="pay-q" type="search" placeholder="ค้นชื่อ, บ้านเลขที่, เลขบิล, ใบเสร็จ…" oninput="window._payFilter('q',this.value)"/>
+          </div>
+          <div id="payments-card-list" class="pay-list"></div>
+          <div class="pay-foot">
+            <span id="pay-foot-txt">—</span>
+            <span class="pay-live"><i></i>Real-time</span>
           </div>
         </div>
+
+        <!-- ด้านข้าง: รับชำระใหม่ + สรุปวันนี้ -->
+        <aside class="pay-side">
+          <div class="card pay-new">
+            <div class="pay-side-hd"><i class="ti ti-circle-plus"></i>รับชำระใหม่</div>
+            <!-- ปุ่มช่องทางชำระ — สร้างจาก Master Data (เฉพาะที่เปิดใช้งาน) ใน payments.js -->
+            <div class="pay-new-grid" id="pay-new-grid"></div>
+          </div>
+          <div class="card pay-today">
+            <div class="pay-side-hd"><i class="ti ti-calendar-dollar"></i>สรุปรับเงินวันนี้<span class="pay-side-date" id="pay-today-date"></span></div>
+            <div id="pay-today-body"></div>
+          </div>
+        </aside>
       </div>
     </div>
 
     <!-- ══════════ DEBTORS ══════════ -->
-    <div class="page" id="page-debtors">
+    <div class="page page-fill" id="page-debtors">
       <div class="page-hd">
         <div><div class="page-title">ระบบลูกหนี้ค้างชำระ</div><div class="page-sub">ติดตามและดำเนินการกับสมาชิกที่ค้างชำระ</div></div>
         <div class="page-hd-actions">
-          <button class="btn btn-secondary" onclick="openNoticePrint()"><i class="ti ti-mail"></i>พิมพ์หนังสือแจ้ง</button>
-          <button class="btn btn-secondary" onclick="notifyAllDebtors()"><i class="ti ti-brand-line"></i>ส่งแจ้งเตือน LINE</button>
-          <button class="btn btn-danger" onclick="suspendAllOverdue3Months()"><i class="ti ti-droplet-off"></i>ตัดน้ำชั่วคราว</button>
-          <button class="btn btn-secondary" onclick="goPage('reports')"><i class="ti ti-download"></i>Export รายงาน</button>
+          <button class="btn btn-secondary" onclick="openNoticePrint()" title="พิมพ์หนังสือแจ้ง" aria-label="พิมพ์หนังสือแจ้ง"><i class="ti ti-mail"></i>พิมพ์หนังสือแจ้ง</button>
+          <button class="btn btn-secondary" onclick="notifyAllDebtors()" title="ส่งแจ้งเตือน LINE" aria-label="ส่งแจ้งเตือน LINE"><i class="ti ti-brand-line"></i>ส่งแจ้งเตือน LINE</button>
+          <button class="btn btn-danger" onclick="suspendAllOverdue3Months()" title="ตัดน้ำชั่วคราว" aria-label="ตัดน้ำชั่วคราว"><i class="ti ti-droplet-off"></i>ตัดน้ำชั่วคราว</button>
+          <button class="btn btn-secondary" onclick="goPage('reports')" title="Export รายงาน" aria-label="Export รายงาน"><i class="ti ti-download"></i>Export รายงาน</button>
         </div>
       </div>
       <div class="kpi-grid">
-        <div class="kpi-card" style="border-top:3px solid #16a34a"><div class="kpi-label">ค้าง 1 เดือน</div><div class="kpi-val" style="color:#16a34a">—</div><div class="kpi-footer"><span class="kpi-badge kb-green">—</span></div></div>
+        <div class="kpi-card" style="border-top:3px solid #16a34a"><div class="kpi-label">ค้าง 1 เดือน</div><div class="kpi-val" style="color:#16a34a">—</div><div class="kpi-footer"><span class="kpi-badge kb-green">ส่งแจ้งเตือน</span></div></div>
         <div class="kpi-card" style="border-top:3px solid var(--amber-700)"><div class="kpi-label">ค้าง 2 เดือน</div><div class="kpi-val" style="color:var(--amber-700)">—</div><div class="kpi-footer"><span class="kpi-badge kb-amber">เตรียมตัดน้ำ</span></div></div>
         <div class="kpi-card" style="border-top:3px solid var(--red-700)"><div class="kpi-label">ค้างเกิน 3 เดือน</div><div class="kpi-val text-error">—</div><div class="kpi-footer"><span class="kpi-badge kb-red">ต้องดำเนินการ</span></div></div>
-        <div class="kpi-card"><div class="kpi-label">ยอดค้างรวมทั้งหมด</div><div class="kpi-val text-error">—</div><div class="kpi-footer"><span class="kpi-badge kb-red">—</span></div></div>
+        <div class="kpi-card"><div class="kpi-label">ยอดค้างรวมทั้งหมด</div><div class="kpi-val text-error">—</div><div class="kpi-footer"><span class="kpi-badge kb-red">ทุกบิลค้าง</span></div></div>
       </div>
-      <div class="card">
+      <div class="card fill-grow">
         <div class="card-hd">
           <div class="card-title"><i class="ti ti-list-details" style="color:var(--red-700)"></i>รายชื่อลูกหนี้ค้างชำระ</div>
           <div style="display:flex;gap:8px;align-items:center">
@@ -516,12 +592,12 @@
     </div>
 
     <!-- ══════════ REPORTS ══════════ -->
-    <div class="page" id="page-reports">
+    <div class="page page-fill" id="page-reports">
       <div class="page-hd">
         <div><div class="page-title">รายงานและการวิเคราะห์</div><div class="page-sub">สถิติ ข้อมูลเชิงลึก และรายงานการเงินทั้งหมด</div></div>
         <div class="page-hd-actions">
-          <button class="btn btn-secondary" onclick="exportCurrentReport()"><i class="ti ti-table-export"></i>Export CSV</button>
-          <button class="btn btn-primary"   onclick="window.print()"><i class="ti ti-printer"></i>พิมพ์</button>
+          <button class="btn btn-secondary" onclick="exportCurrentReport()" title="Export CSV" aria-label="Export CSV"><i class="ti ti-table-export"></i>Export CSV</button>
+          <button class="btn btn-primary"   onclick="window.print()" title="พิมพ์" aria-label="พิมพ์"><i class="ti ti-printer"></i>พิมพ์</button>
         </div>
       </div>
       <div class="kpi-grid">
@@ -542,7 +618,7 @@
         <div class="rpt-card"            data-report="village"    onclick="switchReport('village')"><div class="rpt-icon" style="background:var(--gray-100);color:var(--gray-700)"><i class="ti ti-building-community"></i></div><div class="rpt-name">สรุปแต่ละหมู่บ้าน</div><div class="rpt-desc">เปรียบเทียบข้อมูลรายเขต</div></div>
         <div class="rpt-card"            data-report="billing"    onclick="switchReport('billing')"><div class="rpt-icon" style="background:var(--gray-100);color:var(--gray-700)"><i class="ti ti-receipt-2"></i></div><div class="rpt-name">รายงานบิลรวม</div><div class="rpt-desc">สถานะบิลและการชำระ</div></div>
       </div>
-      <div class="card">
+      <div class="card fill-grow">
         <div class="card-hd"><div class="card-title"><i class="ti ti-table" style="color:var(--blue-500)"></i>พรีวิวข้อมูล: รายรับรายเดือน</div><div style="display:flex;gap:6px"><button class="btn btn-secondary btn-sm" onclick="exportCurrentReport()"><i class="ti ti-file-type-csv"></i>CSV</button></div></div>
         <div class="tbl-wrap">
           <table>
@@ -555,14 +631,14 @@
     </div>
 
     <!-- ══════════ MAP ══════════ -->
-    <div class="page" id="page-map">
+    <div class="page page-fill" id="page-map">
       <div class="page-hd">
         <div>
           <div class="page-title">แผนที่การใช้น้ำ</div>
           <div class="page-sub">ตำแหน่งมิเตอร์และข้อมูลการใช้น้ำแต่ละครัวเรือน</div>
         </div>
         <div class="page-hd-actions">
-          <select class="fselect" onchange="filterMapByVillage(this.value==='ทุกหมู่บ้าน'?'':this.value)">
+          <select class="fselect" onchange="filterMapByVillage(this.value)">
             <option>ทุกหมู่บ้าน</option>
           </select>
           <select class="fselect" onchange="filterMapByStatus(this.value==='ทุกสถานะ'?'':this.value==='ปกติ'?'normal':this.value==='ค้างชำระ'?'overdue':'closed')">
@@ -571,12 +647,12 @@
             <option>ค้างชำระ</option>
             <option>ปิดมิเตอร์</option>
           </select>
-          <button class="btn btn-secondary" onclick="renderMap()"><i class="ti ti-refresh"></i>รีเฟรช</button>
+          <button class="btn btn-secondary" onclick="renderMap()" title="รีเฟรช" aria-label="รีเฟรช"><i class="ti ti-refresh"></i>รีเฟรช</button>
         </div>
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 260px;gap:16px;align-items:start">
-        <div class="card" style="padding:0;overflow:hidden;margin-bottom:0">
+      <div class="map-layout fill-grow" style="display:grid;grid-template-columns:1fr 260px;gap:16px;align-items:start">
+        <div class="card map-card" style="padding:0;overflow:hidden;margin-bottom:0">
           <div id="map-container" style="height:540px;width:100%"></div>
         </div>
 
@@ -608,7 +684,7 @@
     </div>
 
     <!-- ══════════ SETTINGS ══════════ -->
-    <div class="page" id="page-settings">
+    <div class="page page-fill" id="page-settings">
       <div class="page-hd">
         <div>
           <div class="page-title">การตั้งค่าระบบ</div>
@@ -622,12 +698,12 @@
     </div>
 
     <!-- ══════════ MAINTENANCE ══════════ -->
-    <div class="page" id="page-maintenance">
+    <div class="page page-fill" id="page-maintenance">
       <div class="page-hd">
         <div><div class="page-title">ระบบซ่อมบำรุง</div><div class="page-sub">ติดตามและจัดการงานซ่อมท่อ มิเตอร์ และโครงสร้างพื้นฐาน</div></div>
         <div class="page-hd-actions">
-          <button id="mnt-add-job-btn"     class="btn btn-primary"   onclick="openAddMaintenance()"><i class="ti ti-plus"></i>เพิ่มงานซ่อมบำรุง</button>
-          <button id="mnt-add-replace-btn" class="btn btn-primary"   style="display:none" onclick="openMeterReplaceModal()"><i class="ti ti-replace"></i>บันทึกเปลี่ยนมิเตอร์</button>
+          <button id="mnt-add-job-btn"     class="btn btn-primary"   onclick="openAddMaintenance()" title="เพิ่มงานซ่อมบำรุง" aria-label="เพิ่มงานซ่อมบำรุง"><i class="ti ti-plus"></i>เพิ่มงานซ่อมบำรุง</button>
+          <button id="mnt-add-replace-btn" class="btn btn-primary"   style="display:none" onclick="openMeterReplaceModal()" title="บันทึกเปลี่ยนมิเตอร์" aria-label="บันทึกเปลี่ยนมิเตอร์"><i class="ti ti-replace"></i>บันทึกเปลี่ยนมิเตอร์</button>
         </div>
       </div>
 
@@ -638,25 +714,25 @@
       </div>
 
       <!-- Section: Jobs -->
-      <div id="mnt-jobs-section">
+      <div id="mnt-jobs-section" class="fill-grow">
         <div class="kpi-grid">
           <div class="kpi-card"><div class="kpi-icon" style="background:var(--blue-50);color:var(--blue-700)"><i class="ti ti-clipboard-list"></i></div><div class="kpi-label">รายการทั้งหมด</div><div class="kpi-val text-primary">—</div></div>
           <div class="kpi-card"><div class="kpi-icon" style="background:var(--amber-100);color:var(--amber-700)"><i class="ti ti-clock"></i></div><div class="kpi-label">รอดำเนินการ</div><div class="kpi-val" style="color:var(--amber-700)">—</div></div>
           <div class="kpi-card"><div class="kpi-icon" style="background:var(--red-50);color:var(--red-700)"><i class="ti ti-refresh"></i></div><div class="kpi-label">กำลังดำเนินการ</div><div class="kpi-val text-error">—</div></div>
           <div class="kpi-card"><div class="kpi-icon" style="background:var(--cyan-50);color:var(--cyan-800)"><i class="ti ti-coin"></i></div><div class="kpi-label">ค่าใช้จ่ายรวม</div><div class="kpi-val" style="color:var(--cyan-800)">—</div></div>
         </div>
-        <div class="card">
+        <div class="card fill-grow">
           <div id="mnt-jobs-card-list" class="h-card-list"></div>
           <div class="tbl-footer" id="mnt-jobs-footer"><span>แสดง...</span></div>
         </div>
       </div>
 
       <!-- Section: Meter Replacements -->
-      <div id="mnt-replacements-section" style="display:none">
+      <div id="mnt-replacements-section" class="fill-grow" style="display:none">
         <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);max-width:360px">
           <div class="kpi-card"><div class="kpi-icon" style="background:var(--blue-50);color:var(--blue-700)"><i class="ti ti-replace"></i></div><div class="kpi-label">เปลี่ยนมิเตอร์ทั้งหมด</div><div class="kpi-val text-primary" id="mnt-replace-count">—</div></div>
         </div>
-        <div class="card">
+        <div class="card fill-grow">
           <div id="mnt-replace-card-list" class="h-card-list"></div>
           <div class="tbl-footer" id="mnt-replace-footer"><span>แสดง...</span></div>
         </div>
@@ -664,14 +740,14 @@
     </div>
 
     <!-- ══════════ USERS ══════════ -->
-    <div class="page" id="page-users">
+    <div class="page page-fill" id="page-users">
       <div class="page-hd">
         <div>
           <div class="page-title">จัดการผู้ใช้งาน</div>
           <div class="page-sub">เพิ่ม แก้ไข และกำหนดสิทธิ์ผู้ใช้งานในระบบ</div>
         </div>
         <div class="page-hd-actions">
-          <button class="btn btn-primary" onclick="openAddUser()"><i class="ti ti-user-plus"></i>เพิ่มผู้ใช้</button>
+          <button class="btn btn-primary" onclick="openAddUser()" title="เพิ่มผู้ใช้" aria-label="เพิ่มผู้ใช้"><i class="ti ti-user-plus"></i>เพิ่มผู้ใช้</button>
         </div>
       </div>
       <div class="kpi-grid">
@@ -680,7 +756,7 @@
         <div class="kpi-card" style="cursor:default"><div class="kpi-icon" style="background:var(--cyan-50);color:var(--cyan-800)"><i class="ti ti-building-community"></i></div><div class="kpi-label">Village Admin</div><div class="kpi-val" style="color:var(--cyan-800)">—</div></div>
         <div class="kpi-card" style="cursor:default"><div class="kpi-icon" style="background:var(--amber-100);color:var(--amber-700)"><i class="ti ti-circle-check"></i></div><div class="kpi-label">ใช้งานอยู่</div><div class="kpi-val" style="color:var(--amber-700)">—</div></div>
       </div>
-      <div class="card">
+      <div class="card fill-grow">
         <div id="users-card-list" class="h-card-list"></div>
         <div class="tbl-footer"><span></span></div>
       </div>
@@ -1119,7 +1195,7 @@
 </div>
 
 <!-- ══════════ PAYMENT MODAL (all channels) ══════════ -->
-<div class="modal-overlay" id="cash-modal" style="display:none" onclick="if(event.target===this)closeCashModal()">
+<div class="modal-overlay" id="cash-modal" style="display:none" onclick="if(event.target===this)closeCashModal()" onpaste="window._pasteSlip(event)">
   <div class="modal modal-lg">
     <div class="modal-hd">
       <div class="modal-title"><i id="cp-modal-icon" class="ti ti-cash"></i><span id="cp-modal-title">บันทึกรับเงินสด</span></div>
@@ -1127,35 +1203,54 @@
     </div>
     <div class="modal-body">
       <input type="hidden" id="cp-channel" value="cash"/>
-      <div class="form-row"><label class="form-label">เลขที่บิล *</label><select class="form-input" id="cp-bill" onchange="window._onBillSelect(this.value)"><option value="">-- เลือกบิล --</option></select></div>
-      <div class="form-row"><label class="form-label">ชื่อผู้ชำระ</label><input class="form-input" type="text" id="cp-name" placeholder="ชื่อ-นามสกุล"/></div>
-      <div class="form-row"><label class="form-label">จำนวนเงิน (บาท)</label><input class="form-input" type="number" id="cp-amount" placeholder="0.00" step="0.01" oninput="window._calcChange()"/></div>
-      <!-- เงินที่ได้รับ + เงินทอน (เฉพาะ cash) -->
-      <div id="cp-cash-section" style="display:none;margin-bottom:14px">
-        <div class="form-row" style="margin-bottom:10px">
-          <label class="form-label">เงินที่ได้รับ (บาท)</label>
-          <input class="form-input" type="number" id="cp-received" placeholder="0" step="1" oninput="window._calcChange()" style="font-size:17px;font-weight:700"/>
+      <!-- บิล + ยอดเงิน ดึงจากระบบ — เจ้าหน้าที่แก้ไม่ได้ (ยังไม่รองรับชำระบางส่วน) -->
+      <input type="hidden" id="cp-bill"/>
+      <input type="hidden" id="cp-amount"/>
+      <div class="form-row" id="cp-find-row">
+        <label class="form-label cp-find-lbl" for="cp-bill-q">ค้นหาบิลค้างชำระ * <span class="cp-hint" id="cp-find-sum"></span></label>
+        <div class="cp-find">
+          <i class="ti ti-search"></i>
+          <input class="form-input" type="text" id="cp-bill-q" autocomplete="off" placeholder="ชื่อ / บ้านเลขที่ / เลขมิเตอร์ / เลขบิล" oninput="window._cpFilter()" onkeydown="window._cpFindKey(event)"/>
         </div>
-        <div style="display:flex;gap:10px;border-radius:14px;overflow:hidden">
-          <div style="flex:1;text-align:center;background:var(--blue-50);padding:14px 8px;border-radius:12px">
-            <div style="font-size:10.5px;color:var(--blue-500);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">ยอดที่ต้องชำระ</div>
-            <div id="cp-due-display" style="font-size:22px;font-weight:800;color:var(--blue-700)">฿0</div>
+        <div class="cp-list" id="cp-bill-list" role="listbox" aria-label="บิลค้างชำระ"></div>
+      </div>
+      <div class="cp-bill-card" id="cp-bill-card" style="display:none"></div>
+      <!-- เงินที่ได้รับ + เงินทอน (เฉพาะ cash) — แผงหลักของฟอร์ม -->
+      <div id="cp-cash-section" class="cp-cash" style="display:none">
+        <div class="cp-cash-grid">
+          <label class="cp-recv" for="cp-received">
+            <span class="cp-recv-lbl"><i class="ti ti-cash-banknote"></i>รับเงินมา *</span>
+            <span class="cp-recv-box">
+              <span class="cp-recv-cur">฿</span>
+              <input type="number" inputmode="decimal" id="cp-received" placeholder="0" step="1" min="0" autocomplete="off" oninput="window._calcChange()" onkeydown="if(event.key==='Enter'){event.preventDefault();saveCashPayment()}"/>
+              <button type="button" class="cp-recv-clr" title="ล้าง" aria-label="ล้างจำนวนเงิน" onclick="window._cpRecv('')"><i class="ti ti-backspace"></i></button>
+            </span>
+          </label>
+          <div class="cp-change" id="cp-change-box">
+            <span id="cp-change-lbl">เงินทอน</span>
+            <b id="cp-change-display">—</b>
           </div>
-          <div id="cp-change-box" style="flex:1;text-align:center;background:var(--green-50);padding:14px 8px;border-radius:12px;transition:.2s">
-            <div style="font-size:10.5px;color:var(--green-600);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">เงินทอน</div>
-            <div id="cp-change-display" style="font-size:22px;font-weight:800;color:var(--green-700)">฿0</div>
-          </div>
+        </div>
+        <div class="cp-quick" id="cp-quick"></div>
+      </div>
+      <!-- ชำระแบบโอน (PromptPay / ธนาคาร / Mobile): QR ตามยอดบิล + เลขอ้างอิง + สลิป -->
+      <div id="cp-xfer" class="cp-xfer" style="display:none">
+        <div class="cp-qr" id="cp-qr"></div>
+        <div class="cp-xf-form">
+          <label class="cp-xf-lbl" for="cp-ref"><i class="ti ti-hash"></i>เลขอ้างอิง <span class="cp-hint">(ถ้ามี)</span></label>
+          <input class="form-input" type="text" id="cp-ref" autocomplete="off" placeholder="เลขที่อ้างอิงการโอน" onkeydown="if(event.key==='Enter'){event.preventDefault();saveCashPayment()}"/>
+          <span class="cp-xf-lbl"><i class="ti ti-receipt"></i>สลิปการโอน</span>
+          <div class="cp-slip" id="cp-slip" role="button" tabindex="0" aria-label="แนบสลิปการโอน" onclick="_pickSlip()" onkeydown="if(event.key==='Enter')_pickSlip()" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="this.classList.remove('drag');_dropSlip(event)"></div>
+          <div class="cp-xf-note"><i class="ti ti-clock-hour-4"></i>บันทึกแล้วจะอยู่สถานะ “รอตรวจสอบ” จนกว่าจะยืนยันสลิป</div>
         </div>
       </div>
-      <div class="form-row" id="cp-ref-row" style="display:none"><label class="form-label">เลขอ้างอิง</label><input class="form-input" type="text" id="cp-ref" placeholder="เลขที่อ้างอิงการโอน"/></div>
-      <div id="cp-slip-row" style="display:none;margin-bottom:16px">
-        <label class="form-label">แนบสลิปการโอน</label>
-        <div role="button" tabindex="0" style="background:var(--gray-50);border:2px dashed var(--gray-300);border-radius:var(--radius-md);padding:18px;text-align:center;cursor:pointer;transition:var(--transition)" onclick="_pickSlip()" onkeydown="if(event.key==='Enter')_pickSlip()" ondragover="event.preventDefault()" ondrop="_dropSlip(event)" onmouseenter="this.style.borderColor='var(--blue-300)'" onmouseleave="this.style.borderColor='var(--gray-300)'">
-          <i class="ti ti-photo-up" style="font-size:24px;color:var(--gray-400);display:block;margin-bottom:5px"></i>
-          <span id="cp-slip-label" style="font-size:12px;color:var(--gray-500)">คลิกเพื่อแนบสลิป หรือถ่ายรูป</span>
+      <div class="cp-meta">
+        <div class="form-row">
+          <label class="form-label" for="cp-name">ชื่อผู้ชำระ <span class="cp-hint">— แก้ได้ถ้ามีผู้อื่นจ่ายแทน</span></label>
+          <input class="form-input" type="text" id="cp-name" placeholder="ชื่อ-นามสกุล"/>
         </div>
+        <div class="form-row"><label class="form-label" for="cp-note">หมายเหตุ</label><input class="form-input" type="text" id="cp-note" placeholder="(ถ้ามี)"/></div>
       </div>
-      <div class="form-row" style="margin-bottom:0"><label class="form-label">หมายเหตุ</label><input class="form-input" type="text" id="cp-note" placeholder="(ถ้ามี)"/></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeCashModal()">ยกเลิก</button>
@@ -1166,17 +1261,22 @@
 
 <!-- ══════════ BILL RECEIPT MODAL ══════════ -->
 <div class="modal-overlay" id="receipt-modal" style="display:none" onclick="if(event.target===this)closeReceiptModal()">
-  <div class="modal" style="max-width:460px">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="receipt-modal-title">
     <div class="modal-hd">
       <div class="modal-title"><i id="receipt-modal-icon" class="ti ti-receipt-2"></i><span id="receipt-modal-title">ใบแจ้งหนี้</span></div>
-      <div style="display:flex;gap:6px;align-items:center">
-        <button id="receipt-cancel-btn" class="btn btn-danger btn-sm" style="display:none"><i class="ti ti-ban"></i>ยกเลิกบิล</button>
-        <select id="receipt-paper" class="fselect" aria-label="ขนาดกระดาษ" title="ขนาดกระดาษ" style="height:30px;font-size:12px;max-width:150px" onchange="onPaperChange(this.value)"></select>
-        <button class="btn btn-secondary btn-sm" onclick="printReceipt()"><i class="ti ti-printer"></i><span id="receipt-print-label">พิมพ์</span></button>
-        <button class="modal-close" onclick="closeReceiptModal()"><i class="ti ti-x"></i></button>
+      <button class="modal-close" onclick="closeReceiptModal()" aria-label="ปิด"><i class="ti ti-x"></i></button>
+    </div>
+    <!-- แถบเครื่องมือแยกจากหัว — หัวมีแค่ชื่อเอกสาร ไม่ถูกปุ่มเบียดจนตัดบรรทัด -->
+    <div class="rcpt-bar">
+      <button id="receipt-cancel-btn" class="btn btn-sm rcpt-cancel" style="display:none" title="ยกเลิกบิล" aria-label="ยกเลิกบิล"><i class="ti ti-ban"></i><span>ยกเลิกบิล</span></button>
+      <div class="rcpt-print">
+        <label class="rcpt-paper"><i class="ti ti-file-settings" aria-hidden="true"></i>
+          <select id="receipt-paper" class="fselect" aria-label="ขนาดกระดาษ" title="ขนาดกระดาษ" onchange="onPaperChange(this.value)"></select>
+        </label>
+        <button class="btn btn-primary btn-sm" onclick="printReceipt()"><i class="ti ti-printer"></i><span id="receipt-print-label">พิมพ์</span></button>
       </div>
     </div>
-    <div class="modal-body" id="receipt-body" style="padding:24px"></div>
+    <div class="modal-body" id="receipt-body"></div>
   </div>
 </div>
 
@@ -1210,9 +1310,12 @@
         </div>
       </div>
       <div class="form-row"><label class="form-label">รายละเอียดงาน *</label><input class="form-input" type="text" id="mnt-desc" placeholder="เช่น ท่อแตกหน้าบ้านเลขที่ 42/1"/></div>
-      <div class="form-row"><label class="form-label">สถานที่</label><input class="form-input" type="text" id="mnt-location" placeholder="เช่น หมู่ 1 บ้านป่า"/></div>
       <div class="form-row-2">
-        <div><label class="form-label">ผู้รับผิดชอบ</label><input class="form-input" type="text" id="mnt-assigned" placeholder="ช่างสมศักดิ์"/></div>
+        <div><label class="form-label">หมู่บ้าน</label><select class="form-input" id="mnt-village"></select></div>
+        <div><label class="form-label">สถานที่</label><input class="form-input" type="text" id="mnt-location" placeholder="เช่น หน้าบ้านเลขที่ 42/1"/></div>
+      </div>
+      <div class="form-row-2">
+        <div><label class="form-label">ผู้รับผิดชอบ</label><input class="form-input" type="text" id="mnt-assigned" list="mnt-staff-list" placeholder="เลือกเจ้าหน้าที่ หรือพิมพ์ชื่อช่างภายนอก"/><datalist id="mnt-staff-list"></datalist></div>
         <div><label class="form-label">ค่าใช้จ่าย (บาท)</label><input class="form-input" type="number" id="mnt-cost" placeholder="0" min="0"/></div>
       </div>
     </div>
@@ -1331,7 +1434,7 @@
     <div class="modal-body">
       <div class="info-box" style="margin:0 0 14px">
         <i class="ti ti-info-circle"></i>
-        ระบบจะแบ่งช่วงสุดท้าย (<strong id="at-last-range"></strong>) ออกเป็น 2 ช่วงใหม่
+        <span>ระบบจะแบ่งช่วงสุดท้าย (<strong id="at-last-range"></strong>) ออกเป็น 2 ช่วงใหม่</span>
       </div>
       <div class="form-row">
         <label class="form-label">ช่วงเดิมสิ้นสุดที่หน่วยที่ (ช่วงใหม่เริ่มถัดไป)</label>
@@ -1478,8 +1581,8 @@
           <!-- Remember / Forgot -->
           <div class="lo-row">
             <label class="lo-remember">
-              <input type="checkbox" id="login-remember" checked/>
-              <span>จดจำการเข้าสู่ระบบ</span>
+              <input type="checkbox" id="login-remember"/>
+              <span>จดจำการเข้าสู่ระบบ (เครื่องส่วนตัวเท่านั้น)</span>
             </label>
             <a href="#" class="lo-forgot" onclick="loToggleForgot();return false">ลืมรหัสผ่าน?</a>
           </div>
@@ -1522,22 +1625,22 @@
     <div class="modal-body">
       <div id="pay-type-bill-info" style="background:var(--gray-50);border-radius:var(--radius-md);padding:12px 14px;margin-bottom:16px;font-size:13px;color:var(--gray-700)">—</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div class="pay-channel-btn" onclick="window._selectPayType('cash')" style="padding:18px 10px;border-radius:var(--radius-md);border:2px solid var(--gray-200);display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;transition:var(--transition);-webkit-tap-highlight-color:transparent">
+        <div class="pay-channel-btn" data-ch="cash" onclick="window._selectPayType('cash')" style="padding:18px 10px;border-radius:var(--radius-md);border:2px solid var(--gray-200);display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;transition:var(--transition);-webkit-tap-highlight-color:transparent">
           <i class="ti ti-cash" style="font-size:28px;color:var(--green-700)"></i>
           <span style="font-size:13px;font-weight:700;color:var(--gray-800)">เงินสด</span>
           <span style="font-size:11px;color:var(--gray-500)">บันทึกทันที</span>
         </div>
-        <div class="pay-channel-btn" onclick="window._selectPayType('promptpay')" style="padding:18px 10px;border-radius:var(--radius-md);border:2px solid var(--gray-200);display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;transition:var(--transition);-webkit-tap-highlight-color:transparent">
+        <div class="pay-channel-btn" data-ch="promptpay" onclick="window._selectPayType('promptpay')" style="padding:18px 10px;border-radius:var(--radius-md);border:2px solid var(--gray-200);display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;transition:var(--transition);-webkit-tap-highlight-color:transparent">
           <i class="ti ti-qrcode" style="font-size:28px;color:var(--blue-700)"></i>
           <span style="font-size:13px;font-weight:700;color:var(--gray-800)">PromptPay</span>
           <span style="font-size:11px;color:var(--gray-500)">แนบสลิปยืนยัน</span>
         </div>
-        <div class="pay-channel-btn" onclick="window._selectPayType('bank')" style="padding:18px 10px;border-radius:var(--radius-md);border:2px solid var(--gray-200);display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;transition:var(--transition);-webkit-tap-highlight-color:transparent">
+        <div class="pay-channel-btn" data-ch="bank" onclick="window._selectPayType('bank')" style="padding:18px 10px;border-radius:var(--radius-md);border:2px solid var(--gray-200);display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;transition:var(--transition);-webkit-tap-highlight-color:transparent">
           <i class="ti ti-building-bank" style="font-size:28px;color:var(--blue-900)"></i>
           <span style="font-size:13px;font-weight:700;color:var(--gray-800)">โอนธนาคาร</span>
           <span style="font-size:11px;color:var(--gray-500)">แนบสลิปยืนยัน</span>
         </div>
-        <div class="pay-channel-btn" onclick="window._selectPayType('mobile')" style="padding:18px 10px;border-radius:var(--radius-md);border:2px solid var(--gray-200);display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;transition:var(--transition);-webkit-tap-highlight-color:transparent">
+        <div class="pay-channel-btn" data-ch="mobile" onclick="window._selectPayType('mobile')" style="padding:18px 10px;border-radius:var(--radius-md);border:2px solid var(--gray-200);display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;transition:var(--transition);-webkit-tap-highlight-color:transparent">
           <i class="ti ti-device-mobile" style="font-size:28px;color:var(--cyan-700)"></i>
           <span style="font-size:13px;font-weight:700;color:var(--gray-800)">Mobile App</span>
           <span style="font-size:11px;color:var(--gray-500)">แนบสลิปยืนยัน</span>
@@ -1870,9 +1973,9 @@ function _showUpdateBanner(reg) {
 <!-- App config (credentials — gitignored, never committed) -->
 <script src="config.js"></script>
 <!-- CDN Libraries (global scope, loaded before ES6 modules) -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" integrity="sha384-mZT2gIty7ZDdOGkxfP6joZcYdMW1Jvj9dRlfpTmaJAKKXTqzygtB22k7FLe+KZC1" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
 <!-- Application entry point (ES6 module — imports entire src/ tree) -->
 <script type="module" src="src/app.js"></script>
 </body>

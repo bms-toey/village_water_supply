@@ -1,4 +1,5 @@
 -- ══════════════════════════════════════════════════════════════════
+DO $$ BEGIN RAISE EXCEPTION 'sql_admin_users.sql เลิกใช้แล้ว (เปิดช่องโหว่ถ้ารันซ้ำ) — ใช้ sql_secure_auth.sql + sql_phase5_security.sql แทน'; END $$;
 -- Admin User Management — RPCs สำหรับ Super Admin สร้าง/แก้ไข users
 --
 -- รันไฟล์นี้ใน Supabase SQL Editor (Dashboard → SQL Editor → New query)

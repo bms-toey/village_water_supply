@@ -121,6 +121,23 @@
 .page{display:none;animation:fadeSlideIn .2s ease}
 .page.active{display:block}
 
+/* หน้า .page-fill: การ์ดรายการหลัก (.fill-grow) ยืดลงถึงขอบล่างจอเสมอ แม้ข้อมูลน้อย — footer ชิดล่างการ์ด */
+@media screen{
+  .content-area{display:flex;flex-direction:column}
+  .content-area>.page.active{flex:1 0 auto;min-width:0}
+  .page-fill.active{display:flex;flex-direction:column}
+  .page-fill .fill-grow{flex:1 0 auto;display:flex;flex-direction:column;min-width:0}
+  .page-fill .fill-grow:last-child{margin-bottom:0}
+  .page-fill .fill-grow>.tbl-footer,.page-fill .fill-grow>.pay-foot{margin-top:auto}
+}
+@media screen and (max-width:768px){
+  #page-map .map-layout{align-content:start}
+}
+@media screen and (min-width:769px){
+  #page-map .map-card{align-self:stretch;display:flex;flex-direction:column}
+  #page-map #map-container{flex:1 1 auto;height:auto!important;min-height:540px}
+}
+
 /* โ”€โ”€โ”€ GRID HELPERS โ”€โ”€โ”€ */
 .grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-bottom:18px}
 .grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:18px}

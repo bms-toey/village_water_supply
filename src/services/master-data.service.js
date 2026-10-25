@@ -3,7 +3,6 @@
 // All lookup/dropdown data is managed here — never hardcoded.
 // ──────────────────────────────────────────────────────────────
 import { _sb } from './supabase.service.js';
-import { getSession } from './session.service.js';
 import { appState } from '../state/app.state.js';
 import { _dbVillages, setVillages } from './db-mapper.service.js';
 import { rateConfig } from '../config/rate.config.js';
@@ -157,19 +156,9 @@ export async function saveSystemConfig(key, value) {
 }
 
 // ─── Audit Log ─────────────────────────────────────────────────
-async function _logAudit(tableName, recordId, action, oldData, newData) {
-  // server เขียนทับ performed_by จาก JWT อยู่แล้ว (trg_audit_stamp) — ค่านี้ไว้แสดงผลเท่านั้น
-  const p    = getSession()?.profile;
-  const user = p?.username || p?.email || p?.full_name;
-  await _sb.from('audit_logs').insert({
-    table_name:   tableName,
-    record_id:    String(recordId || ''),
-    action,
-    old_data:     oldData  ? JSON.parse(JSON.stringify(oldData))  : null,
-    new_data:     newData  ? JSON.parse(JSON.stringify(newData))  : null,
-    performed_by: user || 'system',
-  });
-}
+// การแก้ master_data / villages / system_config server บันทึกเองด้วย trigger
+// (ผู้ทำรายการจาก JWT, ตัดค่า secret ออก) — แอปไม่ต้องเขียน audit ซ้ำ
+async function _logAudit() {}
 
 export async function loadAuditLogs(limit = 100, tableFilter = '') {
   let q = _sb.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(limit);

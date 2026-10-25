@@ -2,12 +2,13 @@
 import { renderPortalAccess } from '../notify/notify.js';
 import { toLocalDate, todayISO } from '../../utils/time.util.js';
 import { appState } from '../../state/app.state.js';
-import { esc, toast, getAvatarColor, getInitials } from '../../utils/dom.util.js';
+import { esc, toast, getAvatarColor, getInitials, jsArg, maskPhone } from '../../utils/dom.util.js';
 import { statusMap, memberTypeMap, meterSizeMap, getMemberTypeDisplay, getMeterSizeDisplay } from '../../config/ui.config.js';
 import { buildSelectOptions, _populateMemberFormDropdowns } from '../settings/settings.js';
-import { sbUpdateMember, sbInsertMember, sbDeleteMember } from '../../services/data-loader.service.js';
+import { sbSaveMember, sbInsertMember, sbDeleteMember, sbRevealNationalId } from '../../services/data-loader.service.js';
 import { saveToStorage } from '../../services/storage.service.js';
-import { currentUser } from '../../services/auth.service.js';
+import { currentUser, hasRole } from '../../services/auth.service.js';
+import { _vName } from '../../services/db-mapper.service.js';
 
 // ─── Filter State ─────────────────────────────────────────────
 let _memberSearch  = '';
@@ -26,7 +27,7 @@ function _matches(m) {
     const name = (m.firstName + ' ' + m.lastName).toLowerCase();
     if (!name.includes(q) && !m.meter.toLowerCase().includes(q) && !m.houseNo.toLowerCase().includes(q)) return false;
   }
-  if (_memberVillage && m.village !== _memberVillage) return false;
+  if (_memberVillage && String(m.villageId) !== _memberVillage) return false;
   if (_memberStatus  && m.status  !== _memberStatus)  return false;
   return true;
 }
@@ -56,14 +57,14 @@ export function renderMembers() {
         <div class="mavatar mch-av" style="background:${getAvatarColor(m.id)};width:42px;height:42px;font-size:13px">${getInitials(m.firstName, m.lastName)}</div>
         <div class="mch-info">
           <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
-            <span class="text-bold" style="font-size:13.5px">${full}</span>
+            <span class="text-bold pii" style="font-size:13.5px">${full}</span>
             <span class="mtype-badge ${mt.cls}" style="font-size:10.5px">${mt.label}</span>
           </div>
           <div class="text-muted" style="font-size:11.5px;margin-top:2px">
             ID: ${m.id}${m.houseNo?' · '+esc(m.houseNo):''}${m.village?' · '+esc(m.village):''}
             <span class="mch-meter-mini mono"> · ${esc(m.meter)}</span>
           </div>
-          ${m.phone?`<div style="font-size:11px;color:var(--gray-400);margin-top:1px"><i class="ti ti-phone" style="font-size:10px"></i> ${esc(m.phone)}</div>`:''}
+          ${m.phone?`<div class="pii" style="font-size:11px;color:var(--gray-400);margin-top:1px"><i class="ti ti-phone" style="font-size:10px"></i> ${esc(maskPhone(m.phone))}</div>`:''}
         </div>
         <div class="mch-meter">
           <div class="mono" style="font-size:12.5px;font-weight:600;color:var(--blue-900)">${esc(m.meter)}</div>
@@ -111,6 +112,7 @@ export function openAddMember() {
   document.getElementById('modal-member-id').value = '';
   document.getElementById('modal-title-text').textContent = 'เพิ่มสมาชิกใหม่';
   document.getElementById('modal-icon').className = 'ti ti-user-plus';
+  _setNationalIdField(null);
   ['f-firstname','f-lastname','f-nationalid','f-houseno','f-phone','f-lineid','f-email','f-meter','f-meterbrand','f-gps-lat','f-gps-lng'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   _populateMemberFormDropdowns();
   window.populateVillageDropdowns?.();
@@ -136,9 +138,9 @@ export function openEditMember(id) {
   document.getElementById('modal-icon').className         = 'ti ti-user-edit';
   document.getElementById('f-firstname').value            = m.firstName;
   document.getElementById('f-lastname').value             = m.lastName;
-  document.getElementById('f-nationalid').value           = m.nationalId  || '';
+  _setNationalIdField(m);
   document.getElementById('f-houseno').value              = m.houseNo     || '';
-  document.getElementById('f-village').value              = m.village;
+  document.getElementById('f-village').value              = m.villageId ?? '';
   document.getElementById('f-membertype').value           = m.memberType  || 'residential';
   document.getElementById('f-household').value            = m.householdCount || 1;
   document.getElementById('f-regdate').value              = m.registrationDate || '';
@@ -174,15 +176,10 @@ export async function saveMember() {
   const editId    = document.getElementById('modal-member-id').value;
   const editIdInt = editId ? parseInt(editId) : null;
 
-  // ── Validate unique national ID ──────────────────────────────
-  const nid = document.getElementById('f-nationalid').value.trim();
-  if (nid) {
-    const dupNid = appState.members.find(m => m.nationalId === nid && m.id !== editIdInt);
-    if (dupNid) {
-      toast(`เลขบัตรประชาชน ${nid} ถูกใช้แล้วโดย ${dupNid.firstName} ${dupNid.lastName}`, 'error');
-      return;
-    }
-  }
+  // ── เลขบัตรประชาชน: ไม่บังคับ — server เข้ารหัสและตรวจซ้ำเอง ──────────
+  const nid = document.getElementById('f-nationalid').value.replace(/[^0-9]/g, '');
+  if (nid && nid.length !== 13) { toast('เลขบัตรประชาชนต้องมี 13 หลัก', 'error'); return; }
+  const nidClear = document.getElementById('f-nationalid')?.dataset.clear === '1';
 
   // ── Validate unique meter number ─────────────────────────────
   const dupMeter = appState.members.find(m => m.meter === meter && m.id !== editIdInt);
@@ -194,9 +191,11 @@ export async function saveMember() {
 
   const data = {
     firstName: fn, lastName: ln,
-    nationalId: nid,
+    // ส่งเฉพาะเมื่อกรอกใหม่ ('' = ลบ) — ไม่งั้นคงค่าเดิมที่ server
+    nationalIdInput: nid || (nidClear ? '' : undefined),
     houseNo: document.getElementById('f-houseno').value.trim(),
-    village: document.getElementById('f-village').value,
+    villageId: Number(document.getElementById('f-village').value) || null,
+    village: _vName(Number(document.getElementById('f-village').value)),
     memberType: document.getElementById('f-membertype').value,
     householdCount: parseInt(document.getElementById('f-household').value) || 1,
     registrationDate: document.getElementById('f-regdate').value,
@@ -217,7 +216,13 @@ export async function saveMember() {
   if (editIdInt) {
     // ── Edit existing member ─────────────────────────────────
     const m = appState.members.find(x => x.id === editIdInt);
-    if (m) { Object.assign(m, data); sbUpdateMember(m); }
+    if (!m) return;
+    const before = { ...m };
+    Object.assign(m, data);
+    const ok = await sbSaveMember(m);
+    if (!ok) { Object.keys(m).forEach(k => delete m[k]); Object.assign(m, before); return; }
+    if (data.nationalIdInput !== undefined) m.nationalIdLast4 = nid ? nid.slice(-4) : '';
+    delete m.nationalIdInput;
     toast(`บันทึกข้อมูล ${fn} ${ln} แล้ว`, 'success');
     closeMemberModal(); renderMembers(); saveToStorage();
   } else {
@@ -242,11 +247,44 @@ export async function saveMember() {
 
     // Success — replace tempId with real DB id
     const idx = appState.members.findIndex(m => m.id === tempId);
-    if (idx >= 0) appState.members[idx].id = realId;
+    if (idx >= 0) {
+      appState.members[idx].id = realId;
+      appState.members[idx].nationalIdLast4 = nid ? nid.slice(-4) : '';
+      delete appState.members[idx].nationalIdInput;
+    }
     appState.nextMemberId = realId + 1;
     toast(`เพิ่มสมาชิก ${fn} ${ln} แล้ว`, 'success');
     closeMemberModal(); renderMembers(); saveToStorage();
   }
+}
+
+// ─── เลขบัตรประชาชน: แสดงแค่ 4 ตัวท้าย / กรอกใหม่เพื่อเปลี่ยน / admin ดูเต็มได้ (บันทึก audit) ──
+function _setNationalIdField(m) {
+  const inp = document.getElementById('f-nationalid');
+  if (!inp) return;
+  inp.value = '';
+  inp.dataset.clear = '';
+  inp.placeholder = m?.nationalIdLast4 ? `มีในระบบ: ลงท้าย ${m.nationalIdLast4} — กรอกใหม่เพื่อเปลี่ยน` : 'ไม่บังคับ — กรอกเฉพาะเมื่อจำเป็น';
+  let hint = document.getElementById('f-nationalid-hint');
+  if (!hint) {
+    hint = document.createElement('div');
+    hint.id = 'f-nationalid-hint';
+    hint.style.cssText = 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:4px;font-size:11.5px;color:var(--gray-500)';
+    inp.insertAdjacentElement('afterend', hint);
+  }
+  hint.innerHTML = `<span><i class="ti ti-lock"></i> เก็บแบบเข้ารหัส เห็นได้แค่ 4 ตัวท้าย</span>${m?.nationalIdLast4 ? `
+    ${hasRole('super_admin', 'village_admin') ? '<button type="button" class="btn btn-secondary btn-xs" data-nid="reveal">ดูเลขเต็ม</button>' : ''}
+    <button type="button" class="btn btn-secondary btn-xs" data-nid="clear">ลบเลขบัตร</button>` : ''}`;
+  hint.onclick = async (e) => {
+    const act = e.target.closest('[data-nid]')?.dataset.nid;
+    if (act === 'clear') {
+      inp.dataset.clear = '1'; inp.value = ''; inp.placeholder = 'จะลบเลขบัตรเมื่อกดบันทึก';
+      toast('จะลบเลขบัตรประชาชนเมื่อกดบันทึก', 'info');
+    } else if (act === 'reveal') {
+      const full = await sbRevealNationalId(m.id);   // server บันทึกว่าใครดูเมื่อไร
+      if (full) toast(`เลขบัตรประชาชน: ${full}`, 'info', 8000);
+    }
+  };
 }
 
 // ─── Quick View ───────────────────────────────────────────────
@@ -276,8 +314,8 @@ export function openMemberQuickView(id) {
     body.innerHTML = '<div id="mqv-portal"></div>' + (totalDebt > 0 ? `<div class="warning-box" style="margin-bottom:14px"><i class="ti ti-alert-triangle"></i><div><span class="text-bold text-error">ยอดค้างชำระรวม: ฿${totalDebt.toLocaleString()}</span></div></div>` : '') +
       memberBills.map(b => {
         const st2 = billStatusMap[b.status] || billStatusMap.pending;
-        const payBtn = (b.status === 'overdue' || b.status === 'pending') ? `<button class="btn btn-primary btn-xs" onclick="openCashModalForBill('${esc(b.id)}');closeMemberQV()"><i class="ti ti-cash"></i>รับชำระ</button>` : '';
-        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100)"><div><div class="text-bold" style="font-size:13px">${esc(b.period)}</div><div class="text-muted" style="font-size:11px">${esc(b.id)} · ${b.usage} m³</div></div><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end"><span class="text-bold${b.status==='overdue'?' text-error':''}">฿${b.total.toLocaleString()}</span><span class="pill ${st2.cls}">${st2.label}</span>${payBtn}<button class="btn-icon" title="ใบแจ้งหนี้" onclick="openBillReceipt('${esc(b.id)}')"><i class="ti ti-receipt-2"></i></button></div></div>`;
+        const payBtn = (b.status === 'overdue' || b.status === 'pending') ? `<button class="btn btn-primary btn-xs" onclick="openCashModalForBill(${jsArg(b.id)});closeMemberQV()"><i class="ti ti-cash"></i>รับชำระ</button>` : '';
+        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100)"><div><div class="text-bold" style="font-size:13px">${esc(b.period)}</div><div class="text-muted" style="font-size:11px">${esc(b.id)} · ${b.usage} m³</div></div><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end"><span class="text-bold${b.status==='overdue'?' text-error':''}">฿${b.total.toLocaleString()}</span><span class="pill ${st2.cls}">${st2.label}</span>${payBtn}<button class="btn-icon" title="ใบแจ้งหนี้" onclick="openBillReceipt(${jsArg(b.id)})"><i class="ti ti-receipt-2"></i></button></div></div>`;
       }).join('');
   }
   document.getElementById('member-qv-modal').style.display = 'flex';
@@ -299,7 +337,7 @@ export function closeConfirm() { appState.pendingDeleteId = null; document.getEl
 export function doDeleteMember() {
   if (appState.pendingDeleteId === null) return;
   const m = appState.members.find(x => x.id === appState.pendingDeleteId);
-  sbDeleteMember(appState.pendingDeleteId, currentUser?.id);
+  sbDeleteMember(appState.pendingDeleteId);
   appState.members = appState.members.filter(x => x.id !== appState.pendingDeleteId);
   closeConfirm(); renderMembers(); saveToStorage();
   if (m) toast(`ลบ ${m.firstName} ${m.lastName} แล้ว`, 'warn');
@@ -377,7 +415,7 @@ export function generateMeterNo() {
   const members = appState.members;
 
   // Scope to current village if selected, else all members
-  const pool = (village ? members.filter(m => m.village === village) : members)
+  const pool = (village ? members.filter(m => String(m.villageId) === village) : members)
     .map(m => m.meter)
     .filter(Boolean);
 

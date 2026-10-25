@@ -14,6 +14,7 @@ import {
 import { saveSystemConfig } from '../../services/master-data.service.js';
 import { openModal, closeModal, busyButton } from '../../components/modal/modal.js';
 import { fmtLocalDateTime } from '../../utils/time.util.js';
+import { villageOptions } from '../../services/db-mapper.service.js';
 
 export const canMessage   = () => hasRole('super_admin', 'village_admin', 'finance');
 export const canBroadcast = () => hasRole('super_admin', 'village_admin');
@@ -126,7 +127,6 @@ export async function sendOverdueReminders(memberIds = null) {
 
 export function openAnnouncement() {
   if (!canBroadcast()) { toast('เฉพาะผู้ดูแลระบบ', 'error'); return; }
-  const villages = [...new Set(appState.members.map(m => m.village))].filter(Boolean).sort();
   openModal({
     id: 'announce-modal', title: 'ส่งประกาศถึงผู้ใช้น้ำ', icon: 'ti-speakerphone', width: 460,
     body: `
@@ -135,7 +135,7 @@ export function openAnnouncement() {
       <div class="form-group" style="margin-bottom:12px"><label class="form-label" for="an-msg">ข้อความ *</label>
         <textarea class="form-input" id="an-msg" rows="4" placeholder="เช่น วันที่ 25 ต.ค. เวลา 09:00–12:00 น. ปิดน้ำเพื่อซ่อมท่อเมน"></textarea></div>
       <div class="form-group"><label class="form-label" for="an-village">ส่งถึง</label>
-        <select class="form-input" id="an-village"><option value="">ทุกหมู่บ้าน</option>${villages.map(v => `<option>${esc(v)}</option>`).join('')}</select></div>
+        <select class="form-input" id="an-village"><option value="">ทุกหมู่บ้าน</option>${villageOptions()}</select></div>
       <div style="font-size:11.5px;color:var(--gray-500);margin-top:10px">ส่งทาง LINE ให้สมาชิกที่ผูกบัญชีแล้ว (และ SMS ถ้าเปิดใช้)</div>`,
     footer: `<button class="btn btn-secondary" data-close>ยกเลิก</button>
       <button class="btn btn-primary" id="an-ok"><i class="ti ti-send"></i>ส่งประกาศ</button>`,
@@ -144,8 +144,10 @@ export function openAnnouncement() {
     const title = document.getElementById('an-title').value.trim();
     const msg   = document.getElementById('an-msg').value.trim();
     if (!title || !msg) { toast('กรุณากรอกหัวข้อและข้อความ', 'error'); return; }
-    const vName = document.getElementById('an-village').value;
-    const vId   = vName ? (await import('../../services/db-mapper.service.js'))._vId(vName) : null;
+    // value เป็น village id — เลือกหมู่บ้านแล้วแต่ id ไม่ถูกต้อง ห้ามตกไปเป็น "ทุกหมู่บ้าน"
+    const vSel = document.getElementById('an-village').value;
+    const vId  = vSel ? Number(vSel) : null;
+    if (vSel && !(vId > 0)) { toast('หมู่บ้านไม่ถูกต้อง', 'error'); return; }
     const done  = busyButton(e.currentTarget, 'กำลังส่ง...');
     const r = await sbBroadcast(title, msg, vId);
     done();

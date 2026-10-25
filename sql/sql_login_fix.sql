@@ -1,4 +1,5 @@
 -- ══════════════════════════════════════════════════════════════
+DO $$ BEGIN RAISE EXCEPTION 'sql_login_fix.sql เลิกใช้แล้ว (เปิดช่องโหว่ถ้ารันซ้ำ) — ใช้ sql_secure_auth.sql + sql_phase5_security.sql แทน'; END $$;
 -- LOGIN FIX — รัน SQL นี้ใน Supabase Dashboard → SQL Editor
 -- แก้ปัญหา login ด้วยเบอร์โทร / Username ไม่ได้
 -- ══════════════════════════════════════════════════════════════

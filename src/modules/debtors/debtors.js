@@ -1,6 +1,6 @@
 // ─── Debtors Module ────────────────────────────────────────────
 import { appState } from '../../state/app.state.js';
-import { esc, toast, showConfirm } from '../../utils/dom.util.js';
+import { esc, toast, showConfirm, jsArg } from '../../utils/dom.util.js';
 import { getInitials } from '../../utils/dom.util.js';
 import { saveToStorage } from '../../services/storage.service.js';
 import { sbSaveMember, sbLogAudit } from '../../services/data-loader.service.js';
@@ -51,7 +51,7 @@ export function renderDebtors() {
       <div class="dch-rank" style="color:${severityColor}">${String(idx+1).padStart(2,'0')}</div>
       <div class="mavatar" style="width:36px;height:36px;font-size:11px;background:${severityColor}">${initials}</div>
       <div class="dch-info">
-        <div class="text-bold" style="font-size:13px">${esc(m.firstName||'')} ${esc(m.lastName||'')}</div>
+        <div class="text-bold pii" style="font-size:13px">${esc(m.firstName||'')} ${esc(m.lastName||'')}</div>
         <div class="text-muted" style="font-size:11.5px">${esc(m.houseNo||'—')} ${esc(m.village||'')}</div>
       </div>
       <div class="dch-debt">
@@ -62,7 +62,7 @@ export function renderDebtors() {
       <div class="dch-actions">
         <button class="btn-icon" onclick="openNoticePrint(${parseInt(mid)})" title="พิมพ์หนังสือแจ้ง" aria-label="พิมพ์หนังสือแจ้ง"><i class="ti ti-mail"></i></button>
         <button class="btn-icon" data-notify="${mid}" title="แจ้งเตือน" aria-label="แจ้งเตือน"><i class="ti ti-bell-ringing"></i></button>
-        <button class="btn-icon" title="ประวัติ" onclick="gotoMeter('${esc((m.firstName||'')+' '+(m.lastName||''))}','${esc(m.meter||'')}',${mid})"><i class="ti ti-history"></i></button>
+        <button class="btn-icon" title="ประวัติ" onclick="gotoMeter(${jsArg((m.firstName||'')+' '+(m.lastName||''))},${jsArg(m.meter||'')},${Number(mid)})"><i class="ti ti-history"></i></button>
         <button class="btn-icon" data-suspend="${mid}" title="ตัดน้ำ" style="color:var(--red-700);border-color:var(--red-100)"><i class="ti ti-droplet-off"></i></button>
       </div>
     </div>`;

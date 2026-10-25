@@ -126,6 +126,9 @@ button, .btn, .tab, .stab-btn, .bnav-item, .nav-item, [role="button"] { touch-ac
   .kpi-grid-3 .kpi-val { font-size: 18px; }
   .kpi-grid-3 .kpi-label { font-size: 10.5px; line-height: 1.25; }
 
+  /* ── URL / โค้ดยาว (เช่น ขั้นตอนตั้งค่า LINE) ตัดบรรทัดได้ ไม่ดันการ์ดล้นจอ ── */
+  .card-body code, .info-box code, li code { overflow-wrap: anywhere; word-break: break-word; }
+
   /* ── เลขมิเตอร์ไม่ตัดกลางคำ ── */
   .mch-meter-mini { white-space: nowrap; }
 

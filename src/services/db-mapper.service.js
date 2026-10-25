@@ -4,12 +4,21 @@
 // ──────────────────────────────────────────────────────────────
 
 import { fmtLocalDateTime, localToISO } from '../utils/time.util.js';
+import { esc } from '../utils/dom.util.js';
 
 // ─── Village Cache ───────────────────────────────────────────
 export let _dbVillages = [];
 export function _vId(name)  { return (_dbVillages.find(v => v.name === name) || {}).id   || null; }
 export function _vName(id)  { return (_dbVillages.find(v => v.id   === id)   || {}).name || '';   }
 export function setVillages(list) { _dbVillages.length = 0; list.forEach(v => _dbVillages.push(v)); }
+/** <option> ของหมู่บ้านที่ใช้งาน — value เป็น id เสมอ (ห้ามใช้ชื่อเป็นตัวเชื่อม) */
+export function villageOptions(selectedId = null, { all = false } = {}) {
+  return [..._dbVillages]
+    .filter(v => all || v.is_active !== false)
+    .sort((a, b) => (a.moo_number || 0) - (b.moo_number || 0))
+    .map(v => `<option value="${v.id}"${String(v.id) === String(selectedId) ? ' selected' : ''}>${v.moo_number ? `หมู่ ${v.moo_number} · ` : ''}${esc(v.name)}</option>`)
+    .join('');
+}
 
 // ─── Thai Month Map ───────────────────────────────────────────
 const _THAI_M = {
@@ -17,9 +26,16 @@ const _THAI_M = {
   'ก.ค.':7, 'ส.ค.':8, 'ก.ย.':9,  'ต.ค.':10, 'พ.ย.':11, 'ธ.ค.':12,
 };
 const _THAI_MO = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+/** ป้ายงวด → { year, month } — ป้ายผิดรูปแบบ throw (เดิมตกเป็น ม.ค. 2566 เงียบๆ ทำให้บิลผิดงวด) */
 export function _periodYM(label) {
-  const p = (label || '').trim().split(' ');
-  return { year: parseInt(p[1]) || 2566, month: _THAI_M[p[0]] || 1 };
+  const p = (label || '').trim().split(/\s+/);
+  const year = parseInt(p[1]), month = _THAI_M[p[0]];
+  if (!month || !(year > 2500)) throw new Error(`งวดไม่ถูกต้อง: "${label}"`);
+  return { year, month };
+}
+/** (ปี พ.ศ., เดือน) → ป้ายงวด เช่น "ต.ค. 2569" — แบบเดียวกับที่ server สร้าง */
+export function periodLabel(year, month) {
+  return year && month ? `${_THAI_MO[month - 1]} ${year}` : '';
 }
 /** Convert ISO date string (YYYY-MM-DD) → Thai BE period label e.g. "มิ.ย. 2569" */
 export function _dateToPeriod(dateStr) {
@@ -34,8 +50,10 @@ export function _mFromDB(r) {
     id:               r.id,
     firstName:        r.first_name,
     lastName:         r.last_name,
-    nationalId:       r.national_id        || '',
+    // เลขบัตรเต็มไม่ส่งมาที่แอป (server เข้ารหัสไว้) — แสดงได้แค่ 4 ตัวท้าย
+    nationalIdLast4:  r.national_id_last4  || '',
     houseNo:          r.house_no           || '',
+    villageId:        r.village_id         ?? null,
     village:          _vName(r.village_id),
     memberType:       r.member_type        || 'residential',
     householdCount:   r.household_count    || 1,
@@ -58,11 +76,10 @@ export function _mFromDB(r) {
   };
 }
 export function _mToDB(m) {
-  const villageId = _vId(m.village);
+  const villageId = m.villageId ?? _vId(m.village);
   const row = {
     first_name:         m.firstName,
     last_name:          m.lastName,
-    national_id:        m.nationalId        || null,
     house_no:           m.houseNo           || '',
     member_type:        m.memberType        || 'residential',
     household_count:    m.householdCount    || 1,
@@ -80,9 +97,9 @@ export function _mToDB(m) {
     status:             m.status            || 'normal',
     notes:              m.notes             || null,
   };
-  // Only include village_id when resolved — avoids NOT NULL violation
-  // when village name doesn't match _dbVillages yet
-  if (villageId !== null) row.village_id = villageId;
+  if (villageId != null) row.village_id = villageId;
+  // เลขบัตร: ส่งเฉพาะเมื่อกรอกใหม่ ('' = ลบ) — ไม่ส่ง = คงค่าเดิมที่ server
+  if (m.nationalIdInput !== undefined) row.national_id = m.nationalIdInput;
   return row;
 }
 
@@ -104,20 +121,22 @@ export function _bFromDB(r) {
     total:         parseFloat(r.total)          || 0,
     status:        r.status   || 'pending',
     sentVia:       r.sent_via || 'none',
-    issuedBy:      'admin',
+    issuedById:    r.issued_by || null,
     cancelReason:  r.cancel_reason || null,
-    cancelledBy:   r.cancelled_by  || null,
+    cancelledBy:   r.cancelled_by  || null,        // ชื่อผู้ยกเลิก ณ เวลานั้น (สำเนาเพื่อแสดง)
+    cancelledById: r.cancelled_by_id || null,
     cancelledAt:   r.cancelled_at  ? fmtLocalDateTime(r.cancelled_at) : null,
   };
 }
 export function _bToDB(b) {
-  const { year, month } = _periodYM(b.period);
+  const { year, month } = b.periodYear && b.periodMonth
+    ? { year: b.periodYear, month: b.periodMonth } : _periodYM(b.period);
   return {
     id:             b.id,
     member_id:      b.memberId,
     period_year:    year,
     period_month:   month,
-    period_label:   b.period,
+    period_label:   periodLabel(year, month),   // server สร้างใหม่จาก (ปี, เดือน) อยู่แล้ว
     issue_date:     b.issueDate,
     due_date:       b.dueDate,
     usage:          b.usage          || 0,
@@ -129,8 +148,7 @@ export function _bToDB(b) {
     status:         b.status         || 'pending',
     sent_via:       b.sentVia        || 'none',
     cancel_reason:  b.cancelReason   || null,
-    cancelled_by:   b.cancelledBy    || null,
-    cancelled_at:   localToISO(b.cancelledAt),
+    // ผู้ยกเลิก/เวลา server กำหนดจาก JWT
   };
 }
 
@@ -156,6 +174,7 @@ export function _pFromDB(r) {
     printCount:     r.print_count      || 0,
     cancelledAt:    r.cancelled_at ? fmtLocalDateTime(r.cancelled_at) : null,
     cancelledBy:    r.cancelled_by     || '',
+    cancelledById:  r.cancelled_by_id  || null,
     cancelReason:   r.cancel_reason    || '',
   };
 }
@@ -190,7 +209,9 @@ export function _rFromDB(r) {
     memberId:      r.member_id,
     meter:         r.meter_no,
     readingDate:   r.reading_date,
-    period:        _dateToPeriod(r.reading_date),
+    periodYear:    r.period_year  ?? null,
+    periodMonth:   r.period_month ?? null,
+    period:        r.period_year ? periodLabel(r.period_year, r.period_month) : _dateToPeriod(r.reading_date),
     prevReading:   (parseFloat(r.prev_reading) || 0) + _rollShift(r),
     rollover:      !!r.rollover,
     meterMax:      r.meter_max ?? null,
@@ -199,7 +220,7 @@ export function _rFromDB(r) {
     waterCharge:   parseFloat(r.water_charge)   || 0,
     serviceCharge: parseFloat(r.service_charge) || 0,
     total:        (parseFloat(r.water_charge) || 0) + (parseFloat(r.service_charge) || 0),
-    readBy:        'ผู้ดูแลระบบ',
+    readById:      r.read_by || null,
     method:        r.method  || 'manual',
     anomaly:       r.anomaly || null,
     billId:        r.bill_id || null,
@@ -233,10 +254,12 @@ export function _ntFromDB(r) {
     type:             r.type,
     description:      r.description,
     location:         r.location       || '',
+    villageId:        r.village_id     ?? null,
     reportedBy:       r.reported_by_type || 'staff',
     reportedMemberId: r.member_id       || null,
     reportedDate:     r.reported_date,
-    assignedTo:       r.assigned_name  || '',
+    assignedTo:       r.assigned_name  || '',        // ชื่อ (ผู้รับเหมาภายนอก หรือสำเนาชื่อเจ้าหน้าที่)
+    assignedToId:     r.assigned_to    || null,
     startDate:        r.start_date     || null,
     completedDate:    r.completed_date || null,
     materials:        r.materials      || '',
@@ -247,16 +270,17 @@ export function _ntFromDB(r) {
   };
 }
 export function _ntToDB(m) {
-  const vId = _dbVillages.find(v => (m.location || '').includes(v.name))?.id || null;
   return {
-    id:               m.id,
+    id:               m.id || null,
     type:             m.type,
     description:      m.description,
     location:         m.location      || null,
-    village_id:       vId,
+    // หมู่บ้านเป็น id เสมอ — ไม่เดาจากข้อความสถานที่ (server เติมจากสมาชิกที่แจ้งถ้าไม่ระบุ)
+    ...(m.villageId !== undefined ? { village_id: m.villageId } : {}),
     member_id:        m.reportedMemberId || null,
     reported_by_type: m.reportedBy    || 'staff',
     reported_date:    m.reportedDate,
+    assigned_to:      m.assignedToId  || null,
     assigned_name:    m.assignedTo    || null,
     start_date:       m.startDate     || null,
     completed_date:   m.completedDate || null,

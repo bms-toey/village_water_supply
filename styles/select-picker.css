@@ -1,0 +1,34 @@
+/* ─── Select Picker ───────────────────────────────────────────
+   รายการตัวเลือกของ <select> ทุกตัว (src/components/ux/select-picker.js)
+   font-size ถูกตั้งจาก JS ให้เท่ากับช่องเลือก — ทุกระยะใช้ em จึงย่อ/ขยายตามกัน
+   ห้ามตั้ง font-size ตายตัวที่นี่ เพื่อไม่ให้รายการใหญ่กว่าส่วนอื่น                      */
+.sp-pop{
+  position:fixed;z-index:10600;width:max-content;overflow-y:auto;overscroll-behavior:contain;
+  padding:4px;line-height:1.35;color:#0f1b3d;outline:none;
+  background:#fff;border:1px solid rgba(15,35,90,.14);border-radius:10px;
+  box-shadow:0 14px 34px -10px rgba(7,20,52,.35),0 2px 6px rgba(7,20,52,.08);
+  animation:spIn .12s ease-out;
+}
+.sp-pop.up{animation-name:spInUp}
+.sp-grp{padding:.5em .7em .2em;font-size:.82em;font-weight:700;color:#6b7493}
+.sp-opt{
+  display:flex;align-items:center;gap:.6em;padding:.4em .7em;border-radius:7px;
+  cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;
+}
+.sp-opt.in-grp{padding-left:1.2em}
+.sp-opt .ti{margin-left:auto;font-size:1em;color:#1d5fd6;visibility:hidden}
+.sp-opt.sel{font-weight:600;color:#1d4fc4}
+.sp-opt.sel .ti{visibility:visible}
+.sp-opt.act{background:#eef3ff}
+.sp-opt.dis{opacity:.45;cursor:default}
+
+/* ช่องพื้นเข้ม (หัวเพจ navy / dashboard) */
+.sp-pop.dark{background:#0b1d45;border-color:rgba(214,178,110,.3);color:#eaf0ff}
+.sp-pop.dark .sp-grp{color:#8f9cc4}
+.sp-pop.dark .sp-opt.act{background:rgba(255,255,255,.08)}
+.sp-pop.dark .sp-opt.sel,.sp-pop.dark .sp-opt .ti{color:#d6b26e}
+
+@keyframes spIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@keyframes spInUp{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.sp-pop{animation:none}}
+@media print{.sp-pop{display:none}}

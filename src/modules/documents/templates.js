@@ -107,6 +107,13 @@ function portalBlock(portal) {
     </div>`;
 }
 
+// ประกาศความเป็นส่วนตัว (PDPA ม.23) — ลิงก์ท้ายเอกสารที่ส่งถึงผู้ใช้น้ำ
+function privacyNote() {
+  // หน้า privacy.html อยู่โฟลเดอร์เดียวกับแอป (รองรับการ host ใต้ path ย่อย)
+  const url = typeof location !== 'undefined' && /^https?:/.test(location.protocol) ? new URL('privacy.html', location.href).href : 'privacy.html';
+  return `<div class="note">ประกาศความเป็นส่วนตัว: ${esc(url)}</div>`;
+}
+
 // ─── ใบแจ้งค่าน้ำ ─────────────────────────────────────────────
 export function invoiceHtml({ bill, member, reading, adjustments, otherUnpaid = [], org, portal }) {
   const prevDebt = otherUnpaid.reduce((s, b) => s + Number(b.total || 0), 0);
@@ -130,6 +137,7 @@ export function invoiceHtml({ bill, member, reading, adjustments, otherUnpaid = 
     ${portalBlock(portal)}
     <div class="note">ชำระเกินกำหนดมีค่าปรับ · เก็บใบแจ้งนี้ไว้เป็นหลักฐาน${org.phone ? ` · สอบถาม ${esc(org.phone)}` : ''}</div>
     ${org.footer ? `<div class="note">${esc(org.footer)}</div>` : ''}
+    ${privacyNote()}
   </section>`;
 }
 
@@ -211,6 +219,7 @@ export function noticeHtml({ kind, member, bills, org, date, days = 7, refNo = '
       <div>${org.signerName ? `(${esc(org.signerName)})` : '(.......................................)'}</div>
       <div>${esc(org.signerTitle)}</div>
     </div>
+    ${privacyNote()}
   </section>`;
 }
 

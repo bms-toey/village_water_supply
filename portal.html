@@ -2,6 +2,10 @@
 <html lang="th">
 <head>
 <meta charset="utf-8"/>
+<!-- ความปลอดภัย: จำกัดแหล่งที่โหลดได้ (CSP) — frame-ancestors/X-Frame-Options ต้องตั้งที่ hosting (ดู docs/SECURITY_PDPA.md) -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data: blob: https://*.supabase.co https://*.tile.openstreetmap.org https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co wss://*.supabase.co; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
+<meta name="referrer" content="strict-origin-when-cross-origin"/>
+<script>if (window.top !== window.self) { try { window.top.location = window.self.location; } catch (e) { document.documentElement.style.display = 'none'; } }</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 <title>ค่าน้ำประปา — สำหรับผู้ใช้น้ำ</title>
 <meta name="theme-color" content="#071434"/>
@@ -10,9 +14,10 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700;800&family=Prompt:wght@500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.0.0/dist/tabler-icons.min.css"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.0.0/dist/tabler-icons.min.css" integrity="sha384-rynabiTO5kT9TjYgv0j5x+lUgMx1ggMIozOlHFB+W7PksUEFHoMQ5chOlsTJfb62" crossorigin="anonymous"/>
 <link rel="stylesheet" href="styles/variables.css"/>
 <link rel="stylesheet" href="styles/portal.css"/>
+<link rel="stylesheet" href="styles/select-picker.css"/>
 </head>
 <body>
 <header class="pt-hd">
@@ -37,23 +42,28 @@
       <button class="pt-btn pt-btn-primary" type="submit" id="pt-login-btn"><i class="ti ti-login"></i>เข้าสู่ระบบ</button>
     </form>
     <p class="pt-muted pt-small">ไม่มีรหัส หรือรหัสหาย ติดต่อเจ้าหน้าที่ประปาหมู่บ้าน</p>
+    <p class="pt-muted pt-small">การเข้าสู่ระบบถือว่าท่านรับทราบ <a href="privacy.html" target="_blank" rel="noopener">ประกาศความเป็นส่วนตัว</a></p>
   </section>
 
   <!-- App -->
   <section id="pt-app" hidden>
+    <div id="pt-privacy" hidden></div>
     <div class="pt-card pt-me" id="pt-me"></div>
     <div id="pt-unpaid"></div>
     <nav class="pt-tabs" role="tablist">
       <button class="pt-tab active" data-tab="bills" role="tab"><i class="ti ti-receipt"></i>บิล</button>
       <button class="pt-tab" data-tab="usage" role="tab"><i class="ti ti-chart-bar"></i>การใช้น้ำ</button>
       <button class="pt-tab" data-tab="issue" role="tab"><i class="ti ti-tool"></i>แจ้งซ่อม</button>
+      <button class="pt-tab" data-tab="mydata" role="tab"><i class="ti ti-shield-lock"></i>ข้อมูลของฉัน</button>
     </nav>
     <div id="pt-tab-bills"></div>
     <div id="pt-tab-usage" hidden></div>
     <div id="pt-tab-issue" hidden></div>
+    <div id="pt-tab-mydata" hidden></div>
   </section>
 
   <div id="pt-loading" class="pt-loading"><i class="ti ti-loader-2"></i></div>
+  <footer class="pt-foot"><a href="privacy.html" target="_blank" rel="noopener"><i class="ti ti-shield-lock"></i>ประกาศความเป็นส่วนตัว</a></footer>
 </main>
 
 <div id="pt-sheet" class="pt-sheet" hidden>
@@ -65,8 +75,8 @@
 <div id="pt-toast" class="pt-toast" role="status" hidden></div>
 
 <script src="config.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" integrity="sha384-mZT2gIty7ZDdOGkxfP6joZcYdMW1Jvj9dRlfpTmaJAKKXTqzygtB22k7FLe+KZC1" crossorigin="anonymous"></script>
 <script type="module" src="src/portal/portal-app.js"></script>
 </body>
 </html>

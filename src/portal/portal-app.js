@@ -1,14 +1,17 @@
 // ─── Portal ผู้ใช้น้ำ ────────────────────────────────────────────
 // เข้าด้วยเลขมิเตอร์ + รหัส 6 หลัก (RPC member_login) — token ของสมาชิกเรียกได้เฉพาะ
-// RPC สำหรับสมาชิก (member_overview / member_submit_payment / member_report_issue)
+// RPC สำหรับสมาชิก (member_overview / member_submit_payment / member_report_issue /
+// member_my_data / member_ack_privacy / member_privacy_request — PDPA)
 // ลิงก์ตรง: portal.html#m=<เลขมิเตอร์>&c=<รหัส>  (QR บนใบแจ้งค่าน้ำ)
 // ──────────────────────────────────────────────────────────────
 import { esc } from '../utils/dom.util.js';
 import { promptPaySvg } from '../utils/promptpay.js';
 import { compressImage } from '../utils/image.util.js';
 import { thaiDate } from '../modules/documents/templates.js';
+import { initSelectPicker } from '../components/ux/select-picker.js';
 
 const SESSION_KEY = 'aquaflow_member_session';
+const PRIVACY_VERSION = '2026-10';   // ต้องตรงกับฉบับใน privacy.html
 const $ = id => document.getElementById(id);
 const baht = n => '฿' + Number(n || 0).toLocaleString('th-TH', { maximumFractionDigits: 2 });
 
@@ -84,6 +87,7 @@ async function load() {
   data = res;
   render();
   show('app');
+  checkPrivacyAck();
 }
 
 // ─── Render ───────────────────────────────────────────────────
@@ -112,6 +116,7 @@ function render() {
   renderBills();
   renderUsage();
   renderIssues();
+  if (!$('pt-tab-mydata').hidden) renderMyData();
 }
 
 const STATUS = { paid: ['paid', 'ชำระแล้ว'], pending: ['pending', 'รอชำระ'], overdue: ['overdue', 'เลยกำหนด'] };
@@ -243,20 +248,147 @@ async function upload(file, kind) {
   return path;
 }
 
+// ─── PDPA: ประกาศความเป็นส่วนตัว / ข้อมูลของฉัน / คำขอใช้สิทธิ์ ──────
+// ฐานข้อมูลรุ่นเก่า (ยังไม่ได้รัน sql_phase5) ไม่มี RPC เหล่านี้ — ไม่ให้กระทบการดูบิล
+let myData = null;
+
+async function checkPrivacyAck() {
+  const box = $('pt-privacy');
+  const { data: md, error } = await sb.rpc('member_my_data');
+  if (error || !md) { if (error) console.warn('[portal] member_my_data:', error.message); box.hidden = true; return; }
+  myData = md;
+  if (md.privacy_ack?.version === PRIVACY_VERSION) { box.hidden = true; return; }
+  box.innerHTML = `
+    <div class="pt-card pt-privacy">
+      <b><i class="ti ti-shield-lock"></i> ประกาศความเป็นส่วนตัว</b>
+      <p class="pt-muted">เราเก็บและใช้ข้อมูลของท่าน (ชื่อ ที่อยู่ เบอร์โทร ประวัติใช้น้ำ บิล และการชำระเงิน) เพื่อให้บริการน้ำประปาและจัดทำบัญชี
+        ข้อมูลถูกเข้ารหัสและจำกัดสิทธิ์การเข้าถึง ท่านขอดู ขอสำเนา แก้ไข หรือขอลบข้อมูลได้ที่แท็บ "ข้อมูลของฉัน"</p>
+      <a class="pt-link" href="privacy.html" target="_blank" rel="noopener"><i class="ti ti-file-text"></i>อ่านประกาศฉบับเต็ม</a>
+      <button class="pt-btn pt-btn-primary" id="pt-privacy-ok"><i class="ti ti-check"></i>รับทราบ</button>
+    </div>`;
+  box.hidden = false;
+  $('pt-privacy-ok').onclick = async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    const { error: ackErr } = await sb.rpc('member_ack_privacy', { p_version: PRIVACY_VERSION });
+    if (ackErr) { console.warn('[portal] member_ack_privacy:', ackErr.message); btn.disabled = false; toast('บันทึกไม่สำเร็จ กรุณาลองใหม่', true); return; }
+    box.hidden = true;
+    if (myData) myData.privacy_ack = { version: PRIVACY_VERSION, at: new Date().toISOString() };
+  };
+}
+
+const REQUEST_KINDS = {
+  access:           'ขอสำเนา / ขอเข้าถึงข้อมูล',
+  rectify:          'ขอแก้ไขข้อมูลให้ถูกต้อง',
+  erase:            'ขอลบข้อมูล',
+  object:           'คัดค้านการใช้ข้อมูล',
+  restrict:         'ขอระงับการใช้ข้อมูล',
+  withdraw_consent: 'ถอนความยินยอม (LINE)',
+  portability:      'ขอโอนย้ายข้อมูล',
+};
+const REQUEST_STATUS = { open: ['pending', 'รอดำเนินการ'], in_progress: ['review', 'กำลังดำเนินการ'], done: ['paid', 'เสร็จแล้ว'], rejected: ['overdue', 'ปฏิเสธ'] };
+
+async function renderMyData() {
+  const el = $('pt-tab-mydata');
+  if (!myData) {
+    el.innerHTML = '<div class="pt-loading"><i class="ti ti-loader-2"></i></div>';
+    const { data: md, error } = await sb.rpc('member_my_data');
+    if (error || !md) {
+      el.innerHTML = '<div class="pt-card"><p class="pt-muted">ยังเปิดใช้ส่วนนี้ไม่ได้ กรุณาติดต่อเจ้าหน้าที่ประปาหมู่บ้าน</p></div>';
+      return;
+    }
+    myData = md;
+  }
+  const p = myData.profile || {};
+  const row = (label, v) => `<div class="pt-kv"><span class="pt-muted">${label}</span><span>${v ? esc(v) : '<span class="pt-muted">—</span>'}</span></div>`;
+  const reqs = myData.requests || [];
+  el.innerHTML = `
+    <div class="pt-card">
+      <b>ข้อมูลส่วนบุคคลที่เก็บไว้</b>
+      ${row('ชื่อ–นามสกุล', [p.first_name, p.last_name].filter(Boolean).join(' '))}
+      ${row('เลขบัตรประชาชน', p.national_id)}
+      ${row('บ้านเลขที่', p.house_no)}
+      ${row('หมู่บ้าน', p.village)}
+      ${row('เบอร์โทร', p.phone)}
+      ${row('อีเมล', p.email)}
+      ${row('LINE ID', p.line_id)}
+      ${row('พิกัดบ้าน', p.gps ? `${p.gps.lat}, ${p.gps.lng}` : '')}
+      ${row('เลขมิเตอร์', p.meter_no)}
+      ${row('ผูกบัญชี LINE', myData.line_linked ? `ผูกแล้ว${myData.line_linked_at ? ' (' + thaiDate(myData.line_linked_at) + ')' : ''}` : 'ไม่ได้ผูก')}
+      <p class="pt-muted pt-note">ประวัติบิล ${(myData.bills || []).length} รายการ · การชำระ ${(myData.payments || []).length} รายการ · การจดมิเตอร์ ${(myData.readings || []).length} ครั้ง</p>
+      <button class="pt-btn pt-btn-light" id="pt-mydata-dl"><i class="ti ti-download"></i>ดาวน์โหลดข้อมูลของฉัน (JSON)</button>
+      <a class="pt-link" href="privacy.html" target="_blank" rel="noopener"><i class="ti ti-file-text"></i>ประกาศความเป็นส่วนตัว</a>
+    </div>
+    <div class="pt-card">
+      <b>ส่งคำขอใช้สิทธิ์เจ้าของข้อมูล</b>
+      <label class="pt-label" for="pt-req-kind">เรื่อง</label>
+      <select class="pt-input" id="pt-req-kind">
+        ${Object.entries(REQUEST_KINDS).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('')}
+      </select>
+      <label class="pt-label" for="pt-req-detail">รายละเอียด</label>
+      <textarea class="pt-input" id="pt-req-detail" maxlength="2000" placeholder="เช่น เบอร์โทรเปลี่ยนเป็นเบอร์ใหม่"></textarea>
+      <button class="pt-btn pt-btn-primary" id="pt-req-send"><i class="ti ti-send"></i>ส่งคำขอ</button>
+    </div>
+    <div class="pt-card"><b>คำขอที่ส่งไว้</b>
+      ${reqs.length ? reqs.map(q => {
+        const [cls, label] = REQUEST_STATUS[q.status] || ['pending', q.status];
+        return `<div class="pt-bill"><div>${esc(REQUEST_KINDS[q.kind] || q.kind)}<div class="pt-muted">ส่งเมื่อ ${thaiDate(q.created_at)} · ครบกำหนดตอบ ${thaiDate(q.due_at)}</div>
+          ${q.response ? `<div class="pt-muted">คำตอบ: ${esc(q.response)}</div>` : ''}</div>
+          <span class="pt-pill ${cls}">${esc(label)}</span></div>`;
+      }).join('') : '<p class="pt-muted">ยังไม่มี</p>'}
+    </div>`;
+  initSelectPicker();
+  $('pt-mydata-dl').onclick = () => {
+    const blob = new Blob([JSON.stringify(myData, null, 2)], { type: 'application/json' });
+    const a = Object.assign(document.createElement('a'), {
+      href: URL.createObjectURL(blob), download: `aquaflow-my-data-${new Date().toISOString().slice(0, 10)}.json`,
+    });
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+  $('pt-req-send').onclick = async (e) => {
+    const btn = e.currentTarget;
+    const kind = $('pt-req-kind').value;
+    const detail = $('pt-req-detail').value.trim();
+    if (['rectify', 'erase', 'object', 'restrict'].includes(kind) && !detail) { toast('กรุณาระบุรายละเอียด', true); return; }
+    btn.disabled = true;
+    const { error } = await sb.rpc('member_privacy_request', { p_kind: kind, p_detail: detail });
+    if (error) { toast(error.message, true); btn.disabled = false; return; }
+    toast('ส่งคำขอแล้ว เจ้าหน้าที่จะตอบภายใน 30 วัน');
+    myData = null;
+    await renderMyData();
+  };
+}
+
 // ─── Tabs / bootstrap ─────────────────────────────────────────
 function switchTab(tab) {
   document.querySelectorAll('.pt-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-  ['bills', 'usage', 'issue'].forEach(k => { $(`pt-tab-${k}`).hidden = k !== tab; });
+  ['bills', 'usage', 'issue', 'mydata'].forEach(k => { $(`pt-tab-${k}`).hidden = k !== tab; });
+  if (tab === 'mydata') renderMyData();
 }
 
 document.querySelectorAll('.pt-tab').forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
 $('pt-sheet-close').onclick = closeSheet;
 $('pt-sheet').addEventListener('click', e => { if (e.target.id === 'pt-sheet') closeSheet(); });
-$('pt-logout').onclick = () => { _saveSession(null); data = null; show('login'); };
+$('pt-logout').onclick = () => {
+  // เพิกถอน token ที่ server ก่อนลบในเครื่อง (รอไม่เกิน 3 วินาที — ออฟไลน์ก็ออกจากระบบได้)
+  const old = session;
+  const clear = () => { if (session === old) _saveSession(null); };
+  if (old) {
+    Promise.race([sb.rpc('logout_session'), new Promise(r => setTimeout(r, 3000))])
+      .then(res => { if (res?.error) console.warn('[portal] logout:', res.error.message); }, () => {})
+      .finally(clear);
+  }
+  data = null; myData = null;
+  $('pt-privacy').hidden = true;
+  show('login');
+};
 $('pt-login-form').addEventListener('submit', e => {
   e.preventDefault();
   login($('pt-meter').value, $('pt-code').value);
 });
+
+initSelectPicker();
 
 (async function init() {
   const h = new URLSearchParams(location.hash.slice(1));

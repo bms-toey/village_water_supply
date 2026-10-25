@@ -47,7 +47,8 @@ async function handleText(userId: string, text: string): Promise<string> {
     const lines = s.unpaid.map((b: any) => `• ${b.period} ${baht(b.total)} (ครบกำหนด ${thaiDate(b.due_date)})`).join('\n');
     const url = portalLink();
     return `${s.name} (มิเตอร์ ${s.meter_no})\nยอดค้างชำระ:\n${lines}\nรวม ${baht(total)}` +
-      (url ? `\n\nจ่ายด้วย QR: ${url}\nรหัสเข้าดูบิล: ${s.portal_code}` : '');
+      // ไม่ส่งรหัส portal ทางแชท — ถ้า LINE ถูกผูกโดยคนอื่น รหัสใหม่จะไม่หลุดตาม
+      (url ? `\n\nจ่ายด้วย QR: ${url}\n(รหัสเข้าดูบิลอยู่บนใบแจ้งค่าน้ำ หรือสอบถามเจ้าหน้าที่)` : '');
   }
   return HELP;
 }

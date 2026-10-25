@@ -1,26 +1,26 @@
 // ─── Meter Module ──────────────────────────────────────────────
 import { toLocalDate, todayISO } from '../../utils/time.util.js';
 import { appState } from '../../state/app.state.js';
-import { esc, toast } from '../../utils/dom.util.js';
+import { esc, jsArg, toast } from '../../utils/dom.util.js';
+import { _sb } from '../../services/supabase.service.js';
 import { currentPeriod, isPeriodClosed } from '../../utils/date.util.js';
-import { calcWaterCharge, calcWaterBreakdown } from '../../config/rate.config.js';
-import { anomalyMap, methodMap } from '../../config/ui.config.js';
-import { sbUpsertReading, sbDeleteReading, sbUpsertBill, sbInsertBills, sbUpdateMember } from '../../services/data-loader.service.js';
+import { calcWaterCharge, calcWaterBreakdown, rateConfig } from '../../config/rate.config.js';
+import { anomalyMap, methodMap, getMeterSizeDisplay } from '../../config/ui.config.js';
+import { sbSaveMeterReading, staffName, loadAllFromSupabase } from '../../services/data-loader.service.js';
 import { saveToStorage } from '../../services/storage.service.js';
 import { goPage } from '../../components/navigation/navigation.js';
-import { _dbVillages } from '../../services/db-mapper.service.js';
+import { _dbVillages, _periodYM } from '../../services/db-mapper.service.js';
 import { uploadImage, signedImageUrl } from '../../services/files.service.js';
 import {
   rolloverUsage, meterMax, askConfirm, enqueueReading, syncQueue, queuedMemberIds, isNetworkFailure,
   queueBannerHtml, openQueueConflicts, discardQueued, openMeterSkip, renderFieldBar, skipFor, SKIP_REASONS,
-  routeCompare, openRouteOrder,
+  routeCompare, openRouteOrder, saveMemberGps,
 } from './field.js';
 import { openModal } from '../../components/modal/modal.js';
 
 // ─── Meter Photo / AI OCR ─────────────────────────────────────
 
-const _OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const _OPENROUTER_MODEL = 'qwen/qwen2.5-vl-72b-instruct';
+// AI อ่านเลขมิเตอร์ผ่าน Edge Function meter-ocr — API key อยู่ที่ server ไม่ส่งมาที่ browser
 let _saving = false;   // กันกดบันทึกซ้ำระหว่างรอ server ออกเลขบิล
 let _photoFile = null; // รูปมิเตอร์ที่ถ่ายไว้ — อัปโหลดเป็นหลักฐานตอนบันทึก
 
@@ -71,16 +71,6 @@ async function _processMeterPhoto(file) {
   };
 
   try {
-    const apiKey = appState.systemConfig?.openrouter_api_key || '';
-    if (!apiKey) {
-      if (statusEl) {
-        statusEl.innerHTML = `<i class="ti ti-alert-triangle" style="margin-right:4px"></i>กรุณาตั้ง OpenRouter API Key ใน <b>ตั้งค่า → ตั้งค่าทั่วไป</b> ก่อน`;
-        statusEl.style.color = 'var(--amber-700)';
-        statusEl.style.display = '';
-      }
-      done(); return;
-    }
-
     const base64 = await new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload  = e => resolve(e.target.result.split(',')[1]);
@@ -88,36 +78,13 @@ async function _processMeterPhoto(file) {
       reader.readAsDataURL(file);
     });
 
-    const res = await fetch(_OPENROUTER_URL, {
-      method:  'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type':  'application/json',
-        'HTTP-Referer':  window.location.origin,
-        'X-Title':       'AquaFlow Meter Reader',
-      },
-      body: JSON.stringify({
-        model: _OPENROUTER_MODEL,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'image_url', image_url: { url: `data:${file.type || 'image/jpeg'};base64,${base64}` } },
-            { type: 'text', text: 'อ่านค่าตัวเลขจากมิเตอร์น้ำในรูปนี้ ตอบเฉพาะตัวเลขที่อ่านได้เท่านั้น ไม่ต้องมีคำอธิบาย หน่วย หรือข้อความอื่นใด' }
-          ]
-        }],
-        max_tokens:  50,
-        temperature: 0,
-      })
+    const { data, error } = await _sb.functions.invoke('meter-ocr', {
+      body: { image: base64, mime: file.type || 'image/jpeg' },
     });
+    if (error) throw new Error('บริการ AI ไม่พร้อมใช้งาน');
 
-    if (!res.ok) {
-      const errJson = await res.json().catch(() => ({}));
-      throw new Error(errJson?.error?.message || `HTTP ${res.status}`);
-    }
-
-    const json   = await res.json();
-    const text   = json.choices?.[0]?.message?.content?.trim() || '';
-    const digits = text.replace(/\D/g, '');
+    const text   = String(data?.text ?? '').trim();
+    const digits = String(data?.reading ?? text).replace(/\D/g, '');
 
     if (digits.length >= 3) {
       const val = parseInt(digits, 10);
@@ -131,14 +98,14 @@ async function _processMeterPhoto(file) {
       }
     } else {
       if (statusEl) {
-        statusEl.innerHTML = `<i class="ti ti-alert-triangle" style="margin-right:4px"></i>อ่านไม่ได้ชัดเจน (AI ตอบว่า: "${text||'ไม่มีข้อมูล'}") — กรุณากรอกเอง`;
+        statusEl.innerHTML = `<i class="ti ti-alert-triangle" style="margin-right:4px"></i>อ่านไม่ได้ชัดเจน (AI ตอบว่า: "${esc(text.slice(0, 40) || 'ไม่มีข้อมูล')}") — กรุณากรอกเอง`;
         statusEl.style.color = 'var(--amber-700)';
       }
     }
   } catch (err) {
     console.error('[Meter AI]', err);
     if (statusEl) {
-      statusEl.innerHTML = `<i class="ti ti-alert-triangle" style="margin-right:4px"></i>เกิดข้อผิดพลาด: ${err.message} — กรุณากรอกเอง`;
+      statusEl.innerHTML = `<i class="ti ti-alert-triangle" style="margin-right:4px"></i>เกิดข้อผิดพลาด: ${esc(err.message)} — กรุณากรอกเอง`;
       statusEl.style.color = 'var(--red-700)';
     }
   }
@@ -189,14 +156,23 @@ window._setMeterStatus  = (v) => { _meterStatusFilter  = v; renderMeter(); };
 window._setMeterVillage = (v) => { _meterVillageFilter = v; renderMeter(); };
 
 // ─── Render: Member Selection List ───────────────────────────
+// โครง (สไตล์ที่ styles/meter.css → .mtl-*):
+//   หัวเพจ   : รอบ + ความคืบหน้า (#meter-hd-progress)
+//   แถบกรอง  : ค้นหา / หมู่บ้าน / สถานะ — ติดหัวจอเวลาเลื่อน
+//   รายการ   : จัดกลุ่มตามหมู่บ้าน, แถวละ 2 บรรทัด, จอกว้าง 2 คอลัมน์
 export function renderMeter(searchOverride) {
   if (searchOverride !== undefined) _meterSearch = searchOverride;
   const { members, meterReadings } = appState;
   const period = currentPeriod();
   const wrap   = document.getElementById('meter-member-list');
+  const hdProg = document.getElementById('meter-hd-progress');
   if (!wrap) return;
 
-  if (appState.currentMeterMemberId) { wrap.style.display = 'none'; return; }
+  if (appState.currentMeterMemberId) {
+    wrap.style.display = 'none';
+    if (hdProg) hdProg.style.display = 'none';
+    return;
+  }
   wrap.style.display = '';
 
   const q         = _meterSearch.toLowerCase().trim();
@@ -213,10 +189,26 @@ export function renderMeter(searchOverride) {
   const totalAll   = allActive.length;
   const doneAll    = allActive.filter(m =>  readSet.has(m.id)).length;
   const pendingAll = totalAll - doneAll;
+  const skipAll    = allActive.filter(m => !readSet.has(m.id) && skipFor(m.id, period)).length;
   const pct        = totalAll > 0 ? Math.round((doneAll / totalAll) * 100) : 0;
 
+  // ── การอ่านรอบนี้ (บิลไม่ถูกยกเลิก) + ค่าเฉลี่ย 4 รอบก่อน (เกณฑ์เดียวกับ _avgUsage) — วนรอบเดียวทั้งรายการ ──
+  const curReading = new Map();
+  const pastUsage  = new Map();
+  [...meterReadings].sort((a, b) => b.readingDate.localeCompare(a.readingDate)).forEach(r => {
+    if (r.period === period) {
+      const b = appState.bills.find(x => x.id === r.billId);
+      if (b && b.status !== 'cancelled' && !curReading.has(r.memberId)) curReading.set(r.memberId, r);
+      return;
+    }
+    if (!(r.usage > 0)) return;
+    const arr = pastUsage.get(r.memberId) || [];
+    if (arr.length < 4) { arr.push(r.usage); pastUsage.set(r.memberId, arr); }
+  });
+  const avgOf = id => { const a = pastUsage.get(id); return a && a.length >= 2 ? a.reduce((s, u) => s + u, 0) / a.length : null; };
+
   // ── Per-village sequence numbers (from ALL active members) ──
-  // Sequence = position within village sorted by house number (1-based)
+  // Sequence = position within village sorted by route order → house number (1-based)
   const villageSeqMap = new Map();
   const tempVillGroups = {};
   allActive.forEach(m => {
@@ -237,7 +229,7 @@ export function renderMeter(searchOverride) {
     (m.village  || '').toLowerCase().includes(q) ||
     (m.houseNo  || '').includes(q)
   );
-  if (_meterVillageFilter) filtered = filtered.filter(m => m.village === _meterVillageFilter);
+  if (_meterVillageFilter) filtered = filtered.filter(m => String(m.villageId) === _meterVillageFilter);
 
   // Filtered counts for tab badges
   const filtPending = filtered.filter(m => !readSet.has(m.id)).length;
@@ -249,7 +241,7 @@ export function renderMeter(searchOverride) {
   if (_meterStatusFilter === 'pending') displayList = filtered.filter(m => !readSet.has(m.id));
   if (_meterStatusFilter === 'done')    displayList = filtered.filter(m =>  readSet.has(m.id));
 
-  // ── Sort: moo_number → pending first → houseNo ─────────────
+  // ── Sort: moo_number → pending first → route/houseNo ────────
   const villMooMap = {};
   _dbVillages.forEach(v => { villMooMap[v.name] = v.moo_number || 999; });
   displayList.sort((a, b) => {
@@ -267,7 +259,7 @@ export function renderMeter(searchOverride) {
   displayList.forEach(m => {
     const v    = m.village || '—';
     const last = groups[groups.length - 1];
-    if (!last || last.village !== v) groups.push({ village: v, members: [] });
+    if (!last || last.village !== v) groups.push({ village: v, villageId: m.villageId, members: [] });
     groups[groups.length - 1].members.push(m);
   });
 
@@ -276,204 +268,123 @@ export function renderMeter(searchOverride) {
     .filter(v => v.is_active !== false)
     .sort((a, b) => (a.moo_number || 0) - (b.moo_number || 0));
   const villageOpts = activeVillages.map(v =>
-    `<option value="${esc(v.name)}"${_meterVillageFilter === v.name ? ' selected' : ''}>${esc(v.name)}</option>`
+    `<option value="${v.id}"${_meterVillageFilter === String(v.id) ? ' selected' : ''}>${v.moo_number ? `หมู่ ${v.moo_number} · ` : ''}${esc(v.name)}</option>`
   ).join('');
+
+  // ── หัวเพจ: รอบ + ความคืบหน้า ──────────────────────────────
+  const hdId = document.getElementById('meter-hd-id');
+  if (hdId) hdId.textContent = `รอบ ${period} · แตะรายชื่อเพื่อเริ่มจด`;
+  if (hdProg) {
+    hdProg.style.display = '';
+    hdProg.innerHTML = `
+      <div class="mtl-ring${pct >= 100 ? ' is-full' : ''}" style="--p:${pct}" role="img" aria-label="ความคืบหน้า ${pct}%"><b>${pct}<small>%</small></b></div>
+      <div class="mtl-kpis">
+        <div class="mtl-kpi is-done"><span>จดแล้ว</span><b>${doneAll.toLocaleString()}</b></div>
+        <div class="mtl-kpi is-pend"><span>รอจด</span><b>${pendingAll.toLocaleString()}</b></div>
+        <div class="mtl-kpi is-skip"><span>จดไม่ได้</span><b>${skipAll.toLocaleString()}</b></div>
+        <div class="mtl-kpi"><span>ทั้งหมด</span><b>${totalAll.toLocaleString()}</b></div>
+      </div>`;
+  }
 
   // ── Empty-state message ─────────────────────────────────────
   const emptyMsg = _meterStatusFilter === 'pending' && !q && !_meterVillageFilter
-    ? '<span style="font-size:28px">🎉</span><br>จดมิเตอร์ครบทุกรายในรอบนี้แล้ว!'
-    : 'ไม่พบสมาชิกตามเงื่อนไขที่เลือก';
+    ? '<i class="ti ti-circle-check"></i><b>จดมิเตอร์ครบทุกรายในรอบนี้แล้ว</b>'
+    : '<i class="ti ti-search-off"></i><b>ไม่พบสมาชิกตามเงื่อนไขที่เลือก</b>';
 
   const _searchWasFocused = document.activeElement?.id === 'meter-search-inp';
 
-  const _tabColors = {
-    pending: { bg: '#d97706', text: '#fff' },  // amber
-    done:    { bg: '#16a34a', text: '#fff' },  // green
-    all:     { bg: '#1d4ed8', text: '#fff' },  // blue
-  };
-  const _tab = (label, status) => {
-    const active = _meterStatusFilter === status;
-    const c = _tabColors[status];
-    return `<button
-      style="background:${active ? c.bg : 'transparent'};
-             color:${active ? c.text : 'var(--gray-500)'};
-             border:none;border-radius:8px;padding:6px 14px;
-             font-size:12.5px;font-weight:${active ? '800' : '500'};
-             cursor:pointer;white-space:nowrap;flex-shrink:0;
-             box-shadow:${active ? '0 2px 6px rgba(0,0,0,.2)' : 'none'};
-             transition:all .15s"
-      onclick="window._setMeterStatus('${status}')">${label}</button>`;
+  const _tab = (label, n, status) =>
+    `<button type="button" class="mtl-tab is-${status}${_meterStatusFilter === status ? ' active' : ''}"
+      aria-pressed="${_meterStatusFilter === status}" onclick="window._setMeterStatus(${jsArg(status)})">${label}<b>${n}</b></button>`;
+
+  const _row = m => {
+    const done    = readSet.has(m.id);
+    const seq     = villageSeqMap.get(m.id) || '—';
+    const reading = done ? curReading.get(m.id) : null;
+    const skip    = !done ? skipFor(m.id, period) : null;
+    const queued  = done && !reading;
+    const size    = getMeterSizeDisplay(m.meterSize || '0.5');
+    const avg     = avgOf(m.id);
+    const state   = queued ? 'queued' : done ? 'done' : skip ? 'skip' : 'pend';
+
+    const badge = queued ? '<span class="mtl-badge is-queued"><i class="ti ti-cloud-upload"></i>รอส่ง</span>'
+      : done ? '<span class="mtl-badge is-done"><i class="ti ti-check"></i>จดแล้ว</span>'
+      : skip ? `<span class="mtl-badge is-skip"><i class="ti ${SKIP_REASONS[skip.reason]?.icon || 'ti-ban'}"></i>${esc(SKIP_REASONS[skip.reason]?.label || 'จดไม่ได้')}</span>`
+      : '';
+    const anomaly = reading?.anomaly && anomalyMap[reading.anomaly]
+      ? `<span class="mtl-badge is-warn"><i class="ti ti-alert-triangle"></i>${esc(anomalyMap[reading.anomaly])}</span>` : '';
+
+    // ด้านขวา: จดแล้ว = ก่อน → ใหม่ + หน่วย/ยอด, ยังไม่จด = เลขล่าสุด + ค่าเฉลี่ย
+    const right = reading
+      ? `<span class="mtl-read"><small>${Number(reading.prevReading).toLocaleString()} →</small><b>${Number(reading.currReading).toLocaleString()}</b></span>
+         <span class="mtl-sub">${Number(reading.usage).toLocaleString()} m³${reading.total != null ? ` · <em>฿${Number(reading.total).toLocaleString()}</em>` : ''}</span>`
+      : `<span class="mtl-read"><small>ล่าสุด</small><b>${_effectivePrev(m.id).toLocaleString()}</b></span>
+         <span class="mtl-sub">${queued ? 'บันทึกในเครื่อง' : avg !== null ? `เฉลี่ย ${Math.round(avg).toLocaleString()} m³` : 'ยังไม่มีประวัติ'}</span>`;
+
+    return `
+      <button type="button" class="mtl-row is-${state}"
+        onclick="gotoMeter(${jsArg(m.firstName + ' ' + m.lastName)},${jsArg(m.meter || '')},${Number(m.id)})">
+        <span class="mtl-seq">${seq}</span>
+        <span class="mtl-main">
+          <span class="mtl-name"><b>${esc(m.firstName)} ${esc(m.lastName)}</b>${badge}${anomaly}</span>
+          <span class="mtl-meta">
+            <span><i class="ti ti-home"></i>${esc(m.houseNo || '—')}</span>
+            <span class="mtl-mono">${esc(m.meter || '—')}</span>
+            ${size ? `<span>${esc(size)}</span>` : ''}
+          </span>
+        </span>
+        <span class="mtl-right">${right}</span>
+        <i class="ti ti-chevron-right mtl-go"></i>
+      </button>`;
   };
 
   wrap.innerHTML = `
-  <!-- ─── Header: Progress + Filters ─── -->
-  <div style="padding:20px 24px 16px;border-bottom:1px solid var(--gray-100)">
-
-    <!-- Title -->
-    <div style="font-size:15px;font-weight:700;color:var(--blue-900);margin-bottom:12px">
-      <i class="ti ti-gauge" style="color:var(--blue-500);margin-right:6px"></i>
-      จดมิเตอร์ — รอบ <span style="color:var(--blue-600)">${esc(period)}</span>
-    </div>
-
-    <!-- Progress box -->
-    <div style="background:var(--gray-50);border-radius:12px;padding:12px 16px;margin-bottom:14px">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px">
-        <span style="font-size:13px;font-weight:600;color:var(--blue-900)">ความคืบหน้ารอบนี้</span>
-        <span style="font-size:14px;font-weight:800;color:${pct >= 100 ? 'var(--green-600)' : 'var(--blue-600)'}">
-          ${pct}%
-        </span>
-      </div>
-      <div style="background:var(--gray-200);border-radius:20px;height:10px;overflow:hidden;margin-bottom:9px">
-        <div style="height:100%;background:linear-gradient(90deg,var(--blue-500),var(--green-400));
-          border-radius:20px;width:${pct}%;transition:width .4s ease"></div>
-      </div>
-      <div style="display:flex;gap:6px;font-size:12.5px;flex-wrap:wrap;align-items:center">
-        <span style="background:var(--green-100);color:var(--green-700);padding:3px 10px;border-radius:20px;font-weight:700;white-space:nowrap">
-          จดแล้ว ${doneAll} ราย
-        </span>
-        <span style="background:var(--amber-100);color:var(--amber-700);padding:3px 10px;border-radius:20px;font-weight:700;white-space:nowrap">
-          ยังไม่จด ${pendingAll} ราย
-        </span>
-        <span style="color:var(--gray-400);font-size:12px;white-space:nowrap">รวม ${totalAll} ราย</span>
-      </div>
-      ${queueBannerHtml()}
-    </div>
-
-    <!-- Filters row -->
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-      <input id="meter-search-inp" class="form-input lx-search" type="text"
-        placeholder="ค้นหาชื่อ, มิเตอร์, บ้านเลขที่..."
-        value="${esc(_meterSearch)}" oninput="renderMeter(this.value)"
-        style="min-width:180px;flex:1"/>
-      <select class="form-input" style="width:150px;flex-shrink:0" onchange="window._setMeterVillage(this.value)">
-        <option value="">ทุกหมู่บ้าน</option>
-        ${villageOpts}
-      </select>
-      <div style="display:flex;gap:3px;background:#d1d5db;border-radius:11px;padding:4px;flex-shrink:0;white-space:nowrap">
-        ${_tab(`ยังไม่จด (${filtPending})`, 'pending')}
-        ${_tab(`จดแล้ว (${filtDone})`, 'done')}
-        ${_tab(`ทั้งหมด (${filtTotal})`, 'all')}
-      </div>
+  <!-- ─── แถบค้นหา/กรอง (sticky) ─── -->
+  <div class="mtl-bar">
+    <input id="meter-search-inp" class="form-input lx-search mtl-search" type="search" enterkeyhint="search"
+      placeholder="ค้นหาชื่อ, มิเตอร์, บ้านเลขที่..." aria-label="ค้นหาสมาชิก"
+      value="${esc(_meterSearch)}" oninput="renderMeter(this.value)"/>
+    <select class="form-input mtl-village" aria-label="กรองหมู่บ้าน" onchange="window._setMeterVillage(this.value)">
+      <option value="">ทุกหมู่บ้าน</option>
+      ${villageOpts}
+    </select>
+    <div class="mtl-tabs" role="group" aria-label="สถานะการจด">
+      ${_tab('รอจด', filtPending, 'pending')}
+      ${_tab('จดแล้ว', filtDone, 'done')}
+      ${_tab('ทั้งหมด', filtTotal, 'all')}
     </div>
   </div>
+  ${queueBannerHtml()}
 
-  <!-- ─── Member list grouped by village ─── -->
-  <div style="padding:0 14px 88px">
-    ${!displayList.length
-      ? `<div style="text-align:center;padding:52px 24px;color:var(--gray-400);font-size:14px;line-height:2">${emptyMsg}</div>`
-      : groups.map(g => {
-          const vInfo  = _dbVillages.find(v => v.name === g.village);
-          const mooTxt = vInfo?.moo_number ? `หมู่ ${vInfo.moo_number} · ` : '';
-          const gPend  = g.members.filter(m => !readSet.has(m.id)).length;
-          const gDone  = g.members.length - gPend;
-          return `
-          <div style="margin-top:18px">
-            <!-- Village header -->
-            <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;
-              background:var(--blue-50);border-radius:10px;border-left:4px solid var(--blue-500);
-              margin-bottom:10px">
-              <i class="ti ti-home-2" style="color:var(--blue-500);font-size:15px;flex-shrink:0"></i>
-              <span style="font-weight:700;color:var(--blue-900);font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${mooTxt}${esc(g.village)}</span>
-              <div style="display:flex;gap:4px;flex-shrink:0">
-                ${gPend > 0 ? `<span style="background:var(--amber-100);color:var(--amber-700);font-size:11px;padding:2px 8px;border-radius:12px;font-weight:600">รอ ${gPend}</span>` : ''}
-                ${gDone > 0 ? `<span style="background:var(--green-100);color:var(--green-700);font-size:11px;padding:2px 8px;border-radius:12px;font-weight:600">✓ ${gDone}</span>` : ''}
-                ${g.village !== '—' ? `<button class="btn-icon" style="width:26px;height:26px;font-size:14px" title="ลำดับเส้นทาง" aria-label="ลำดับเส้นทาง ${esc(g.village)}" onclick="openRouteOrder('${esc(g.village)}')"><i class="ti ti-route"></i></button>` : ''}
-              </div>
-            </div>
-
-            <!-- Member cards -->
-            <div style="display:flex;flex-direction:column;gap:8px">
-              ${g.members.map(m => {
-                const done    = readSet.has(m.id);
-                const seq     = villageSeqMap.get(m.id) || '—';
-                const reading = meterReadings.find(r => r.memberId === m.id && r.period === period);
-                const newRead = reading ? Number(reading.newRead).toLocaleString() : null;
-                const dispPrev = _effectivePrev(m.id);
-                const skip     = !done ? skipFor(m.id, period) : null;
-                const queued   = done && !reading;
-                const borderColor = done ? 'var(--green-400)' : 'var(--amber-400)';
-                return `
-                <div onclick="gotoMeter('${esc(m.firstName+' '+m.lastName)}','${esc(m.meter||'')}',${m.id})"
-                  onpointerdown="this.style.transform='scale(.985)';this.style.boxShadow='none'"
-                  onpointerup="this.style.transform='';this.style.boxShadow='0 1px 4px rgba(0,0,0,.08)'"
-                  onpointercancel="this.style.transform='';this.style.boxShadow='0 1px 4px rgba(0,0,0,.08)'"
-                  style="display:flex;align-items:center;gap:0;background:#fff;
-                    border-radius:14px;border:1.5px solid ${done ? 'var(--green-100)' : 'var(--gray-150)'};
-                    border-left:5px solid ${borderColor};
-                    box-shadow:0 1px 4px rgba(0,0,0,.08);
-                    cursor:pointer;transition:transform .12s,box-shadow .12s;
-                    opacity:${done ? '.78' : '1'};overflow:hidden;-webkit-tap-highlight-color:transparent">
-
-                  <!-- Seq -->
-                  <div style="width:34px;text-align:center;flex-shrink:0;
-                    font-size:11px;color:var(--gray-400);font-weight:700;
-                    font-family:'IBM Plex Mono',monospace;padding:18px 0">
-                    ${seq}
-                  </div>
-
-                  <!-- Info -->
-                  <div style="flex:1;padding:13px 8px 13px 2px;min-width:0">
-                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;flex-wrap:wrap">
-                      <span style="font-weight:700;font-size:15px;color:var(--blue-900);line-height:1.1">
-                        ${esc(m.firstName)} ${esc(m.lastName)}
-                      </span>
-                      ${done
-                        ? (queued
-                            ? `<span style="background:var(--amber-100);color:var(--amber-700);font-size:10.5px;padding:2px 7px;border-radius:10px;font-weight:700;flex-shrink:0"><i class="ti ti-cloud-upload"></i> รอส่ง</span>`
-                            : `<span style="background:var(--green-100);color:var(--green-700);font-size:10.5px;padding:2px 7px;border-radius:10px;font-weight:700;flex-shrink:0">✓ จดแล้ว</span>`)
-                        : skip
-                        ? `<span style="background:var(--red-50);color:var(--red-700);font-size:10.5px;padding:2px 7px;border-radius:10px;font-weight:700;flex-shrink:0">${esc(SKIP_REASONS[skip.reason]?.label || 'จดไม่ได้')}</span>`
-                        : `<span style="background:var(--amber-50);color:var(--amber-600);font-size:10.5px;padding:2px 7px;border-radius:10px;font-weight:700;flex-shrink:0;border:1px solid var(--amber-200)">รอจด</span>`
-                      }
-                    </div>
-                    <div style="display:flex;gap:10px;font-size:12px;color:var(--gray-500);flex-wrap:wrap">
-                      <span>🏠 ${esc(m.houseNo||'—')}</span>
-                      <span style="font-family:'IBM Plex Mono',monospace;color:var(--blue-600);font-size:11.5px">${esc(m.meter||'—')}</span>
-                      ${done && newRead
-                        ? `<span style="color:var(--green-700);font-weight:600">${Number(m.lastRead).toLocaleString()} → <b>${newRead}</b></span>`
-                        : `<span>ล่าสุด: <b style="color:var(--gray-700)">${dispPrev.toLocaleString()}</b></span>`
-                      }
-                    </div>
-                  </div>
-
-                  <!-- Arrow -->
-                  <div style="padding:0 14px;flex-shrink:0;color:${done ? 'var(--green-400)' : 'var(--blue-400)'}">
-                    <i class="ti ti-chevron-right" style="font-size:20px"></i>
-                  </div>
-                </div>`;
-              }).join('')}
-            </div>
-          </div>`;
-        }).join('')
-    }
-  </div>
+  <!-- ─── รายชื่อ จัดกลุ่มตามหมู่บ้าน ─── -->
+  ${!displayList.length
+    ? `<div class="mtl-empty">${emptyMsg}</div>`
+    : groups.map(g => {
+        const vInfo  = _dbVillages.find(v => v.id === g.villageId);
+        const mooTxt = vInfo?.moo_number ? `หมู่ ${vInfo.moo_number} · ` : '';
+        const vAll   = tempVillGroups[g.village] || g.members;
+        const vDone  = vAll.filter(m => readSet.has(m.id)).length;
+        const vPct   = vAll.length ? Math.round(vDone / vAll.length * 100) : 0;
+        return `
+        <section class="mtl-group">
+          <div class="mtl-ghd">
+            <i class="ti ti-map-pin"></i>
+            <span class="mtl-gname">${mooTxt}${esc(g.village)}</span>
+            <span class="mtl-gbar" title="จดแล้ว ${vDone} จาก ${vAll.length} ราย"><span style="width:${vPct}%"></span></span>
+            <span class="mtl-gcount"><b>${vDone}</b>/${vAll.length}</span>
+            ${g.village !== '—' ? `<button type="button" class="mtl-groute" title="ลำดับเส้นทาง" aria-label="ลำดับเส้นทาง ${esc(g.village)}" onclick="openRouteOrder(${jsArg(g.villageId)})"><i class="ti ti-route"></i></button>` : ''}
+          </div>
+          <div class="mtl-list">${g.members.map(_row).join('')}</div>
+        </section>`;
+      }).join('')
+  }
 
   <!-- ─── FAB: จดถัดไป ─── -->
   ${pendingAll > 0 ? `
-  <button class="meter-fab" onclick="window._gotoNextPending()"
-    onpointerdown="this.style.transform='scale(.93)'" onpointerup="this.style.transform=''" onpointercancel="this.style.transform=''"
-    style="position:fixed;right:18px;z-index:800;
-      background:#1d4ed8;
-      color:#fff;border:3px solid #fff;border-radius:32px;
-      padding:16px 26px;font-size:16px;font-weight:800;
-      display:flex;align-items:center;gap:10px;
-      box-shadow:0 6px 24px rgba(0,0,0,.35),0 2px 8px rgba(29,78,216,.6);
-      cursor:pointer;transition:transform .12s;-webkit-tap-highlight-color:transparent;
-      letter-spacing:.3px">
-    <i class="ti ti-player-skip-forward" style="font-size:20px"></i>
-    จดถัดไป
-    <span style="background:#fff;color:#1d4ed8;border-radius:20px;padding:3px 11px;font-size:13px;font-weight:900">
-      ${pendingAll}
-    </span>
+  <button type="button" class="meter-fab mtl-fab" onclick="window._gotoNextPending()">
+    <i class="ti ti-player-skip-forward"></i>จดถัดไป<span>${pendingAll}</span>
   </button>` : `
-  <div class="meter-fab" style="position:fixed;right:18px;z-index:800;
-    background:#16a34a;color:#fff;border:3px solid #fff;border-radius:32px;
-    padding:15px 24px;font-size:15px;font-weight:800;
-    display:flex;align-items:center;gap:9px;
-    box-shadow:0 6px 24px rgba(0,0,0,.3),0 2px 8px rgba(22,163,74,.5)">
-    <i class="ti ti-circle-check" style="font-size:20px"></i>
-    จดครบแล้ว!
-  </div>`}
+  <div class="meter-fab mtl-fab is-complete"><i class="ti ti-circle-check"></i>จดครบแล้ว!</div>`}
   `;
 
   if (_searchWasFocused) {
@@ -509,8 +420,12 @@ window._gotoNextPending = function () {
 
 export function gotoMeter(name, meterId, memberId) {
   appState.currentMeterMemberId = memberId || null;
+  const period = currentPeriod();
   document.getElementById('meter-hd-name').textContent = 'จดมิเตอร์: ' + name;
-  document.getElementById('meter-hd-id').textContent   = 'รหัสมิเตอร์: ' + meterId + ' • ' + name;
+  document.getElementById('meter-hd-id').textContent   = 'รหัสมิเตอร์: ' + meterId + ' • รอบ ' + period;
+  const tagEl = document.getElementById('meter-period-tag');
+  if (tagEl) tagEl.textContent = 'รอบ ' + period;
+  _renderMemberChips(memberId && appState.members.find(x => x.id === memberId), meterId);
   const inp = document.getElementById('meter-new-val');
   if (inp) { inp.value = ''; calcMeter(''); }
   _resetMeterPhoto();
@@ -526,7 +441,57 @@ export function gotoMeter(name, meterId, memberId) {
   if (listEl)    listEl.style.display    = 'none';
   if (formEl)    formEl.style.display    = '';
   if (actionsEl) actionsEl.style.display = '';
+  const progEl = document.getElementById('meter-hd-progress');
+  if (progEl) progEl.style.display = 'none';
   goPage('meter');
+  // คีย์บอร์ด/เมาส์ → พร้อมพิมพ์ทันที (มือถือไม่ focus เอง กันคีย์บอร์ดบังข้อมูลบ้าน)
+  if (inp && window.matchMedia?.('(pointer:fine)').matches) setTimeout(() => inp.focus(), 120);
+}
+
+// ชิปข้อมูลบ้านใต้หัวเพจ — บ้านเลขที่ / หมู่บ้าน / มิเตอร์ / ขนาด / ลำดับรอบนี้
+function _renderMemberChips(member, meterId) {
+  const el = document.getElementById('meter-member-chips');
+  if (!el) return;
+  if (!member) { el.innerHTML = ''; return; }
+  const chip = (icon, text, cls = '') => text ? `<span class="mtr-chip ${cls}"><i class="ti ${icon}"></i>${esc(text)}</span>` : '';
+  const size = getMeterSizeDisplay(member.meterSize || '0.5');
+  el.innerHTML =
+    chip('ti-home', member.houseNo ? 'บ้านเลขที่ ' + member.houseNo : '') +
+    chip('ti-map-pin', member.village || '') +
+    chip('ti-gauge', (meterId || member.meter || '—') + (size ? ` · ${size}` : ''), 'mtr-chip-mono');
+}
+
+// ค่าเฉลี่ยการใช้น้ำของบ้านนี้ (4 รอบล่าสุดที่มีการใช้ ไม่นับรอบปัจจุบัน) — มีไม่ถึง 2 รอบใช้ 15 m³
+function _avgUsage(memberId) {
+  const period = currentPeriod();
+  const hist = appState.meterReadings
+    .filter(r => r.memberId === memberId && r.period !== period && r.usage > 0)
+    .sort((a, b) => b.readingDate.localeCompare(a.readingDate))
+    .slice(0, 4);
+  return hist.length >= 2 ? hist.reduce((s, r) => s + r.usage, 0) / hist.length : 15;
+}
+
+// ตารางอัตราค่าน้ำจาก rateConfig — ไฮไลต์ขั้นที่ใช้จริงพร้อมยอดแต่ละขั้น
+function _renderRateList(usage, meterSize) {
+  const el = document.getElementById('meter-rate-list');
+  if (!el) return;
+  const used = new Map((usage > 0 ? calcWaterBreakdown(usage) : []).map(b => [b.from, b]));
+  const rows = rateConfig.tiers.map(t => {
+    const lbl = (t.to === Infinity || t.to === null) ? `${t.from}+ หน่วย` : `${t.from}–${t.to} หน่วย`;
+    const b   = used.get(t.from);
+    return `<div class="mtr-rate${b ? ' is-used' : ''}">
+      <span class="mtr-rate-range">${lbl}</span>
+      <span class="mtr-rate-calc">${b ? `${b.units} × ฿${b.rate} = <b>฿${Math.round(b.charge).toLocaleString()}</b>` : ''}</span>
+      <span class="mtr-rate-val">${Number(t.rate).toFixed(2)} ฿</span>
+    </div>`;
+  }).join('');
+  const svc = usage > 0 ? calcWaterCharge(usage, meterSize).serviceCharge : null;
+  el.innerHTML = rows + `
+    <div class="mtr-rate mtr-rate-svc${svc !== null ? ' is-used' : ''}">
+      <span class="mtr-rate-range">ค่าบริการรายเดือน</span>
+      <span class="mtr-rate-calc">${svc !== null ? `มิเตอร์ ${esc(getMeterSizeDisplay(meterSize))} = <b>฿${svc}</b>` : ''}</span>
+      <span class="mtr-rate-val">${rateConfig.svcSmall}–${rateConfig.svcLarge} ฿</span>
+    </div>`;
 }
 
 export function resetMeterSelection() {
@@ -543,7 +508,7 @@ export function resetMeterSelection() {
   if (formEl)    formEl.style.display    = 'none';
   if (actionsEl) actionsEl.style.display = 'none';
   if (hdName)    hdName.textContent      = 'จดมิเตอร์';
-  if (hdId)      hdId.textContent        = 'เลือกสมาชิกด้านล่างเพื่อเริ่มจดมิเตอร์';
+  if (hdId)      hdId.textContent        = 'แตะรายชื่อเพื่อเริ่มจด';
   renderMeter();
 }
 
@@ -552,52 +517,42 @@ export function calcMeter(val) {
   const member = currentMeterMemberId ? members.find(m => m.id === currentMeterMemberId) : null;
   const prev   = member ? _effectivePrev(member.id) : 0;
   const curr   = parseFloat(val);
+  const meterSize = member?.meterSize || '0.5';
+  const avg    = member ? _avgUsage(member.id) : 15;
   const uEl    = document.getElementById('m-usage');
   const eEl    = document.getElementById('m-est');
+  const esEl   = document.getElementById('m-est-sub');
   const pEl    = document.getElementById('m-pct');
   const p2El   = document.getElementById('m-pct2');
   const prEl   = document.getElementById('m-prog');
+  const avgEl  = document.getElementById('m-avg');
+  const boxEl  = document.getElementById('m-avg-box');
   const wEl    = document.getElementById('meter-warn');
+  if (avgEl) avgEl.textContent = `${Math.round(avg)} m³`;
   const roll = !isNaN(curr) && curr < prev ? rolloverUsage(prev, curr) : null;
   if (!val || isNaN(curr) || (curr <= prev && roll === null)) {
-    [uEl, eEl].forEach(e => { if (e) e.textContent = '—'; });
-    if (pEl)  pEl.textContent  = 'รอกรอกข้อมูล';
-    if (p2El) p2El.textContent = '—';
-    if (prEl) prEl.style.width = '0%';
-    if (wEl)  wEl.style.display = 'none';
-    const bdEl = document.getElementById('m-charge-breakdown');
-    if (bdEl) bdEl.style.display = 'none';
+    [uEl, eEl, p2El].forEach(e => { if (e) e.textContent = '—'; });
+    if (pEl)   pEl.textContent  = val && !isNaN(curr) ? `ต้องมากกว่า ${prev.toLocaleString()}` : 'รอกรอกเลขมิเตอร์';
+    if (esEl)  esEl.textContent = 'ยังไม่ยืนยัน';
+    if (prEl)  prEl.style.width = '0%';
+    if (boxEl) boxEl.dataset.level = '';
+    if (wEl)   wEl.style.display = 'none';
+    _renderRateList(0, meterSize);
     return;
   }
-  const usage     = roll ?? (curr - prev);
-  const meterSize = member?.meterSize || '0.5';
-  const charges   = calcWaterCharge(usage, meterSize);
-  if (uEl)  uEl.textContent = usage.toFixed(1) + ' m³' + (roll !== null ? ' (วนรอบ)' : '');
-  if (eEl)  eEl.textContent = '฿' + charges.total.toLocaleString();
-  const pct = Math.round((usage / 15) * 100);
-  if (pEl)  pEl.textContent  = pct + '% ของค่าเฉลี่ย';
-  if (p2El) p2El.textContent = pct + '%';
-  if (prEl) prEl.style.width = Math.min(pct, 200) + '%';
-  if (wEl)  wEl.style.display = usage > 45 ? 'block' : 'none';
-
-  const bdEl = document.getElementById('m-charge-breakdown');
-  if (bdEl && usage > 0) {
-    const rows = calcWaterBreakdown(usage).map(b => {
-      const lbl = (b.to === Infinity || b.to === null) ? `${b.from}+` : `${b.from}–${b.to}`;
-      return `<div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--gray-600)">
-        <span>${lbl} หน่วย × ${b.units} × ฿${b.rate}</span>
-        <span style="font-weight:600">฿${Math.round(b.charge).toLocaleString()}</span>
-      </div>`;
-    }).join('');
-    bdEl.innerHTML = rows +
-      `<div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--gray-600);border-top:1px solid var(--gray-100);margin-top:4px;padding-top:4px">
-        <span>ค่าบริการรายเดือน (มิเตอร์ ${meterSize}")</span>
-        <span style="font-weight:600">฿${charges.serviceCharge}</span>
-      </div>`;
-    bdEl.style.display = '';
-  } else if (bdEl) {
-    bdEl.style.display = 'none';
-  }
+  const usage   = roll ?? (curr - prev);
+  const charges = calcWaterCharge(usage, meterSize);
+  if (uEl)  uEl.textContent  = Number(usage.toFixed(1)).toLocaleString() + ' m³';
+  if (pEl)  pEl.textContent  = roll !== null ? 'มิเตอร์วนรอบ' : `${prev.toLocaleString()} → ${curr.toLocaleString()}`;
+  if (eEl)  eEl.textContent  = '฿' + charges.total.toLocaleString();
+  if (esEl) esEl.textContent = `น้ำ ฿${charges.waterCharge.toLocaleString()} + บริการ ฿${charges.serviceCharge}`;
+  const pct  = Math.round((usage / avg) * 100);
+  const high = usage > Math.max(avg * 3, 45);   // เกณฑ์เดียวกับ _detectAnomaly → high_usage
+  if (p2El)  p2El.textContent = pct + '%';
+  if (prEl)  prEl.style.width = Math.min(pct, 100) + '%';
+  if (boxEl) boxEl.dataset.level = high ? 'high' : pct > 150 ? 'warn' : 'ok';
+  if (wEl)   wEl.style.display = high ? '' : 'none';
+  _renderRateList(usage, meterSize);
 }
 
 // คืนค่า "เลขอ่านครั้งก่อน" ที่ถูกต้อง — ถ้าบิลปัจจุบันถูกยกเลิก ให้ใช้ prevReading ของ reading นั้นแทน lastRead
@@ -650,26 +605,18 @@ export async function saveMeter() {
     return;
   }
 
-  // ── Duplicate reading check ──────────────────────────────────
-  // (ตรวจก่อน validate curr เพื่อ restore lastRead ถ้าบิลเดิมถูกยกเลิก)
-  const dupReading = meterReadings.find(r =>
-    r.memberId === currentMeterMemberId && r.period === period
-  );
+  // ── จดซ้ำในงวดนี้? (server ตรวจซ้ำอีกชั้น และลบการอ่านเดิมให้เองถ้าบิลถูกยกเลิก) ──
+  const dupReading = meterReadings.find(r => r.memberId === currentMeterMemberId && r.period === period);
   if (dupReading) {
-    const dupBill          = dupReading.billId ? bills.find(b => b.id === dupReading.billId) : null;
-    const dupBillCancelled = !dupBill || dupBill.status === 'cancelled';
-    if (!dupBillCancelled) {
+    const dupBill = dupReading.billId ? bills.find(b => b.id === dupReading.billId) : null;
+    if (dupBill && dupBill.status !== 'cancelled') {
       toast(
         `จดมิเตอร์รอบ ${period} ไปแล้ว (${dupReading.readingDate} · ${dupReading.currReading.toLocaleString()} หน่วย)`,
         'error'
       );
       return;
     }
-    // Bill was cancelled — restore lastRead to pre-read value, delete old reading
-    member.lastRead = dupReading.prevReading;
-    const idx = appState.meterReadings.indexOf(dupReading);
-    if (idx !== -1) appState.meterReadings.splice(idx, 1);
-    sbDeleteReading(dupReading.id);
+    member.lastRead = dupReading.prevReading;   // บิลเดิมถูกยกเลิก: จดใหม่จากเลขก่อนหน้า
   }
 
   const prev = Number(member.lastRead);
@@ -713,71 +660,46 @@ export async function saveMeter() {
 }
 
 /**
- * บันทึกบิล + การอ่านมิเตอร์ที่ server — คืนเลขบิล หรือ null ถ้าไม่สำเร็จ
+ * บันทึกบิล + การอ่านมิเตอร์ที่ server (RPC save_meter_reading — transaction เดียว, server คิดค่าน้ำเอง)
+ * คืนเลขบิล หรือ null ถ้าไม่สำเร็จ
  * ใช้ทั้งตอนจดปกติ และตอนส่งข้อมูลที่จดไว้ในเครื่อง (field.js → syncQueue)
  */
 export async function persistMeterReading(entry, { photoFile = null } = {}) {
   const { bills, meterReadings, members } = appState;
   const member = members.find(m => m.id === entry.memberId);
   if (!member) return null;
-  const { period, readingDate: today, prev, curr, usage } = entry;
-  const currentMeterMemberId = entry.memberId;
-  const charges = calcWaterCharge(usage, member.meterSize || '0.5');
+  const { year, month } = _periodYM(entry.period);
 
-  // ── Bill: reactivate cancelled, update existing, or create new ─
-  const existingBill   = bills.find(b => b.memberId === currentMeterMemberId && b.period === period && b.status !== 'cancelled');
-  const cancelledBill  = !existingBill ? bills.find(b => b.memberId === currentMeterMemberId && b.period === period && b.status === 'cancelled') : null;
-  const targetBill     = existingBill || cancelledBill;
-
-  // ── บันทึกบิลที่ server ก่อน — ได้เลขบิลจริงแล้วจึงบันทึกการอ่านมิเตอร์ ──
   _saving = true;
-  let billId;
+  let res;
   try {
-    if (targetBill) {
-      const before = { ...targetBill };
-      Object.assign(targetBill, {
-        status: 'pending', usage,
-        waterCharge: charges.waterCharge, serviceCharge: charges.serviceCharge,
-        total: charges.total, issueDate: today,
-        cancelReason: null, cancelledBy: null, cancelledAt: null,
-      });
-      if (!(await sbUpsertBill(targetBill))) { Object.assign(targetBill, before); return; }
-      billId = targetBill.id;
-    } else {
-      const dueDays = parseInt(appState.systemConfig?.billing_due_days) || 15;
-      const dueDate = new Date(`${today}T00:00:00`); dueDate.setDate(dueDate.getDate() + dueDays);   // นับจากวันที่จด (ซิงก์ทีหลังก็ไม่เลื่อน)
-      const saved = await sbInsertBills([{
-        memberId: currentMeterMemberId, period,
-        issueDate: today, dueDate: toLocalDate(dueDate),
-        usage, waterCharge: charges.waterCharge, serviceCharge: charges.serviceCharge,
-        lateFee: 0, discount: 0, status: 'pending', sentVia: '',
-      }]);
-      if (!saved?.length) return;
-      bills.push(saved[0]);
-      billId = saved[0].id;
+    let photoPath = null;
+    if (photoFile) {
+      photoPath = await uploadImage('meter-photos', `${entry.readingDate.slice(0, 7)}/${entry.id}.jpg`, photoFile);
+      // อัปโหลดรูปไม่ได้ ยังบันทึกการอ่านต่อ (แจ้งเตือนแล้ว)
     }
+    res = await sbSaveMeterReading({
+      ...entry, periodYear: year, periodMonth: month, photoPath, method: entry.method || 'manual',
+      anomaly: _detectAnomaly(entry.usage, member, meterReadings),
+    });
   } finally {
     _saving = false;
   }
-
-  const newReading = {
-    id: entry.id, memberId: currentMeterMemberId, meter: member.meter,
-    readingDate: today, period, prevReading: prev, currReading: curr, usage,
-    rollover: !!entry.rollover, meterMax: entry.meterMax,
-    waterCharge: charges.waterCharge, serviceCharge: charges.serviceCharge,
-    total: charges.total, readBy: 'ผู้ดูแลระบบ', method: 'manual',
-    anomaly: _detectAnomaly(usage, member, meterReadings), billId,
-  };
-  if (photoFile) {
-    const path = await uploadImage('meter-photos', `${today.slice(0, 7)}/${newReading.id}.jpg`, photoFile);
-    if (path) newReading.photoUrl = path;   // ถ้าอัปโหลดไม่ได้ ยังบันทึกการอ่านต่อ (แจ้งเตือนแล้ว)
+  if (res.error) {
+    if (!isNetworkFailure()) toast(res.message, 'error', 6000);
+    if (res.code === 'PREV_MISMATCH') loadAllFromSupabase().then(() => window.renderMeter?.());   // ข้อมูลในเครื่องเก่า — ดึงเลขล่าสุด
+    return null;
   }
-  if (!meterReadings.some(r => r.id === newReading.id)) meterReadings.push(newReading);
-  member.lastRead = curr; member.lastReadDate = today;
 
-  await sbUpsertReading(newReading);
-  sbUpdateMember(member);
-  return billId;
+  // แทนที่ข้อมูลในเครื่องด้วยแถวจริงจาก server
+  const { bill, reading } = res;
+  const bi = bills.findIndex(b => b.id === bill.id);
+  if (bi >= 0) bills[bi] = bill; else bills.push(bill);
+  const stale = meterReadings.findIndex(r => r.memberId === reading.memberId && r.period === reading.period);
+  if (stale >= 0) meterReadings.splice(stale, 1);
+  meterReadings.push(reading);
+  member.lastRead = reading.currReading; member.lastReadDate = reading.readingDate;
+  return bill.id;
 }
 
 // ─── ส่งข้อมูลที่จดไว้ในเครื่อง ──────────────────────────────────
@@ -786,7 +708,7 @@ export function syncMeterQueue() {
 }
 window.addEventListener('online', () => syncMeterQueue());
 window.addEventListener('aquaflow:data-ready', () => syncMeterQueue());
-Object.assign(window, { syncMeterQueue, openQueueConflicts, discardQueued, openMeterSkip, openRouteOrder });
+Object.assign(window, { syncMeterQueue, openQueueConflicts, discardQueued, openMeterSkip, openRouteOrder, saveMemberGps });
 
 window._viewMeterPhoto = async function (readingId) {
   const r = appState.meterReadings.find(x => x.id === readingId);
@@ -821,7 +743,7 @@ export function renderMeterHistory(memberId) {
       ? `<span class="pill pill-overdue" style="font-size:10px;padding:2px 7px">${anomalyMap[r.anomaly]||r.anomaly}</span>`
       : `<span class="pill pill-normal" style="font-size:10px;padding:2px 7px">ปกติ</span>`
     }</td>
-    <td class="text-muted" style="font-size:11px">${methodMap[r.method]||r.method} · ${r.readBy}${r.photoUrl
-      ? ` <button class="btn-icon" style="width:24px;height:24px;font-size:13px" title="ดูรูปมิเตอร์" aria-label="ดูรูปมิเตอร์" onclick="_viewMeterPhoto('${esc(r.id)}')"><i class="ti ti-photo"></i></button>` : ''}</td>
+    <td class="text-muted" style="font-size:11px">${methodMap[r.method]||r.method} · ${esc(staffName(r.readById) || '—')}${r.photoUrl
+      ? ` <button class="btn-icon" style="width:24px;height:24px;font-size:13px" title="ดูรูปมิเตอร์" aria-label="ดูรูปมิเตอร์" onclick="_viewMeterPhoto(${jsArg(r.id)})"><i class="ti ti-photo"></i></button>` : ''}</td>
   </tr>`).join('');
 }

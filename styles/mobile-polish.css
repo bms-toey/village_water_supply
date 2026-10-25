@@ -1,0 +1,141 @@
+/* mobile-polish.css - เก็บงานจอมือถือทุกหน้า/ทุก modal
+   โหลดหลัง stylesheet ของแต่ละหน้า (billing/payments/...) ก่อน print.css → ชนะกฎเฉพาะหน้า
+   ทุกกฎอยู่ใน media query จอแคบ ยกเว้นข้อที่แก้บั๊กทุกขนาดจอ (หมายเหตุไว้)
+---------------------------------------------------- */
+
+/* ═══ ทุกขนาดจอ (บั๊ก) ═══ */
+/* ป้ายสถานะ/ประเภท ไม่ตัดกลางคำ ("พาณิช/ยกรร/ม") */
+.pill, .mtype-badge { white-space: nowrap; }
+/* base.css ให้ input ทุกชนิดสูง 44px — radio/checkbox ไม่ต้อง (แถวตัวเลือกสูงเกิน, กรอบโฟกัสยาว) */
+input[type="radio"], input[type="checkbox"] { min-height: 0; }
+
+/* ═══ ≤768px ═══ */
+@media (max-width: 768px) {
+  /* เนื้อหาสุดท้ายไม่จมใต้ bottom nav (nav สูง 66 + ลอย 10) */
+  .content-area { padding-bottom: calc(88px + env(safe-area-inset-bottom)) !important; }
+
+  /* URL ยาวในขั้นตอนตั้งค่า LINE ตัดได้ทุกตัวอักษร */
+  li code { word-break: break-all; }
+
+  /* ── หัวเพจ: ชื่อ + ปุ่มอยู่แถวเดียว ปุ่มรองเป็นไอคอน (เดิมปุ่มล้นขอบขวา, หัวกิน 2 แถว) ── */
+  .page-hd { flex-direction: row !important; flex-wrap: nowrap; align-items: center; gap: 10px; }
+  .page-hd > div:first-child { flex: 1 1 auto; min-width: 0; }
+  .page-hd .page-title { font-size: 16px; }
+  .page-hd .page-hd-actions { width: auto; flex: 0 0 auto; overflow: visible; margin: 0; padding: 0; gap: 6px; }
+  .page-hd .page-hd-actions > .btn:not(.btn-primary) {
+    font-size: 0; gap: 0; width: 40px; min-width: 40px; height: 40px; min-height: 40px; flex: 0 0 40px; padding: 0; justify-content: center;
+  }
+  .page-hd .page-hd-actions > .btn i { font-size: 18px; margin: 0; }
+  /* หน้าที่มีหลายปุ่มหลัก (รายงาน) — ปุ่มหลักก็เหลือไอคอนเมื่อมีปุ่มอื่นร่วม */
+  .page-hd .page-hd-actions > .btn-primary:not(:only-child) { font-size: 0; gap: 0; width: 40px; min-width: 40px; height: 40px; min-height: 40px; padding: 0; justify-content: center; }
+  .page-hd .page-hd-actions > .fselect { min-width: 0; width: 132px; }
+
+  /* ── แถบสถานะ (บิล/รับชำระ) เลื่อนได้ — จางขอบขวาบอกว่ายังมีต่อ ── */
+  #page-billing .bill-seg button, #page-payments .pay-seg button { padding: 0 7px; font-size: 12px; gap: 3px; }
+  #page-billing .bill-seg, #page-payments .pay-seg {
+    -webkit-mask-image: linear-gradient(90deg, #000 90%, transparent); mask-image: linear-gradient(90deg, #000 90%, transparent);
+  }
+  #page-payments .pay-seg { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+  #page-payments .pay-seg::-webkit-scrollbar, #page-billing .bill-seg::-webkit-scrollbar { display: none; }
+
+  /* ── การ์ดบิล: ปุ่มจัดการไม่แย่งคอลัมน์ซ้าย (เลขบิล/ชื่อ ถูกบีบจนตัดคำ) ── */
+  #page-billing .bt-act { grid-area: auto; grid-row: 4; grid-column: 1 / -1; justify-self: end; }
+  #page-billing .bt-due { grid-area: auto; grid-row: 4; grid-column: 1 / -1; justify-self: start; align-self: center; }
+  #page-billing .bt-id { white-space: nowrap; }
+
+  /* ── รายงาน: การ์ดเลือกเป็นชิปแถวเดียว, ซ่อน KPI/ปุ่มซ้ำ — ตารางขึ้นมาใกล้ด้านบน ── */
+  #page-reports .kpi-grid { display: none; }
+  #page-reports .report-grid { margin-bottom: 10px; }
+  #page-reports .kpi-grid + div[style*="uppercase"] { display: none; }   /* ป้าย "เลือกประเภทรายงาน" */
+  .rpt-card { flex-direction: row; width: auto; padding: 6px 12px 6px 6px; gap: 6px; border-radius: 12px; }
+  .rpt-icon { width: 28px; height: 28px; font-size: 15px; border-radius: 8px; flex-shrink: 0; }
+  .rpt-name { font-size: 12.5px; white-space: nowrap; }
+  #page-reports .card-hd { flex-wrap: nowrap; }
+  #page-reports .card-hd .card-title { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+  /* ตารางรายงาน: แถวไม่ตัดบรรทัด (เดิมสูง 65px/แถว) + คอลัมน์แรกตรึงไว้ตอนเลื่อนข้าง */
+  #page-reports .tbl-wrap th, #page-reports .tbl-wrap td { white-space: nowrap; padding: 6px 10px; }
+  #page-reports .tbl-wrap th:first-child, #page-reports .tbl-wrap td:first-child {
+    position: sticky; left: 0; z-index: 1; background: var(--white, #fff); box-shadow: 1px 0 0 var(--gray-100);
+  }
+  #page-reports .tbl-wrap thead th:first-child { z-index: 2; background: var(--lx-pearl-2, #f4f6fb); }
+
+  /* ── ตั้งค่า: ตาราง master data ซ่อน ลำดับ / ชื่อ EN / ไอคอน ── */
+  #settings-panel .tbl-wrap table:has(th:nth-child(7)) :is(th, td):is(:nth-child(1), :nth-child(4), :nth-child(5)) { display: none; }
+  #settings-panel .tbl-wrap td { white-space: nowrap; }
+
+  /* ── ซ่อมบำรุง: KPI เปลี่ยนมิเตอร์เต็มแถว, แท็บเว้นระยะแน่น ── */
+  #mnt-replacements-section .kpi-grid { grid-template-columns: 1fr !important; max-width: none !important; }
+  #page-maintenance .tabs { margin-bottom: 10px !important; }
+
+  /* ── Dashboard ── */
+  .dx-eyebrow { letter-spacing: .06em; font-size: 9.5px; white-space: nowrap; }
+  .dx-kpi-note { -webkit-line-clamp: 2 !important; line-clamp: 2; white-space: normal; }
+  .dx-rv { display: flex; align-items: center; gap: 8px; }
+  .dx-rv button { margin: 0; font-size: 0; width: 32px; height: 32px; min-height: 32px; padding: 0; display: grid; place-items: center; }
+  .dx-rv button i { font-size: 15px; }
+}
+
+/* ═══ ≤560px — การ์ดรายการ: ชื่อได้เต็มแถว, สถานะลงแถว 2 คู่กับปุ่ม ═══ */
+@media (max-width: 560px) {
+  /* สมาชิก */
+  .member-card-h .mch-info { flex: 1 1 calc(100% - 50px); }
+  .member-card-h .mch-status { order: 1; margin-left: 46px; min-width: 0; text-align: left; }
+  .member-card-h .mch-actions { order: 2; width: auto; margin-left: auto; border-top: 0; padding-top: 0; }
+
+  /* ลูกหนี้: ยอดค้างอยู่แถว 1, สถานะแถว 2 */
+  /* basis = แถวเต็มลบ avatar + ยอด → ป้ายสถานะ (order 1) ถูกดันลงแถว 2 */
+  #debtors-card-list .dch-info { flex: 1 1 calc(100% - 150px); min-width: 0; }
+  #debtors-card-list .dch-info > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #debtors-card-list .dch-debt { flex: 0 0 auto; min-width: 0; text-align: right; }
+  #debtors-card-list .dch-severity { order: 1; margin-left: 46px; min-width: 0; text-align: left; }
+  #debtors-card-list .dch-actions { order: 2; width: auto; margin-left: auto; }
+
+  /* ซ่อมบำรุง: ประเภท + สถานะแถว 1, รายละเอียดเต็มแถว 2, ปุ่มแถว 3 */
+  #page-maintenance .mnch-type { display: flex; align-items: center; gap: 6px; flex: 1 1 auto; min-width: 0; }
+  #page-maintenance .mnch-type > * { margin-top: 0 !important; }
+  #page-maintenance .mnch-status { order: 1; min-width: 0; margin-left: auto; }
+  #page-maintenance .mnch-info { order: 2; flex: 1 1 100%; }
+  #page-maintenance .mnch-actions { order: 3; }
+}
+
+/* ═══ ≤380px (มือถือจอเล็ก) ═══ */
+@media (max-width: 380px) {
+  /* การ์ดบิล: ตัดคำนำ "กำหนด" ให้วันที่ไม่ถูกปุ่มรับชำระบัง */
+  #page-billing .bt-due::before { content: none; }
+}
+
+/* ═══ ≤640px — modal / bottom sheet ═══ */
+@media (max-width: 640px) {
+  /* toast ย้ายขึ้นบนเมื่อ sheet เปิด — ไม่บังช่องกรอก/ปุ่มบันทึก */
+  body:has(.modal-overlay[data-dynamic-modal], .modal-overlay[style*="flex"]) #toast-container {
+    top: calc(8px + env(safe-area-inset-top)) !important; bottom: auto !important;
+  }
+
+  /* modal ที่ body เป็น flex column: ระยะห่างฟิลด์สม่ำเสมอ */
+  .modal-body[style*="flex-direction:column"] { gap: 10px !important; }
+  .modal-body[style*="flex-direction:column"] > .form-row-2,
+  .modal-body[style*="flex-direction:column"] > .form-row { margin-bottom: 0; }
+
+  /* ดูข้อมูลสมาชิก: ตัดปุ่ม "ปิด" (ซ้ำกับ ✕) ให้ footer เหลือแถวเดียว */
+  #member-qv-modal .modal-footer > .btn:first-child { display: none; }
+  #mqv-header { padding: 10px 16px !important; }
+  #mqv-body { padding: 10px 16px !important; }
+
+  /* ใบเสร็จ: ช่องเลือกกระดาษแตะง่าย */
+  #receipt-modal .rcpt-paper .fselect { height: 40px; min-height: 40px; }
+}
+
+/* ═══ ≤520px — ฟอร์มรับเงิน: บิลกระชับ ช่องรับเงินขึ้นมาในจอ ═══ */
+@media (max-width: 520px) {
+  #cash-modal .cp-bc-top { padding: 8px 10px 6px; }
+  #cash-modal .cp-bc-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding: 0 10px 7px; }
+  #cash-modal .cp-bc-chips::-webkit-scrollbar { display: none; }
+  #cash-modal .cp-bc-lines { grid-template-columns: 1fr 1fr; gap: 1px 14px; padding: 6px 10px 0; }
+  #cash-modal .cp-bc-lines div { font-size: 12px; }
+  #cash-modal .cp-bc-total { margin: 6px 10px 0; padding: 6px 0 8px; }
+  #cash-modal .cp-bc-warn { margin: 0 10px 10px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    line-height: 1.5; max-height: calc(3em + 12px); }
+  #cash-modal .cp-qr-off { flex-direction: row; gap: 8px; padding: 10px 12px; text-align: left; }
+  #cash-modal .cp-qr-off i { font-size: 24px; }
+  #cash-modal .cp-xfer.has-qr .cp-qr-card.cp-qr-off { max-width: none; }
+}

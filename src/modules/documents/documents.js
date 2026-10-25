@@ -10,6 +10,7 @@ import { portalUrl, portalDeepLink } from '../notify/notify.js';
 import { openModal, closeModal } from '../../components/modal/modal.js';
 import { invoiceHtml, receiptHtml, noticeHtml, remittanceHtml, orgInfo } from './templates.js';
 import { beginPrint, getPaper, setPaper, PAPERS } from './print.js';
+import { villageOptions } from '../../services/db-mapper.service.js';
 
 const UNPAID = ['pending', 'overdue'];
 
@@ -69,7 +70,6 @@ export async function printPaymentReceipt(paymentId) {
 // ─── พิมพ์ใบแจ้งทีละหลายใบ ──────────────────────────────────
 export function openBatchPrint() {
   const periods  = [...new Set(appState.bills.map(b => b.period))].filter(Boolean);
-  const villages = [...new Set(appState.members.map(m => m.village))].filter(Boolean).sort();
   openModal({
     id: 'batch-print-modal', title: 'พิมพ์ใบแจ้งค่าน้ำทีละหลายใบ', icon: 'ti-printer', width: 460,
     body: `
@@ -79,7 +79,7 @@ export function openBatchPrint() {
       </div>
       <div class="form-group" style="margin-bottom:12px">
         <label class="form-label" for="bp-village">หมู่บ้าน</label>
-        <select class="form-input" id="bp-village"><option value="">ทุกหมู่บ้าน</option>${villages.map(v => `<option>${esc(v)}</option>`).join('')}</select>
+        <select class="form-input" id="bp-village"><option value="">ทุกหมู่บ้าน</option>${villageOptions()}</select>
       </div>
       <div class="form-group" style="margin-bottom:12px">
         <label class="form-label" for="bp-status">บิล</label>
@@ -104,7 +104,7 @@ export function openBatchPrint() {
     const status  = el.querySelector('#bp-status').value;
     return appState.bills
       .filter(b => b.period === period && b.status !== 'cancelled' && (status === 'all' || UNPAID.includes(b.status)))
-      .filter(b => !village || appState.members.find(m => m.id === b.memberId)?.village === village)
+      .filter(b => !village || String(appState.members.find(m => m.id === b.memberId)?.villageId) === village)
       .sort((a, b) => {
         const ma = appState.members.find(m => m.id === a.memberId) || {};
         const mb = appState.members.find(m => m.id === b.memberId) || {};
@@ -149,13 +149,12 @@ function _debtors(minMonths, village, memberIds) {
     .map(([mid, bills]) => ({ member: appState.members.find(m => m.id === mid), bills: bills.sort((a, b) => a.dueDate.localeCompare(b.dueDate)) }))
     .filter(d => d.member)
     .filter(d => memberIds ? memberIds.includes(d.member.id) : _monthsOverdue(d.bills[0].dueDate) >= minMonths)
-    .filter(d => !village || d.member.village === village)
+    .filter(d => !village || String(d.member.villageId) === village)
     .sort((a, b) => (a.member.village || '').localeCompare(b.member.village || '', 'th')
       || String(a.member.houseNo || '').localeCompare(String(b.member.houseNo || ''), 'th', { numeric: true }));
 }
 
 export function openNoticePrint(memberId) {
-  const villages = [...new Set(appState.members.map(m => m.village))].filter(Boolean).sort();
   const single   = memberId ? appState.members.find(m => m.id === memberId) : null;
   openModal({
     id: 'notice-modal', title: single ? `พิมพ์หนังสือแจ้ง — ${single.firstName} ${single.lastName}` : 'พิมพ์หนังสือแจ้งลูกหนี้', icon: 'ti-mail', width: 460,
@@ -171,7 +170,7 @@ export function openNoticePrint(memberId) {
       </div>
       <div class="form-group" style="margin-bottom:12px">
         <label class="form-label" for="nt-village">หมู่บ้าน</label>
-        <select class="form-input" id="nt-village"><option value="">ทุกหมู่บ้าน</option>${villages.map(v => `<option>${esc(v)}</option>`).join('')}</select>
+        <select class="form-input" id="nt-village"><option value="">ทุกหมู่บ้าน</option>${villageOptions()}</select>
       </div>`}
       <div class="form-group" style="margin-bottom:12px">
         <label class="form-label" for="nt-days">ให้ชำระภายใน (วัน)</label>

@@ -26,9 +26,10 @@ import { initRealtime, manualRefresh } from './services/realtime.service.js';
 // ─── Navigation ───────────────────────────────────────────────
 import { goPage, setTab, initNavigation, closeMobileSidebar } from './components/navigation/navigation.js';
 import { initLuxe, openCommandPalette } from './components/ux/luxe.js';
+import { initSelectPicker } from './components/ux/select-picker.js';
 
 // ─── Utils ────────────────────────────────────────────────────
-import { toast, showConfirm, esc } from './utils/dom.util.js';
+import { toast, showConfirm, esc, jsArg } from './utils/dom.util.js';
 
 // ─── Modules ──────────────────────────────────────────────────
 import { renderDashboard, setDashChartYear, setDashPeriod, dashGotoMeter } from './modules/dashboard/dashboard.js';
@@ -55,7 +56,7 @@ import {
   renderSettingsRates, renderSettingsVillages,
   openRateEditModal, closeRateModal, saveRateTier, saveSettings,
   openAddTierModal, closeAddTierModal, saveNewTierHandler, deleteLastTierConfirm,
-  saveSvcChargesHandler, saveLateFeeHandler,
+  saveSvcChargesHandler, saveLateFeeHandler, saveFeesHandler,
   openMdModal, closeMdModal, saveMdItemHandler,
   deleteMdItemConfirm, toggleMdItemHandler,
   openVillageModal, closeVillageModal, saveVillageHandler, deleteVillageConfirm, toggleVillageHandler,
@@ -125,13 +126,12 @@ const _goPageWithRender = (id) => {
 };
 
 // ─── Event wiring ─────────────────────────────────────────────
-// Billing tabs
-document.querySelectorAll('#page-billing .tab').forEach((t, i) => {
-  t.addEventListener('click', () => {
-    const filters = [null, 'overdue', 'pending', 'paid'];
-    setBillFilters({ statusTab: filters[i] });
-    renderBilling();
-  });
+// Billing status segment + KPI cards (data-v = สถานะ, ว่าง = ทั้งหมด) — renderBilling() sync ปุ่ม .on เอง
+document.getElementById('page-billing').addEventListener('click', e => {
+  const b = e.target.closest('.bill-seg button, .bill-kpi');
+  if (!b) return;
+  setBillFilters({ statusTab: b.dataset.v || null });
+  renderBilling();
 });
 
 // Billing search + filter
@@ -276,11 +276,11 @@ function _fillNotifPanel() {
   const active = rows.filter(r => r.count > 0);
   const recent = notificationListHtml();
   if (!active.length && !recent) {
-    list.innerHTML = '<div style="padding:20px 16px;text-align:center;color:var(--gray-400);font-size:13px"><i class="ti ti-check-circle" style="font-size:28px;display:block;margin-bottom:6px;color:#22c55e"></i>ไม่มีการแจ้งเตือน</div>';
+    list.innerHTML = '<div style="padding:20px 16px;text-align:center;color:var(--gray-400);font-size:13px"><i class="ti ti-circle-check" style="font-size:28px;display:block;margin-bottom:6px;color:#22c55e"></i>ไม่มีการแจ้งเตือน</div>';
     return;
   }
   list.innerHTML = active.map(r => `
-    <div class="tbd-item" onclick="window._closeAllPanels?.();window.goPage('${r.page}')${r.settingsTab ? `;window.setSettingsTab('${r.settingsTab}')` : ''}">
+    <div class="tbd-item" onclick="window._closeAllPanels?.();window.goPage(${jsArg(r.page)})${r.settingsTab ? `;window.setSettingsTab(${jsArg(r.settingsTab)})` : ''}">
       <i class="ti ${r.icon}" style="font-size:18px;flex-shrink:0;color:${r.icon==='ti-credit-card'?'var(--blue-600)':r.icon==='ti-alert-triangle'?'var(--red-600)':'#d97706'}"></i>
       <span class="tbd-item-label">${esc(r.label)}</span>
       <span class="tbd-cnt ${r.cls}">${r.count}</span>
@@ -370,10 +370,20 @@ function _initTopbar() {
   _initSearch();
 }
 
+// ─── โหมดความเป็นส่วนตัว (PDPA) — เบลอชื่อ/เบอร์บนจอ จำค่าไว้ในเครื่องนี้ ───
+function togglePrivacyMode() {
+  const on = document.body.classList.toggle('privacy-mode');
+  try { localStorage.setItem('aq_privacy_mode', on ? '1' : ''); } catch (_) {}
+  toast(on ? 'เปิดโหมดความเป็นส่วนตัว — ชื่อ/เบอร์ถูกเบลอ (ชี้เพื่อดู)' : 'ปิดโหมดความเป็นส่วนตัว', 'info');
+}
+try { if (localStorage.getItem('aq_privacy_mode')) document.body.classList.add('privacy-mode'); } catch (_) {}
+window.togglePrivacyMode = togglePrivacyMode;
+
 // ─── Navigation init ─────────────────────────────────────────
 initNavigation();
 _initTopbar();
 initLuxe();
+initSelectPicker();
 
 // ─── Expose to window (for onclick="" handlers in HTML) ──────
 Object.assign(window, {
@@ -415,7 +425,7 @@ Object.assign(window, {
   renderSettings, setSettingsTab,
   openRateEditModal, closeRateModal, saveRateTier, saveSettings,
   openAddTierModal, closeAddTierModal, saveNewTierHandler, deleteLastTierConfirm,
-  saveSvcChargesHandler, saveLateFeeHandler,
+  saveSvcChargesHandler, saveLateFeeHandler, saveFeesHandler,
   openMdModal, closeMdModal, saveMdItemHandler,
   deleteMdItemConfirm, toggleMdItemHandler,
   openVillageModal, closeVillageModal, saveVillageHandler, deleteVillageConfirm, toggleVillageHandler,

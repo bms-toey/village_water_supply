@@ -6,10 +6,11 @@
 // + บันทึกรายรับอื่น/รายจ่าย, บันทึกการผลิตน้ำ, พิมพ์ A4, Export Excel
 // ──────────────────────────────────────────────────────────────
 import { appState } from '../../state/app.state.js';
-import { esc, toast } from '../../utils/dom.util.js';
+import { esc, toast, jsArg } from '../../utils/dom.util.js';
 import { todayISO, toLocalDate } from '../../utils/time.util.js';
 import { _sb } from '../../services/supabase.service.js';
 import { hasRole } from '../../services/auth.service.js';
+import { sbLogAudit } from '../../services/data-loader.service.js';
 import { uploadImage, signedImageUrl } from '../../services/files.service.js';
 import { openModal, closeModal, busyButton } from '../../components/modal/modal.js';
 import { beginPrint } from '../documents/print.js';
@@ -51,7 +52,7 @@ export function injectAccountingCards() {
   const grid = document.querySelector('#page-reports .report-grid');
   if (!grid || grid.querySelector('[data-report="monthly"]')) return;
   grid.insertAdjacentHTML('afterbegin', Object.entries(ACCT_REPORTS).map(([k, r]) => `
-    <div class="rpt-card" data-report="${k}" onclick="switchReport('${k}')">
+    <div class="rpt-card" data-report="${k}" onclick="switchReport(${jsArg(k)})">
       <div class="rpt-icon" style="background:${r.bg};color:${r.fg}"><i class="ti ${r.icon}"></i></div>
       <div class="rpt-name">${r.name}</div><div class="rpt-desc">${r.desc}</div>
     </div>`).join(''));
@@ -245,15 +246,21 @@ export async function printAccounting() {
   await job.print([html], 'letter');
 }
 
+// SRI ของสคริปต์ที่โหลดทีหลัง — ไฟล์บน CDN ถูกแก้จะไม่ถูกรัน
+const _SRI = {
+  'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js': 'sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw',
+};
 function _loadScript(src) {
   return new Promise((resolve, reject) => {
     if (document.querySelector(`script[src="${src}"]`)) return resolve();
     const s = Object.assign(document.createElement('script'), { src, onload: resolve, onerror: reject });
+    if (_SRI[src]) { s.integrity = _SRI[src]; s.crossOrigin = 'anonymous'; }
     document.head.appendChild(s);
   });
 }
 
 export async function exportAccountingExcel() {
+  if (!canSeeFinance()) { toast('ส่งออกข้อมูลได้เฉพาะเจ้าหน้าที่การเงินและผู้ดูแลระบบ', 'error'); return; }
   if (!_state.data) { toast('ยังไม่มีข้อมูลรายงาน', 'warn'); return; }
   try {
     await _loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
@@ -287,6 +294,7 @@ export async function exportAccountingExcel() {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, ACCT_REPORTS[t].name.slice(0, 30));
   XLSX.writeFile(wb, `${t}-${todayISO()}.xlsx`);
+  sbLogAudit('exports', `${t}-${todayISO()}.xlsx`, 'export_xlsx', null, { report: t, rows: aoa.length });
 }
 
 // ─── Cashbook entry ───────────────────────────────────────────
@@ -362,8 +370,8 @@ export async function openCashbookList() {
           ${r.voided_at ? `<div style="font-size:11px;color:var(--red-700);text-decoration:none">ยกเลิก: ${esc(r.void_reason)} (${esc(r.voided_by || '')})</div>` : ''}</td>
         <td style="text-align:right;color:${r.kind === 'income' ? 'var(--green-700)' : 'var(--red-700)'}">${r.kind === 'income' ? '+' : '-'}${money(r.amount)}</td>
         <td style="font-size:11.5px">${esc(r.created_by_name || '')}</td>
-        <td style="white-space:nowrap">${r.attachment ? `<button class="btn-icon" title="ดูเอกสาร" onclick="viewFinanceDoc('${esc(r.attachment)}')"><i class="ti ti-paperclip"></i></button>` : ''}
-          ${canVoid && !r.voided_at ? `<button class="btn-icon" title="ยกเลิกรายการ" onclick="voidCashbookEntry(${r.id}, '${esc(r.doc_no)}')"><i class="ti ti-ban"></i></button>` : ''}</td>
+        <td style="white-space:nowrap">${r.attachment ? `<button class="btn-icon" title="ดูเอกสาร" onclick="viewFinanceDoc(${jsArg(r.attachment)})"><i class="ti ti-paperclip"></i></button>` : ''}
+          ${canVoid && !r.voided_at ? `<button class="btn-icon" title="ยกเลิกรายการ" onclick="voidCashbookEntry(${Number(r.id)}, ${jsArg(r.doc_no)})"><i class="ti ti-ban"></i></button>` : ''}</td>
       </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--gray-400);padding:20px">ไม่มีรายการในช่วงวันที่นี้</td></tr>'}</tbody></table></div>`,
   });
 }

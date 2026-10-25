@@ -1,4 +1,5 @@
 -- ─── Row-Level Security (RLS) Policies ─────────────────────
+DO $$ BEGIN RAISE EXCEPTION 'sql_rls_policies.sql เลิกใช้แล้ว (เปิดช่องโหว่ถ้ารันซ้ำ) — ใช้ sql_secure_auth.sql + sql_phase5_security.sql แทน'; END $$;
 -- รันใน Supabase SQL Editor ครั้งเดียว (idempotent — รันซ้ำได้)
 -- วันที่: 2026-06-06
 -- ──────────────────────────────────────────────────────────────

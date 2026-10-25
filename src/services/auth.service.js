@@ -10,7 +10,7 @@ import { loadAllFromSupabase } from './data-loader.service.js';
 import { loadFromStorage, loadRateConfig, loadMaintenanceFromStorage } from './storage.service.js';
 import { syncOverdueStatus } from '../utils/date.util.js';
 import { saveToStorage, clearOfflineCache } from './storage.service.js';
-import { toast } from '../utils/dom.util.js';
+import { toast, showConfirm } from '../utils/dom.util.js';
 import { roleLabels } from '../config/ui.config.js';
 
 const REFRESH_BEFORE_SEC = 2 * 3600;
@@ -64,6 +64,7 @@ async function _refreshNow() {
 
 function _expireSession() {
   _endSession();
+  clearOfflineCache();   // เครื่องที่ใช้ร่วมกัน: ไม่ทิ้งข้อมูลสมาชิกไว้หลังหมดเวลา
   _showLogin('เซสชันหมดอายุหรือถูกยกเลิก กรุณาเข้าสู่ระบบใหม่');
 }
 
@@ -139,7 +140,28 @@ export async function doSignIn() {
 }
 
 // ─── Sign Out ─────────────────────────────────────────────────
-export async function doSignOut() {
+// มิเตอร์ที่จดไว้ในเครื่องของผู้ใช้นี้ แต่ยังไม่ได้ส่ง (คิวอยู่ใน field.js — อ่านตรงเพื่อไม่ import โมดูลหน้าจอ)
+function _pendingQueue() {
+  try {
+    const me = currentProfile?.id;
+    return JSON.parse(localStorage.getItem('aq_meter_queue') || '[]')
+      .filter(i => i.status === 'pending' && (!i.profileId || i.profileId === me)).length;
+  } catch { return 0; }
+}
+
+export async function doSignOut(force = false) {
+  const n = _pendingQueue();
+  if (n && force !== true) {
+    showConfirm({
+      title: 'ยังมีมิเตอร์ที่จดไว้ในเครื่อง', okText: 'ออกจากระบบ',
+      message: `${n} รายการยังไม่ได้ส่งขึ้นระบบ
+รายการจะเก็บไว้ในเครื่องนี้ และส่งได้เมื่อคุณเข้าสู่ระบบอีกครั้ง`,
+      onOk: () => doSignOut(true),
+    });
+    return;
+  }
+  // เพิกถอน token นี้ที่ server ก่อน (ถ้า token หลุดไปก็ใช้ต่อไม่ได้) — รอไม่เกิน 3 วินาที
+  await Promise.race([_sb.rpc('logout_session'), new Promise(r => setTimeout(r, 3000))]).catch(() => {});
   _endSession();
   clearOfflineCache();
   _showLogin();

@@ -2,6 +2,9 @@
 import { todayISO } from '../../utils/time.util.js';
 import { appState } from '../../state/app.state.js';
 import { esc, toast } from '../../utils/dom.util.js';
+import { hasRole } from '../../services/auth.service.js';
+import { getSession } from '../../services/session.service.js';
+import { sbLogAudit } from '../../services/data-loader.service.js';
 import { currentPeriod } from '../../utils/date.util.js';
 import { anomalyMap, methodMap, statusMap, memberTypeMap, meterSizeMap } from '../../config/ui.config.js';
 import { ACCT_REPORTS, injectAccountingCards, renderAccounting, hideAccounting, exportAccountingExcel } from './accounting.js';
@@ -13,6 +16,13 @@ export function switchReport(type) {
   document.querySelectorAll('#page-reports .rpt-card').forEach(c => {
     c.classList.toggle('active-rpt', c.dataset.report === type);
   });
+  // มือถือ: แถบเลือกรายงานเลื่อนแนวนอน — เลื่อนการ์ดที่เลือกมาไว้กลางจอ
+  const act  = document.querySelector('#page-reports .rpt-card.active-rpt');
+  const grid = act?.parentElement;
+  if (grid && grid.scrollWidth > grid.clientWidth) {
+    const gr = grid.getBoundingClientRect(), ar = act.getBoundingClientRect();
+    grid.scrollLeft += ar.left - gr.left - (gr.width - ar.width) / 2;
+  }
   if (ACCT_REPORTS[type]) { renderAccounting(type); return; }   // รายงานบัญชี — คำนวณที่ server
   hideAccounting();
   renderReports();
@@ -138,13 +148,30 @@ function _rptBilling(tbody, thead, rfoot) {
 }
 
 // ─── CSV Export ───────────────────────────────────────────────
+// ส่งออกข้อมูลได้เฉพาะการเงิน/ผู้ดูแล — ทุกครั้งบันทึก audit (ISO 27001 A.8.12 / PDPA ม.37)
+function _canExport() {
+  if (hasRole('super_admin', 'village_admin', 'finance')) return true;
+  toast('ส่งออกข้อมูลได้เฉพาะเจ้าหน้าที่การเงินและผู้ดูแลระบบ', 'error');
+  return false;
+}
+
 export function exportCurrentReport() {
+  if (!_canExport()) return;
   if (ACCT_REPORTS[_currentReport]) { exportAccountingExcel(); return; }
   const map = { income: _csvIncome, daily: _csvDaily, debtors: _csvDebtors, usage: _csvUsage, anomaly: _csvAnomaly, newmembers: exportMembersCSV, history: _csvHistory, village: _csvVillage, billing: exportBillingCSV };
   (map[_currentReport] || exportBillingCSV)();
 }
+// ข้อความที่ขึ้นต้นด้วย = + - @ tab/CR ถูก Excel ตีความเป็นสูตร (CSV injection) → นำหน้าด้วย '
+const _csvCell = c => {
+  let v = String(c ?? '');
+  if (typeof c === 'string' && /^[=+\-@\t\r]/.test(v)) v = "'" + v;
+  return '"' + v.replace(/"/g, '""') + '"';
+};
 function _exportCSV(rows, filename) {
-  const csv  = rows.map(r => r.map(c => '"'+String(c??'').replace(/"/g,'""')+'"').join(',')).join('\n');
+  const by    = getSession()?.profile?.full_name || '';
+  const stamp = ['ส่งออกโดย', by, 'เมื่อ', new Date().toLocaleString('th-TH'), 'มีข้อมูลส่วนบุคคล — ใช้ตามวัตถุประสงค์งานประปาเท่านั้น ห้ามเผยแพร่'];
+  const csv   = [...rows, [], stamp].map(r => r.map(_csvCell).join(',')).join('\n');
+  sbLogAudit('exports', filename, 'export_csv', null, { file: filename, rows: rows.length - 1 });
   const blob = new Blob(['﻿'+csv], { type: 'text/csv;charset=utf-8' });
   const a    = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: filename });
   a.click(); URL.revokeObjectURL(a.href);
@@ -169,5 +196,5 @@ function _csvUsage() { const usage={}; appState.meterReadings.forEach(r=>{if(!us
 function _csvAnomaly() { const rows=[['วันที่','สมาชิก','มิเตอร์','ประเภทผิดปกติ','หน่วยที่ใช้']]; appState.meterReadings.filter(r=>r.anomaly).forEach(r=>{const m=appState.members.find(x=>x.id===r.memberId)||{};rows.push([r.readingDate,(m.firstName||'')+' '+(m.lastName||''),r.meter||'',anomalyMap[r.anomaly]||r.anomaly,r.usage]);}); _exportCSV(rows,'anomalies.csv'); toast('Export ความผิดปกติแล้ว','success'); }
 function _csvHistory() { const rows=[['วันที่','สมาชิก','มิเตอร์','เลขก่อน','เลขหลัง','หน่วย','ค่าน้ำ']]; appState.meterReadings.forEach(r=>{const m=appState.members.find(x=>x.id===r.memberId)||{};rows.push([r.readingDate,(m.firstName||'')+' '+(m.lastName||''),r.meter||'',r.prevReading,r.currReading,r.usage,r.total]);}); _exportCSV(rows,'meter_history.csv'); toast('Export ประวัติมิเตอร์แล้ว','success'); }
 function _csvVillage() { const vdata={}; appState.members.forEach(m=>{if(!vdata[m.village])vdata[m.village]={count:0,normal:0,overdue:0,usage:0,income:0};vdata[m.village].count++;if(m.status==='normal')vdata[m.village].normal++;if(m.status==='overdue')vdata[m.village].overdue++;}); appState.meterReadings.forEach(r=>{const m=appState.members.find(x=>x.id===r.memberId);if(m&&vdata[m.village])vdata[m.village].usage+=r.usage;}); appState.bills.filter(b=>b.status==='paid').forEach(b=>{const m=appState.members.find(x=>x.id===b.memberId);if(m&&vdata[m.village])vdata[m.village].income+=b.total;}); const rows=[['หมู่บ้าน','สมาชิก','ปกติ','ค้างชำระ','หน่วยน้ำรวม','รายรับรวม']]; Object.entries(vdata).forEach(([v,d])=>rows.push([v,d.count,d.normal,d.overdue,d.usage,d.income])); _exportCSV(rows,'village_summary.csv'); toast('Export สรุปหมู่บ้านแล้ว','success'); }
-export function exportMembersCSV() { const rows=[['รหัส','ชื่อ','นามสกุล','ประเภท','หมู่บ้าน','บ้านเลขที่','มิเตอร์','ขนาดมิเตอร์','สถานะ','โทรศัพท์']]; appState.members.forEach(m=>rows.push([m.id,m.firstName,m.lastName,m.memberType,m.village,m.houseNo,m.meter,meterSizeMap[m.meterSize]||m.meterSize,m.status,m.phone||''])); _exportCSV(rows,'members.csv'); toast('Export สมาชิกแล้ว','success'); }
-export function exportBillingCSV() { const rows=[['เลขบิล','สมาชิก','รอบ','วันที่ออก','กำหนดชำระ','หน่วย m³','ค่าน้ำ','ค่าบริการ','ค่าปรับ','รวม','สถานะ']]; appState.bills.forEach(b=>{const m=appState.members.find(x=>x.id===b.memberId)||{};rows.push([b.id,(m.firstName||'')+' '+(m.lastName||''),b.period,b.issueDate,b.dueDate,b.usage,b.waterCharge,b.serviceCharge,b.lateFee,b.total,b.status]);}); _exportCSV(rows,'billing.csv'); toast('Export บิลแล้ว','success'); }
+export function exportMembersCSV() { if (!_canExport()) return; const rows=[['รหัส','ชื่อ','นามสกุล','ประเภท','หมู่บ้าน','บ้านเลขที่','มิเตอร์','ขนาดมิเตอร์','สถานะ','โทรศัพท์']]; appState.members.forEach(m=>rows.push([m.id,m.firstName,m.lastName,m.memberType,m.village,m.houseNo,m.meter,meterSizeMap[m.meterSize]||m.meterSize,m.status,m.phone||''])); _exportCSV(rows,'members.csv'); toast('Export สมาชิกแล้ว','success'); }
+export function exportBillingCSV() { if (!_canExport()) return; const rows=[['เลขบิล','สมาชิก','รอบ','วันที่ออก','กำหนดชำระ','หน่วย m³','ค่าน้ำ','ค่าบริการ','ค่าปรับ','รวม','สถานะ']]; appState.bills.forEach(b=>{const m=appState.members.find(x=>x.id===b.memberId)||{};rows.push([b.id,(m.firstName||'')+' '+(m.lastName||''),b.period,b.issueDate,b.dueDate,b.usage,b.waterCharge,b.serviceCharge,b.lateFee,b.total,b.status]);}); _exportCSV(rows,'billing.csv'); toast('Export บิลแล้ว','success'); }

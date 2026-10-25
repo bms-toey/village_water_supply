@@ -1,4 +1,5 @@
 -- ══════════════════════════════════════════════════════════════
+DO $$ BEGIN RAISE EXCEPTION 'sql_fix_existing_users.sql เลิกใช้แล้ว (เปิดช่องโหว่ถ้ารันซ้ำ) — ใช้ sql_secure_auth.sql + sql_phase5_security.sql แทน'; END $$;
 -- FIX: แก้ users ที่สร้างผ่าน admin_create_user แล้ว login ไม่ได้
 -- ("Database error querying schema")
 --

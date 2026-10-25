@@ -26,8 +26,9 @@ export function currentPeriod() {
 
 /** งวดของบิลนี้ถูกปิดแล้วหรือไม่ (แก้ยอด/ยกเลิกไม่ได้ ต้องปรับผ่านใบลดหนี้/เพิ่มหนี้) */
 export function isPeriodClosed(periodLabel) {
-  const { year, month } = _periodYM(periodLabel);
-  return appState.closedPeriods.has(`${year}-${month}`);
+  let ym;
+  try { ym = _periodYM(periodLabel); } catch { return false; }   // server ตรวจงวดปิดซ้ำอยู่แล้ว
+  return appState.closedPeriods.has(`${ym.year}-${ym.month}`);
 }
 
 /**

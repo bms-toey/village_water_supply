@@ -143,8 +143,8 @@ export function openAdjustBill(billId) {
       <div class="form-group" style="margin-bottom:12px">
         <label class="form-label" for="adj-type">ประเภท</label>
         <select class="form-input" id="adj-type">
-          <option value="-1">ใบลดหนี้ (ลดยอด) — เช่น จดมิเตอร์ผิด, ส่วนลด</option>
-          <option value="1">ใบเพิ่มหนี้ (เพิ่มยอด) — เช่น ค่าซ่อม, ค่าต่อน้ำ</option>
+          <option value="-1">ใบลดหนี้ (ลดยอด)</option>
+          <option value="1">ใบเพิ่มหนี้ (เพิ่มยอด)</option>
         </select>
       </div>
       <div class="form-group" style="margin-bottom:12px">
@@ -153,7 +153,7 @@ export function openAdjustBill(billId) {
       </div>
       <div class="form-group">
         <label class="form-label" for="adj-reason">เหตุผล *</label>
-        <textarea class="form-input" id="adj-reason" rows="2"></textarea>
+        <textarea class="form-input" id="adj-reason" rows="2" placeholder="เช่น จดมิเตอร์ผิด, ส่วนลด, ค่าซ่อม, ค่าต่อน้ำ"></textarea>
       </div>
       <div style="font-size:11.5px;color:var(--gray-500);margin-top:10px">
         ระบบจะออกเลขที่เอกสาร (CN/DN) และบันทึกผู้ทำรายการไว้ แก้ไขหรือลบภายหลังไม่ได้

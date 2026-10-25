@@ -30,7 +30,7 @@ function _cashiers() {
 export function openCashClose() {
   _state = { date: todayISO(), cashier: currentProfile?.id, summary: null };
   openModal({
-    id: MODAL, title: 'ปิดยอดประจำวัน', icon: 'ti-cash-register', width: 640,
+    id: MODAL, title: 'ปิดยอดประจำวัน', icon: 'ti-report-money', width: 640,
     body: `
       <div class="tabs" style="margin-bottom:14px">
         <div class="tab active" data-cc-tab="day">ยอดรายวัน</div>

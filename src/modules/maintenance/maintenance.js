@@ -3,8 +3,9 @@ import { signedImageUrl } from '../../services/files.service.js';
 import { openModal } from '../../components/modal/modal.js';
 import { todayISO } from '../../utils/time.util.js';
 import { appState } from '../../state/app.state.js';
-import { esc, toast } from '../../utils/dom.util.js';
-import { sbUpsertMaintenance, sbInsertMeterReplacement } from '../../services/data-loader.service.js';
+import { esc, jsArg, toast } from '../../utils/dom.util.js';
+import { sbSaveMaintenance, sbInsertMeterReplacement } from '../../services/data-loader.service.js';
+import { _dbVillages } from '../../services/db-mapper.service.js';
 import { getMaintenanceTypeDisplay } from '../../config/ui.config.js';
 import { buildSelectOptions } from '../settings/settings.js';
 import { currentUser } from '../../services/auth.service.js';
@@ -59,7 +60,7 @@ export function renderMaintenance() {
     const reporter = item.reportedMemberId ? (members.find(m => m.id === item.reportedMemberId) || {}) : null;
     const isDone   = item.status === 'completed' || item.status === 'cancelled';
     const doneBtn  = !isDone
-      ? `<button class="btn btn-primary btn-xs" onclick="completeMaintenance('${esc(item.id)}')"><i class="ti ti-check"></i>เสร็จแล้ว</button>`
+      ? `<button class="btn btn-primary btn-xs" onclick="completeMaintenance(${jsArg(item.id)})"><i class="ti ti-check"></i>เสร็จแล้ว</button>`
       : '';
     return `<div class="h-card" style="opacity:${isDone?.65:1}">
       <div class="mnch-type">
@@ -76,8 +77,8 @@ export function renderMaintenance() {
       <div class="mnch-cost">${item.cost?'฿'+item.cost.toLocaleString():'—'}</div>
       <div class="mnch-actions">
         ${doneBtn}
-        ${item.photos?.length ? `<button class="btn-icon" title="ดูรูป" aria-label="ดูรูป" onclick="viewJobPhoto('${esc(item.id)}')"><i class="ti ti-photo"></i></button>` : ''}
-        <button class="btn-icon" title="แก้ไข" onclick="openEditMaintenance('${esc(item.id)}')"><i class="ti ti-edit"></i></button>
+        ${item.photos?.length ? `<button class="btn-icon" title="ดูรูป" aria-label="ดูรูป" onclick="viewJobPhoto(${jsArg(item.id)})"><i class="ti ti-photo"></i></button>` : ''}
+        <button class="btn-icon" title="แก้ไข" onclick="openEditMaintenance(${jsArg(item.id)})"><i class="ti ti-edit"></i></button>
       </div>
     </div>`;
   }).join('');
@@ -94,14 +95,25 @@ export async function viewJobPhoto(id) {
       <div style="margin-top:8px;font-size:13px">${esc(item.description)}</div>` });
 }
 
-export function completeMaintenance(id) {
+export async function completeMaintenance(id) {
   const item = appState.maintenance.find(x => x.id === id); if (!item) return;
-  item.status        = 'completed';
-  item.completedDate = todayISO();
-  sbUpsertMaintenance(item);
+  const saved = await sbSaveMaintenance({ ...item, status: 'completed', completedDate: todayISO() });
+  if (!saved) return;
+  Object.assign(item, saved);
   _saveMaintenanceToStorage();
   renderMaintenance();
   toast('บันทึกเสร็จงานแล้ว: ' + item.description, 'success');
+}
+
+// ผู้รับผิดชอบ: เลือกเจ้าหน้าที่ (เก็บเป็น id) หรือพิมพ์ชื่อช่างภายนอก (เก็บเป็นชื่อ)
+// หมู่บ้าน: เลือกจากรายการ (เก็บเป็น id)
+function _fillMntPickers(villageId) {
+  const vSel = document.getElementById('mnt-village');
+  if (vSel) vSel.innerHTML = '<option value="">— ไม่ระบุ —</option>' + _dbVillages
+    .map(v => `<option value="${v.id}"${v.id === villageId ? ' selected' : ''}>${v.moo_number ? `หมู่ ${v.moo_number} · ` : ''}${esc(v.name)}</option>`).join('');
+  const dl = document.getElementById('mnt-staff-list');
+  if (dl) dl.innerHTML = (appState.staff || []).filter(p => p.is_active)
+    .map(p => `<option value="${esc(p.full_name)}"></option>`).join('');
 }
 
 export function openAddMaintenance() {
@@ -109,6 +121,7 @@ export function openAddMaintenance() {
   document.getElementById('mnt-desc').value              = '';
   document.getElementById('mnt-location').value          = '';
   document.getElementById('mnt-assigned').value          = '';
+  _fillMntPickers(null);
   const mntTypeSel = document.getElementById('mnt-type');
   if (mntTypeSel) mntTypeSel.innerHTML = buildSelectOptions('maintenance_type', 'pipe_repair');
   document.getElementById('mnt-type').value              = 'pipe_repair';
@@ -124,6 +137,7 @@ export function openEditMaintenance(id) {
   document.getElementById('mnt-desc').value              = item.description;
   document.getElementById('mnt-location').value          = item.location   || '';
   document.getElementById('mnt-assigned').value          = item.assignedTo || '';
+  _fillMntPickers(item.villageId);
   document.getElementById('mnt-type').value              = item.type;
   document.getElementById('mnt-cost').value              = item.cost || '';
   document.getElementById('mnt-status').value            = item.status;
@@ -133,26 +147,35 @@ export function openEditMaintenance(id) {
 
 export function closeMntModal() { document.getElementById('mnt-modal').style.display = 'none'; }
 
-export function saveMaintenance() {
+export async function saveMaintenance() {
   const id   = document.getElementById('mnt-modal-id').value;
   const desc = document.getElementById('mnt-desc').value.trim();
   if (!desc) { toast('กรุณากรอกรายละเอียดงาน', 'error'); return; }
+  const assigned = document.getElementById('mnt-assigned').value.trim();
+  const staff    = (appState.staff || []).find(p => p.full_name === assigned);
+  const vSel     = document.getElementById('mnt-village')?.value;
   const data = {
     description: desc,
     location:    document.getElementById('mnt-location').value.trim(),
-    assignedTo:  document.getElementById('mnt-assigned').value.trim(),
+    villageId:   vSel ? Number(vSel) : null,
+    assignedTo:  assigned,
+    assignedToId: staff?.id || null,
     type:        document.getElementById('mnt-type').value,
     cost:        parseFloat(document.getElementById('mnt-cost').value) || 0,
     status:      document.getElementById('mnt-status').value,
   };
   if (id) {
     const item = appState.maintenance.find(x => x.id === id);
-    if (item) { Object.assign(item, data); sbUpsertMaintenance(item); }
+    if (!item) return;
+    const saved = await sbSaveMaintenance({ ...item, ...data });
+    if (!saved) return;
+    Object.assign(item, saved);
     toast('แก้ไขรายการแล้ว', 'success');
   } else {
-    const newItem = { id: 'MNT-'+Date.now(), reportedBy: 'staff', reportedMemberId: null, reportedDate: todayISO(), startDate: null, completedDate: null, materials: '', approvedBy: null, ...data };
-    appState.maintenance.push(newItem);
-    sbUpsertMaintenance(newItem);
+    // เลขงาน server ออกให้
+    const saved = await sbSaveMaintenance({ id: null, reportedBy: 'staff', reportedMemberId: null, reportedDate: todayISO(), startDate: null, completedDate: null, materials: '', ...data });
+    if (!saved) return;
+    appState.maintenance.push(saved);
     toast('เพิ่มงานซ่อมบำรุงแล้ว', 'success');
   }
   closeMntModal();

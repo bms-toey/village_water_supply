@@ -1,5 +1,5 @@
 // ─── Users Module ──────────────────────────────────────────────
-import { esc, toast } from '../../utils/dom.util.js';
+import { esc, toast, jsArg } from '../../utils/dom.util.js';
 import { _sb } from '../../services/supabase.service.js';
 import { _dbVillages } from '../../services/db-mapper.service.js';
 import { currentUser, currentProfile, adoptSession } from '../../services/auth.service.js';
@@ -73,8 +73,8 @@ function _renderUserTable() {
       <div class="uch-village">${esc(village?.name||'ทุกหมู่บ้าน')}</div>
       <div class="uch-status">${statusPill}</div>
       <div class="uch-actions">
-        <button class="btn btn-secondary btn-xs" onclick="openEditUser('${u.id}')"><i class="ti ti-edit"></i>แก้ไข</button>
-        ${!isMe?`<button class="btn btn-xs ${u.is_active?'btn-danger':'btn-secondary'}" onclick="toggleUserActive('${u.id}',${!u.is_active})"><i class="ti ${u.is_active?'ti-user-off':'ti-user-check'}"></i>${u.is_active?'ปิด':'เปิด'}</button>`:''}
+        <button class="btn btn-secondary btn-xs" onclick="openEditUser(${jsArg(u.id)})"><i class="ti ti-edit"></i>แก้ไข</button>
+        ${!isMe?`<button class="btn btn-xs ${u.is_active?'btn-danger':'btn-secondary'}" onclick="toggleUserActive(${jsArg(u.id)},${!u.is_active})"><i class="ti ${u.is_active?'ti-user-off':'ti-user-check'}"></i>${u.is_active?'ปิด':'เปิด'}</button>`:''}
       </div>
     </div>`;
   }).join('');

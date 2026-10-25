@@ -1,0 +1,284 @@
+/* meter.css - หน้าจดมิเตอร์: ฟอร์มจด (#meter-form-area) + รายการเลือกสมาชิก (#meter-member-list — ท้ายไฟล์)
+   โหลดหลัง luxe.css + mobile.css → ทุก selector ขึ้นต้นด้วย #meter-form-area ให้ชนะกฎทั่วไป
+   เดสก์ท็อป: ซ้าย = กรอกเลข + ประวัติ, ขวา = รูปถ่าย + อัตราค่าน้ำ
+   ≤900px: คอลัมน์เดียว เรียง กรอกเลข → รูป → อัตรา → ประวัติ
+---------------------------------------------------- */
+
+#meter-form-area{padding-bottom:8px}
+
+/* ─── แถบข้อมูลบ้าน + เครื่องมือภาคสนาม ─── */
+#meter-form-area .mtr-strip{display:flex;align-items:center;justify-content:space-between;gap:8px 12px;flex-wrap:wrap;margin-bottom:12px}
+#meter-form-area .mtr-chips{display:flex;gap:6px;flex-wrap:wrap;min-width:0}
+#meter-form-area .mtr-chip{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:999px;
+  background:linear-gradient(180deg,#fff,#f4f7fd);border:1px solid var(--lx-line-2);box-shadow:var(--lx-bevel),0 4px 10px -8px rgba(10,25,60,.35);
+  font-size:12.5px;font-weight:600;color:var(--lx-ink);white-space:nowrap}
+#meter-form-area .mtr-chip i{font-size:15px;color:var(--lx-gold-d)}
+#meter-form-area .mtr-chip-mono{font-family:'IBM Plex Mono',monospace;font-size:12px}
+#meter-form-area .mtr-tools{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+#meter-form-area .mtr-tools .btn-sm{min-height:32px;padding:4px 12px;font-size:12.5px}
+
+/* ─── โครงสองคอลัมน์ ─── */
+#meter-form-area .mtr-layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:12px;align-items:start}
+#meter-form-area .mtr-col{display:flex;flex-direction:column;gap:12px;min-width:0}
+#meter-form-area .mtr-col>.card{margin-bottom:0}
+
+/* ─── การ์ดกรอกเลข ─── */
+#meter-form-area .mtr-period{font-family:'IBM Plex Mono',monospace;font-size:11.5px;font-weight:600;white-space:nowrap;
+  color:var(--lx-gold-d);background:rgba(214,178,110,.13);border:1px solid rgba(214,178,110,.4);padding:3px 10px;border-radius:999px}
+#meter-form-area .mtr-entry .card-body{padding:16px 18px 18px;display:flex;flex-direction:column;gap:14px}
+#meter-form-area .mtr-lbl{display:flex;align-items:center;gap:5px;min-width:0;font-size:11px;font-weight:700;letter-spacing:.05em;
+  color:var(--gray-500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#meter-form-area .mtr-lbl i{font-size:13px;color:var(--lx-gold-d);flex-shrink:0}
+
+#meter-form-area .mtr-reading{display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;align-items:end;gap:6px 12px}
+#meter-form-area .mtr-prev{height:64px;min-width:120px;padding:8px 16px;border-radius:16px;display:flex;flex-direction:column;justify-content:center;
+  background:linear-gradient(180deg,#f3f6fc,#e8edf7);border:1px solid var(--lx-line);box-shadow:inset 0 1px 0 #fff}
+#meter-form-area .mtr-prev-val{font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:600;line-height:1.15;color:var(--gray-600)}
+#meter-form-area .mtr-arrow{height:64px;display:flex;align-items:center;font-size:22px;color:var(--gray-400)}
+#meter-form-area .mtr-input{display:flex;flex-direction:column;gap:6px;min-width:0}
+#meter-form-area .meter-big-input{height:64px;padding:0 16px;font-size:30px;letter-spacing:6px;-moz-appearance:textfield}
+#meter-form-area .meter-big-input::-webkit-inner-spin-button,
+#meter-form-area .meter-big-input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+#meter-form-area .mtr-scan{height:64px;padding:0 18px;white-space:nowrap;font-size:13.5px}
+
+/* ผลคำนวณ 3 ช่องแนวนอน */
+#meter-form-area .mtr-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+#meter-form-area .mtr-stat{padding:10px 14px;border-radius:14px;min-width:0;background:linear-gradient(180deg,#fff,#f6f8fd);
+  border:1px solid var(--lx-line-2);box-shadow:var(--lx-bevel)}
+#meter-form-area .mtr-stat-val{font-family:'Prompt',var(--font-sans);font-size:22px;font-weight:700;line-height:1.3;color:var(--lx-ink);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#meter-form-area .mtr-stat-sub{font-size:11.5px;color:var(--gray-500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#meter-form-area .mtr-stat-usage .mtr-stat-val{color:var(--blue-600)}
+#meter-form-area .mtr-stat-money .mtr-stat-val{color:var(--green-700)}
+#meter-form-area .mtr-stat .progress-bar{margin-top:5px;height:6px}
+#meter-form-area .mtr-stat-avg[data-level="ok"] .progress-fill{background-color:var(--green-600,#16a34a)}
+#meter-form-area .mtr-stat-avg[data-level="warn"] .progress-fill{background-color:var(--amber-500,#f59e0b)}
+#meter-form-area .mtr-stat-avg[data-level="warn"] .mtr-stat-val{color:var(--amber-700)}
+#meter-form-area .mtr-stat-avg[data-level="high"] .progress-fill{background-color:var(--red-600)}
+#meter-form-area .mtr-stat-avg[data-level="high"] .mtr-stat-val{color:var(--red-600)}
+
+#meter-form-area .mtr-warn{margin:0}
+#meter-form-area .mtr-save{width:100%;min-height:52px;justify-content:center;font-size:15px;gap:8px}
+#meter-form-area .mtr-save kbd{margin-left:6px;padding:1px 7px;border-radius:6px;font:600 11px 'IBM Plex Mono',monospace;
+  background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);color:rgba(255,255,255,.85)}
+
+/* ─── รูปถ่ายมิเตอร์ ─── */
+#meter-form-area .mtr-photo .card-body{padding:12px 14px}
+#meter-form-area .mtr-drop{display:flex;align-items:center;gap:12px;min-height:92px;padding:14px 16px;cursor:pointer;
+  background:var(--gray-50);border:2px dashed var(--gray-300);border-radius:14px;transition:var(--transition)}
+#meter-form-area .mtr-drop:hover,#meter-form-area .mtr-drop.is-over{border-color:var(--blue-400);background:var(--blue-50)}
+#meter-form-area .mtr-drop>i{font-size:30px;color:var(--blue-500);flex-shrink:0}
+#meter-form-area .mtr-drop-title{font-size:13px;font-weight:600;color:var(--gray-700,#374151)}
+#meter-form-area .mtr-drop-sub{font-size:11.5px;color:var(--gray-500);margin-top:2px}
+#meter-form-area .mtr-photo-img{display:block;width:100%;max-height:240px;object-fit:contain;border-radius:12px;background:#0b1633}
+#meter-form-area .mtr-ocr{margin-top:10px;padding:9px 12px;border-radius:12px;font-size:12.5px;background:var(--gray-50);border:1px solid var(--gray-200)}
+
+/* ─── อัตราค่าน้ำ ─── */
+#meter-form-area .mtr-rates .card-body{padding:6px 14px 10px}
+#meter-form-area .mtr-rate{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;
+  margin:0 -8px;padding:8px;border-radius:10px;font-size:13px;border-bottom:1px solid var(--lx-line)}
+#meter-form-area .mtr-rate:last-child{border-bottom:none}
+#meter-form-area .mtr-rate-range{color:var(--gray-600);white-space:nowrap}
+#meter-form-area .mtr-rate-calc{text-align:right;font-size:11.5px;color:var(--green-700);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#meter-form-area .mtr-rate-val{min-width:58px;text-align:right;font-family:'IBM Plex Mono',monospace;font-weight:600;color:var(--lx-ink);white-space:nowrap}
+#meter-form-area .mtr-rate.is-used{background:linear-gradient(90deg,rgba(214,178,110,.14),rgba(34,199,238,.06));box-shadow:inset 3px 0 0 var(--lx-gold);border-bottom-color:transparent}
+#meter-form-area .mtr-rate.is-used .mtr-rate-range{color:var(--lx-ink);font-weight:700}
+#meter-form-area .mtr-rate-svc{margin-top:4px;border-top:1px dashed var(--lx-line-2)}
+
+/* ─── ประวัติ ─── */
+#meter-form-area .mtr-history td{white-space:nowrap}
+
+/* ═══════════════ RESPONSIVE ═══════════════ */
+@media (min-width:1500px){
+  #meter-form-area .mtr-layout{grid-template-columns:minmax(0,1fr) 380px}
+}
+@media (max-width:1180px){
+  #meter-form-area .mtr-layout{grid-template-columns:minmax(0,1fr) 300px}
+  #meter-form-area .mtr-arrow{display:none}
+}
+/* คอลัมน์เดียว — การ์ดเรียงตามลำดับงานภาคสนาม */
+@media (max-width:900px){
+  #meter-form-area .mtr-layout{display:flex;flex-direction:column}
+  #meter-form-area .mtr-col{display:contents}
+  #meter-form-area .mtr-entry{order:1}
+  #meter-form-area .mtr-photo{order:2}
+  #meter-form-area .mtr-rates{order:3}
+  #meter-form-area .mtr-history{order:4}
+}
+@media (max-width:640px){
+  #meter-form-area .mtr-strip{flex-direction:column;align-items:stretch;gap:8px;margin-bottom:10px}
+  #meter-form-area .mtr-chip{height:28px;padding:0 10px;font-size:12px}
+  #meter-form-area .mtr-tools>*{flex:1 1 0;justify-content:center;min-height:40px}
+  #meter-form-area .mtr-tools>.pill{flex-basis:100%}
+  #meter-form-area .mtr-entry .card-body{padding:12px;gap:12px}
+  /* แถว 1: เลขครั้งก่อน + AI Scan, แถว 2: ช่องกรอกเต็มความกว้าง */
+  #meter-form-area .mtr-reading{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"prev scan" "input input";align-items:stretch;gap:8px}
+  #meter-form-area .mtr-prev{grid-area:prev;height:auto;min-height:48px;flex-direction:row;align-items:center;justify-content:space-between;padding:6px 14px}
+  #meter-form-area .mtr-prev-val{font-size:20px}
+  #meter-form-area .mtr-scan{grid-area:scan;height:auto;min-height:48px;padding:0 14px}
+  #meter-form-area .mtr-input{grid-area:input}
+  #meter-form-area .meter-big-input{height:60px;font-size:28px}
+  #meter-form-area .mtr-stats{gap:6px}
+  #meter-form-area .mtr-stat{padding:8px 9px;border-radius:12px}
+  #meter-form-area .mtr-lbl{font-size:10px;letter-spacing:.02em}
+  #meter-form-area .mtr-lbl i{display:none}
+  #meter-form-area .mtr-stat-val{font-size:17px}
+  #meter-form-area .mtr-stat-sub{font-size:10.5px}
+  #meter-form-area .mtr-save kbd{display:none}
+}
+@media (pointer:coarse){
+  #meter-form-area .mtr-save kbd{display:none}
+}
+/* responsive.css ใส่ padding ให้ div แรกของทุก .card ใน #page-meter (เพื่อหัวรายการสมาชิก) — คืนค่าหัวการ์ดฟอร์ม */
+@media (max-width:768px){
+  #meter-form-area .card>div.card-hd:first-child{padding:9px 12px}
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   รายการเลือกสมาชิก (#meter-member-list — meter.js renderMeter → .mtl-*)
+   mobile-first: แถวเตี้ย 2 บรรทัด, แถบกรองติดหัวจอ, จอกว้างแตกเป็นหลายคอลัมน์อัตโนมัติ
+════════════════════════════════════════════════════════════ */
+
+/* ─── หัวเพจ: ความคืบหน้า (บนพื้น navy) ─── */
+#page-meter .page-hd{align-items:center}
+#page-meter .mtl-hd-prog{display:flex;align-items:center;gap:12px;margin-left:auto;min-width:0}
+#page-meter .mtl-ring{position:relative;flex-shrink:0;width:52px;height:52px;border-radius:50%;display:grid;place-items:center}
+#page-meter .mtl-ring::before{content:'';position:absolute;inset:0;border-radius:50%;
+  background:conic-gradient(var(--lx-gold-hi) 0,var(--lx-gold) calc(var(--p)*1%),rgba(255,255,255,.14) 0);
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 6px),#000 calc(100% - 5px));
+          mask:radial-gradient(farthest-side,transparent calc(100% - 6px),#000 calc(100% - 5px))}
+#page-meter .mtl-ring.is-full::before{background:#4ade80}
+#page-meter .mtl-ring b{position:relative;font:700 15px 'Prompt',var(--font-sans);color:#fff}
+#page-meter .mtl-ring small{font-size:10px;opacity:.75}
+#page-meter .mtl-kpis{display:flex;gap:6px;min-width:0}
+#page-meter .mtl-kpi{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:66px;padding:4px 10px;border-radius:12px;
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);box-shadow:inset 0 1px 0 rgba(255,255,255,.1)}
+#page-meter .mtl-kpi span{font-size:10.5px;color:rgba(214,226,255,.72);white-space:nowrap}
+#page-meter .mtl-kpi b{font:700 17px/1.25 'Prompt',var(--font-sans);color:#fff}
+#page-meter .mtl-kpi.is-done b{color:#4ade80}
+#page-meter .mtl-kpi.is-pend b{color:#fbbf24}
+#page-meter .mtl-kpi.is-skip b{color:#fb7185}
+
+/* ─── แถบค้นหา/กรอง — ติดหัวจอเวลาเลื่อน ─── */
+#meter-member-list{padding-bottom:84px}   /* แถวสุดท้ายไม่ถูกปุ่ม "จดถัดไป" บัง */
+/* top ติดลบ = padding-top ของ .content-area (luxe.css 16px / มือถือ 10px) — ชิดขอบบนพอดี ไม่มีแถวโผล่เหนือแถบ */
+#meter-member-list .mtl-bar{position:sticky;top:-16px;z-index:30;display:grid;grid-template-columns:minmax(0,1fr) 200px auto;gap:8px;align-items:center;
+  padding:8px;margin-bottom:4px;border-radius:16px;background:rgba(246,248,253,.92);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);
+  border:1px solid var(--lx-line-2);box-shadow:var(--lx-bevel),0 10px 22px -18px rgba(10,25,60,.55)}
+#meter-member-list .mtl-bar .form-input{height:40px;min-height:40px;margin:0}
+#meter-member-list .mtl-tabs{display:flex;gap:2px;padding:3px;border-radius:12px;background:var(--lx-pearl-2);border:1px solid var(--lx-line)}
+#meter-member-list .mtl-tab{flex:1 1 0;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:34px;padding:0 12px;
+  border:none;border-radius:9px;background:transparent;font:600 12.5px var(--font-sans);color:var(--gray-500);white-space:nowrap;cursor:pointer;transition:background .15s,color .15s}
+#meter-member-list .mtl-tab b{min-width:20px;padding:0 6px;border-radius:999px;font:700 11px/18px 'IBM Plex Mono',monospace;background:rgba(15,35,90,.08);color:inherit}
+#meter-member-list .mtl-tab:hover{color:var(--lx-ink)}
+#meter-member-list .mtl-tab.active{color:#fff;box-shadow:0 3px 8px -3px rgba(10,25,60,.45),inset 0 1px 0 rgba(255,255,255,.25)}
+#meter-member-list .mtl-tab.active b{background:rgba(255,255,255,.22)}
+#meter-member-list .mtl-tab.is-pending.active{background:linear-gradient(180deg,#f59e0b,#d97706)}
+#meter-member-list .mtl-tab.is-done.active{background:linear-gradient(180deg,#22c55e,#15803d)}
+#meter-member-list .mtl-tab.is-all.active{background:var(--lx-navy-grad)}
+
+/* ─── หัวกลุ่มหมู่บ้าน ─── */
+#meter-member-list .mtl-group{margin-top:12px}
+#meter-member-list .mtl-ghd{display:flex;align-items:center;gap:8px;padding:0 2px 6px 4px;margin-bottom:6px;border-bottom:1px solid var(--lx-line-2)}
+#meter-member-list .mtl-ghd>i{font-size:16px;color:var(--lx-gold-d);flex-shrink:0}
+#meter-member-list .mtl-gname{flex:1;min-width:0;font:700 13.5px 'Prompt',var(--font-sans);color:var(--lx-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#meter-member-list .mtl-gbar{flex-shrink:0;width:90px;height:6px;border-radius:999px;background:var(--gray-200);overflow:hidden}
+#meter-member-list .mtl-gbar>span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--lx-aqua-d),#22c55e)}
+#meter-member-list .mtl-gcount{flex-shrink:0;font:500 11.5px 'IBM Plex Mono',monospace;color:var(--gray-500)}
+#meter-member-list .mtl-gcount b{color:var(--green-700)}
+#meter-member-list .mtl-groute{flex-shrink:0;width:32px;height:32px;min-height:32px;display:grid;place-items:center;padding:0;border-radius:10px;cursor:pointer;
+  background:#fff;border:1px solid var(--lx-line-2);color:var(--lx-ink);font-size:16px;box-shadow:var(--lx-bevel)}
+#meter-member-list .mtl-groute:hover{border-color:var(--lx-gold);color:var(--lx-gold-d)}
+
+/* ─── แถวสมาชิก: [ลำดับ] [ชื่อ+สถานะ / บ้าน·มิเตอร์·ขนาด] [เลขมิเตอร์ / หน่วย·ยอด] [›] ─── */
+#meter-member-list .mtl-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,440px),1fr));gap:6px}
+#meter-member-list .mtl-row{display:grid;grid-template-columns:26px minmax(0,1fr) auto 16px;align-items:center;gap:8px;width:100%;min-height:58px;
+  padding:7px 10px 7px 4px;margin:0;text-align:left;font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;
+  background:var(--lx-card-grad);border:1px solid var(--lx-line-2);border-left:4px solid #f59e0b;border-radius:14px;
+  box-shadow:var(--lx-bevel),0 6px 14px -12px rgba(10,25,60,.45);transition:transform .12s,box-shadow .12s,border-color .12s}
+#meter-member-list .mtl-row:hover{border-color:rgba(214,178,110,.6);border-left-color:#f59e0b;box-shadow:var(--lx-bevel),0 10px 20px -14px rgba(10,25,60,.55);transform:translateY(-1px)}
+#meter-member-list .mtl-row:active{transform:scale(.985);box-shadow:none}
+#meter-member-list .mtl-row.is-done,#meter-member-list .mtl-row.is-done:hover{border-left-color:#22c55e}
+#meter-member-list .mtl-row.is-done{background:linear-gradient(180deg,#fbfefc,#f2faf5)}
+#meter-member-list .mtl-row.is-queued,#meter-member-list .mtl-row.is-queued:hover{border-left-color:var(--lx-aqua-d)}
+#meter-member-list .mtl-row.is-skip,#meter-member-list .mtl-row.is-skip:hover{border-left-color:#f43f5e}
+
+#meter-member-list .mtl-seq{text-align:center;font:700 11px 'IBM Plex Mono',monospace;color:var(--gray-400)}
+#meter-member-list .mtl-main{display:flex;flex-direction:column;gap:3px;min-width:0}
+#meter-member-list .mtl-name{display:flex;align-items:center;gap:6px;min-width:0}
+#meter-member-list .mtl-name>b{min-width:0;font-size:14.5px;font-weight:700;color:var(--lx-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#meter-member-list .mtl-badge{flex-shrink:0;display:inline-flex;align-items:center;gap:3px;max-width:150px;height:19px;padding:0 7px;border-radius:999px;
+  font-size:10.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#meter-member-list .mtl-badge i{font-size:12px}
+#meter-member-list .mtl-badge.is-done{background:var(--green-100);color:var(--green-700)}
+#meter-member-list .mtl-badge.is-queued{background:#e0f7fd;color:var(--lx-aqua-d)}
+#meter-member-list .mtl-badge.is-skip{background:var(--red-50);color:var(--red-700)}
+#meter-member-list .mtl-badge.is-warn{background:var(--amber-100);color:var(--amber-700)}
+#meter-member-list .mtl-meta{display:flex;align-items:center;gap:4px 10px;min-width:0;font-size:12px;color:var(--gray-500);white-space:nowrap;overflow:hidden}
+#meter-member-list .mtl-meta>span{display:inline-flex;align-items:center;gap:3px}
+#meter-member-list .mtl-meta i{font-size:13px;color:var(--gray-400)}
+#meter-member-list .mtl-mono{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--blue-600)}
+
+#meter-member-list .mtl-right{display:flex;flex-direction:column;align-items:flex-end;gap:1px;min-width:0;text-align:right}
+#meter-member-list .mtl-read{display:flex;align-items:baseline;gap:5px;white-space:nowrap}
+#meter-member-list .mtl-read small{font-size:10.5px;color:var(--gray-400)}
+#meter-member-list .mtl-read b{font:600 17px/1.2 'IBM Plex Mono',monospace;color:var(--lx-ink)}
+#meter-member-list .is-done .mtl-read b{color:var(--green-700)}
+#meter-member-list .mtl-sub{font-size:11px;color:var(--gray-500);white-space:nowrap}
+#meter-member-list .mtl-sub em{font-style:normal;font-weight:700;color:var(--green-700)}
+#meter-member-list .mtl-go{font-size:18px;color:var(--blue-400)}
+#meter-member-list .is-done .mtl-go{color:#4ade80}
+
+#meter-member-list .mtl-empty{display:flex;flex-direction:column;align-items:center;gap:8px;padding:48px 20px;text-align:center;color:var(--gray-500);font-size:14px}
+#meter-member-list .mtl-empty i{font-size:38px;color:var(--gray-300)}
+#meter-member-list .mtl-empty i.ti-circle-check{color:#22c55e}
+
+/* ─── ปุ่มลอย "จดถัดไป" (สี/กรอบจาก luxe.css .meter-fab, ตำแหน่งบนมือถือจาก luxe.css/mobile.css) ─── */
+#meter-member-list .mtl-fab{position:fixed;right:18px;z-index:800;   /* bottom: mobile.css 24px / luxe.css มือถือเหนือแถบเมนูล่าง */display:flex;align-items:center;gap:7px;min-height:46px;padding:0 14px 0 16px;
+  border-radius:15px;font:800 14px var(--font-sans);color:#fff;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .12s}
+#meter-member-list button.mtl-fab:active{transform:scale(.94)}
+#meter-member-list .mtl-fab i{font-size:17px}
+#meter-member-list .mtl-fab span{min-width:24px;padding:1px 8px;border-radius:999px;font:900 12px/18px 'IBM Plex Mono',monospace;text-align:center}
+#meter-member-list .mtl-fab.is-complete{cursor:default}
+
+/* ─── แท็บเล็ต: แท็บสถานะลงแถวที่ 2 ─── */
+@media (max-width:1024px){
+  #meter-member-list .mtl-bar{grid-template-columns:minmax(0,1fr) 190px}
+  #meter-member-list .mtl-tabs{grid-column:1 / -1}
+}
+/* ─── มือถือ: แถว 1 = ค้นหา, แถว 2 = หมู่บ้าน + แท็บสถานะ ─── */
+@media (max-width:768px){
+  #page-meter .page-hd{flex-direction:row;flex-wrap:wrap;align-items:center}
+  #page-meter .page-hd-actions{width:auto;margin-left:auto}
+  #page-meter .mtl-hd-prog{width:100%;margin-left:0;gap:10px}
+  #page-meter .mtl-kpis{flex:1}
+  #page-meter .mtl-kpi{flex:1 1 0;min-width:0;padding:3px 4px}
+  #meter-member-list .mtl-bar{top:-10px;grid-template-columns:minmax(0,36%) minmax(0,1fr);gap:6px;padding:6px;border-radius:14px}
+  #meter-member-list .mtl-bar .form-input{height:44px;min-height:44px}
+  #meter-member-list .mtl-search{grid-column:1 / -1}
+  #meter-member-list .mtl-tabs{grid-column:auto}
+  #meter-member-list .mtl-tab{min-height:36px;padding:0 4px;gap:4px;font-size:12px}
+  #meter-member-list .mtl-tab b{min-width:18px;padding:0 4px;font-size:10.5px}
+}
+@media (max-width:480px){
+  #page-meter .mtl-ring{width:44px;height:44px}
+  #page-meter .mtl-ring b{font-size:13px}
+  #page-meter .mtl-kpi span{font-size:10px}
+  #page-meter .mtl-kpi b{font-size:15px}
+  #meter-member-list .mtl-row{grid-template-columns:20px minmax(0,1fr) auto 12px;gap:6px;min-height:56px;padding:6px 8px 6px 2px}
+  #meter-member-list .mtl-name>b{font-size:14px}
+  #meter-member-list .mtl-badge{max-width:92px}
+  #meter-member-list .mtl-meta{gap:3px 8px;font-size:11.5px}
+  #meter-member-list .mtl-read b{font-size:16px}
+  #meter-member-list .mtl-go{font-size:15px}
+  #meter-member-list .mtl-gbar{width:56px}
+}
+/* จอแคบมาก — ซ่อนขนาดมิเตอร์ในแถว (ยังเห็นในฟอร์มจด) */
+@media (max-width:360px){
+  #meter-member-list .mtl-meta>span:nth-child(3){display:none}
+  #meter-member-list .mtl-tab{font-size:11px}
+}
+@media (prefers-reduced-motion:reduce){
+  #meter-member-list .mtl-row,#meter-member-list .mtl-fab{transition:none}
+}
