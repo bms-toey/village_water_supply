@@ -144,3 +144,7 @@
 .grid-2-3{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:18px}
 .grid-3-2{display:grid;grid-template-columns:3fr 2fr;gap:16px;margin-bottom:18px}
 
+
+/* โลโก้หน่วยงาน (icons/logo-mark.png 512×512 แสดงที่ 42px) — แทนไอคอนหยดน้ำเดิม */
+.logo-icon.logo-img{background:#fff;padding:0;overflow:hidden;transform:none;text-shadow:none}
+.logo-icon.logo-img img{width:100%;height:100%;object-fit:contain;display:block}
