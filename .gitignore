@@ -18,8 +18,16 @@ desktop.ini
 # Sensitive (never commit these)
 .env
 .env.local
+.env.*
+!.env.example
 *.pem
 *.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+secrets/
+.supabase/
 # config.js is committed — anon key is browser-safe, protected by Supabase RLS
 
 # Build output
@@ -36,3 +44,7 @@ meter_reader.py
 *.jpg
 # Allow icons/*.png (PWA); ignore other raw images
 *_result.json
+
+# Local browser/security test artifacts
+.edge-*/
+*-debug.png

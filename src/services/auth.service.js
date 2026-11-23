@@ -15,6 +15,7 @@ import { roleLabels } from '../config/ui.config.js';
 
 const REFRESH_BEFORE_SEC = 2 * 3600;
 const RETRY_SEC          = 5 * 60;
+const IDLE_TIMEOUT_MS    = 15 * 60 * 1000;
 
 export let currentUser    = null;
 export let currentProfile = null;
@@ -25,6 +26,40 @@ export function hasRole(...roles) {
 }
 
 let _refreshTimer = null;
+let _idleTimer = null;
+let _lastActivityAt = Date.now();
+let _idleLocking = false;
+
+function _armIdleLock() {
+  clearTimeout(_idleTimer);
+  if (!getSession()) return;
+  const remaining = IDLE_TIMEOUT_MS - (Date.now() - _lastActivityAt);
+  if (remaining <= 0) {
+    _lockForInactivity();
+    return;
+  }
+  _idleTimer = setTimeout(_lockForInactivity, remaining);
+}
+
+function _noteActivity() {
+  if (!getSession()) return;
+  _lastActivityAt = Date.now();
+  _armIdleLock();
+}
+
+async function _lockForInactivity() {
+  if (_idleLocking || !getSession()) return;
+  _idleLocking = true;
+  _showLogin('ระบบถูกล็อกเนื่องจากไม่มีการใช้งาน 15 นาที กรุณาเข้าสู่ระบบใหม่');
+  await Promise.race([_sb.rpc('logout_session'), new Promise(r => setTimeout(r, 3000))]).catch(() => {});
+  _endSession();
+  clearOfflineCache();
+  _idleLocking = false;
+}
+
+['pointerdown', 'keydown', 'touchstart', 'scroll'].forEach(type => {
+  document.addEventListener(type, _noteActivity, { passive: true });
+});
 
 // ─── Session lifecycle ────────────────────────────────────────
 // ใช้ session ใหม่ (หลัง login / ต่ออายุ / เปลี่ยนรหัสผ่าน)
@@ -35,6 +70,8 @@ export function adoptSession(session, remember) {
   currentUser    = session.profile;
   syncRealtimeAuth();
   _scheduleRefresh();
+  _lastActivityAt = Date.now();
+  _armIdleLock();
   // ผู้ใช้เปลี่ยน (login ใหม่) → realtime ต้อง subscribe ใหม่ด้วยสิทธิ์ของผู้ใช้คนนี้
   window.dispatchEvent(new CustomEvent('aquaflow:session', { detail: { loggedIn: true, relogin } }));
 }
@@ -70,6 +107,7 @@ function _expireSession() {
 
 function _endSession() {
   clearTimeout(_refreshTimer);
+  clearTimeout(_idleTimer);
   clearSession();
   currentUser    = null;
   currentProfile = null;
@@ -79,7 +117,10 @@ function _endSession() {
 
 // timer ในแท็บที่ถูกพักอาจไม่ทำงาน — เช็กใหม่ทุกครั้งที่กลับมาเปิดแอป
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && getSession()) _scheduleRefresh();
+  if (document.visibilityState === 'visible' && getSession()) {
+    _scheduleRefresh();
+    _armIdleLock();
+  }
 });
 
 // fetch ล้มเหลว (ออฟไลน์) จะไม่มี error.code — ต่างจาก error จาก server
@@ -215,11 +256,14 @@ export async function _initApp() {
   if (ok) {
     saveToStorage();   // cache ไว้ใช้ตอนออฟไลน์
   } else {
-    loadFromStorage();
+    const hasFreshCache = loadFromStorage();
     loadRateConfig();
     loadMaintenanceFromStorage();
     syncOverdueStatus();   // ออฟไลน์: ปรับสถานะค้างชำระเพื่อแสดงผลเท่านั้น
-    toast('ใช้ข้อมูล local (offline mode)', 'warn');
+    toast(
+      hasFreshCache ? 'ใช้ข้อมูล local (offline mode)' : 'เชื่อมต่อไม่ได้ และไม่มีข้อมูล offline ที่ยังไม่หมดอายุ',
+      hasFreshCache ? 'warn' : 'error',
+    );
   }
 
   document.getElementById('auth-overlay').style.display = 'none';

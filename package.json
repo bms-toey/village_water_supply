@@ -1,1 +1,13 @@
-{}
+{
+  "name": "aquaflow-pro",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Village water utility management PWA",
+  "scripts": {
+    "check": "node scripts/security-check.mjs",
+    "audit:iso": "node scripts/security-check.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
