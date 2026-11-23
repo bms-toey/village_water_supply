@@ -138,6 +138,42 @@
   #page-map #map-container{flex:1 1 auto;height:auto!important;min-height:540px}
 }
 
+/* Thailand 3D drilldown map */
+.map-stage{position:relative;min-height:540px;flex:1;overflow:hidden;background:linear-gradient(145deg,#071a36 0%,#0a2b50 52%,#0d365d 100%)}
+.map-stage #map-container{position:absolute;inset:0;min-height:100%!important}
+.map-stage .maplibregl-canvas{outline:none}
+.map-stage .maplibregl-ctrl-group{overflow:hidden;border:1px solid rgba(255,255,255,.18);border-radius:12px;background:rgba(7,25,51,.86);box-shadow:0 8px 24px rgba(0,0,0,.22);backdrop-filter:blur(12px)}
+.map-stage .maplibregl-ctrl-group button{width:36px;height:36px;background-color:transparent;filter:invert(1)}
+.map-stage .maplibregl-ctrl-attrib{font-size:10px;background:rgba(7,25,51,.78);color:rgba(255,255,255,.72)}
+.map-drillbar{position:absolute;z-index:5;top:14px;left:14px;right:62px;display:flex;align-items:center;gap:10px;max-width:620px;padding:8px 10px;border:1px solid rgba(255,255,255,.16);border-radius:14px;background:rgba(7,25,51,.86);color:#fff;box-shadow:0 12px 30px rgba(0,0,0,.22);backdrop-filter:blur(14px)}
+.map-home-btn{display:grid;place-items:center;width:34px;height:34px;flex:0 0 34px;border:1px solid rgba(255,255,255,.15);border-radius:10px;background:rgba(255,255,255,.08);color:#fff;cursor:pointer;transition:.2s ease}
+.map-home-btn:hover{background:#f4bd4f;color:#071a36;transform:translateY(-1px)}
+.map-breadcrumb{display:flex;align-items:center;gap:7px;min-width:0;flex:1;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.map-breadcrumb .map-crumb-sep{color:#6f8fb3}
+.map-breadcrumb button{padding:0;border:0;background:none;color:#87d9f5;font:inherit;cursor:pointer}
+.map-breadcrumb strong{overflow:hidden;text-overflow:ellipsis}
+.map-level-pill{flex:0 0 auto;padding:5px 9px;border-radius:999px;background:rgba(25,181,232,.18);border:1px solid rgba(77,210,248,.24);color:#bdefff;font-size:11px;font-weight:700}
+.map-tip{position:absolute;z-index:6;pointer-events:none;min-width:190px;max-width:250px;padding:11px 13px;border:1px solid rgba(255,255,255,.16);border-radius:12px;background:rgba(5,20,43,.92);color:#fff;box-shadow:0 14px 32px rgba(0,0,0,.3);backdrop-filter:blur(12px);font-size:12px;line-height:1.45}
+.map-tip strong{display:block;margin-bottom:5px;font-size:14px}
+.map-tip-grid{display:grid;grid-template-columns:1fr auto;gap:3px 12px;color:#b9c9dc}
+.map-tip-grid b{color:#fff;text-align:right}
+.map-loading{position:absolute;z-index:8;inset:0;display:flex;align-items:center;justify-content:center;gap:10px;background:linear-gradient(145deg,rgba(7,26,54,.96),rgba(10,43,80,.94));color:#d9efff;font-size:13px;font-weight:600;transition:opacity .25s ease}
+.map-loading.is-hidden{opacity:0;pointer-events:none}
+.map-loading .spinner{width:20px;height:20px;border:2px solid rgba(255,255,255,.22);border-top-color:#4dd2f8;border-radius:50%;animation:mapSpin .75s linear infinite}
+.map-province-label{padding:3px 7px;border:1px solid rgba(255,255,255,.18);border-radius:7px;background:rgba(4,18,38,.75);color:#e8f6ff;font-family:'Sarabun',sans-serif;font-size:10px;font-weight:700;white-space:nowrap;box-shadow:0 5px 14px rgba(0,0,0,.2);pointer-events:none}
+.maplibregl-popup-content{border:1px solid rgba(20,54,90,.12);border-radius:14px!important;box-shadow:0 18px 45px rgba(3,19,38,.25)!important;font-family:'Sarabun',sans-serif}
+.maplibregl-popup-close-button{width:28px;height:28px;font-size:20px;color:#6b7d91}
+@keyframes mapSpin{to{transform:rotate(360deg)}}
+
+@media (max-width:760px){
+  .map-stage{min-height:430px}
+  .map-stage #map-container{min-height:430px!important}
+  .map-drillbar{top:10px;left:10px;right:50px;padding:6px 7px;gap:7px}
+  .map-level-pill{display:none}
+  .map-breadcrumb{font-size:12px}
+  .map-tip{display:none!important}
+}
+
 /* โ”€โ”€โ”€ GRID HELPERS โ”€โ”€โ”€ */
 .grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-bottom:18px}
 .grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:18px}

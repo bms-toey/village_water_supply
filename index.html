@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <!-- ความปลอดภัย: จำกัดแหล่งที่โหลดได้ (CSP) — frame-ancestors/X-Frame-Options ต้องตั้งที่ hosting (ดู docs/SECURITY_PDPA.md) -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data: blob: https://*.supabase.co https://*.tile.openstreetmap.org https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co wss://*.supabase.co; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data: blob: https://*.supabase.co https://*.tile.openstreetmap.org https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://cdn.jsdelivr.net; worker-src 'self' blob: https://cdn.jsdelivr.net; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"/>
 <meta name="referrer" content="strict-origin-when-cross-origin"/>
 <script>if (window.top !== window.self) { try { window.top.location = window.self.location; } catch (e) { document.documentElement.style.display = 'none'; } }</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
@@ -43,6 +43,7 @@
 <link rel="stylesheet" href="styles/mobile-polish.css"/>
 <link rel="stylesheet" href="styles/print.css"/>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@6.16.0/dist/maplibre-gl.css" integrity="sha384-S+OnE5M4U3Qc2nR0RgljGrVs06xqfRg8L7uFk/pOF5+sRuSDG4oKkqKZmFrx7w09" crossorigin="anonymous"/>
 </head>
 <body>
 <div class="app">
@@ -635,8 +636,8 @@
     <div class="page page-fill" id="page-map">
       <div class="page-hd">
         <div>
-          <div class="page-title">แผนที่การใช้น้ำ</div>
-          <div class="page-sub">ตำแหน่งมิเตอร์และข้อมูลการใช้น้ำแต่ละครัวเรือน</div>
+          <div class="page-title">แผนที่การใช้น้ำ 3D ประเทศไทย</div>
+          <div class="page-sub">คลิกจังหวัดและอำเภอเพื่อเจาะลึกถึงตำแหน่งมิเตอร์แต่ละครัวเรือน</div>
         </div>
         <div class="page-hd-actions">
           <select class="fselect" onchange="filterMapByVillage(this.value)">
@@ -654,23 +655,32 @@
 
       <div class="map-layout fill-grow" style="display:grid;grid-template-columns:1fr 260px;gap:16px;align-items:start">
         <div class="card map-card" style="padding:0;overflow:hidden;margin-bottom:0">
-          <div id="map-container" style="height:540px;width:100%"></div>
+          <div class="map-stage">
+            <div id="map-container" style="height:540px;width:100%" aria-label="แผนที่ประเทศไทยแบบสามมิติ"></div>
+            <div class="map-drillbar" id="map-drillbar">
+              <button type="button" class="map-home-btn" id="map-home-btn" title="กลับไปดูทั้งประเทศ"><i class="ti ti-home"></i></button>
+              <div class="map-breadcrumb" id="map-breadcrumb"><strong>ประเทศไทย</strong></div>
+              <span class="map-level-pill" id="map-level-pill">77 จังหวัด</span>
+            </div>
+            <div class="map-tip" id="map-tip" hidden></div>
+            <div class="map-loading" id="map-loading"><span class="spinner"></span><span>กำลังสร้างแผนที่ 3D...</span></div>
+          </div>
         </div>
 
         <div>
           <div class="card" style="margin-bottom:14px">
             <div class="card-hd" style="padding:14px 16px"><div class="card-title"><i class="ti ti-info-circle" style="color:var(--blue-500)"></i>คำอธิบาย</div></div>
             <div class="card-body" style="padding:12px 16px">
-              <div style="font-size:10.5px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">สีตามสถานะ</div>
+              <div style="font-size:10.5px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">สีพื้นที่ 3D</div>
               <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;font-size:12.5px">
-                <div style="display:flex;align-items:center;gap:8px"><div style="width:12px;height:12px;border-radius:50%;background:#16a34a;flex-shrink:0"></div>ปกติ</div>
-                <div style="display:flex;align-items:center;gap:8px"><div style="width:12px;height:12px;border-radius:50%;background:#dc2626;flex-shrink:0"></div>ค้างชำระ</div>
-                <div style="display:flex;align-items:center;gap:8px"><div style="width:12px;height:12px;border-radius:50%;background:#6b7280;flex-shrink:0"></div>ปิดมิเตอร์</div>
+                <div style="display:flex;align-items:center;gap:8px"><div style="width:12px;height:12px;border-radius:3px;background:#19b5e8;flex-shrink:0"></div>มีข้อมูลครัวเรือน</div>
+                <div style="display:flex;align-items:center;gap:8px"><div style="width:12px;height:12px;border-radius:3px;background:#f25f5c;flex-shrink:0"></div>มีรายการค้างชำระ</div>
+                <div style="display:flex;align-items:center;gap:8px"><div style="width:12px;height:12px;border-radius:3px;background:#bfd0e5;flex-shrink:0"></div>ยังไม่มีข้อมูล</div>
               </div>
-              <div style="font-size:10.5px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">ขนาดวงกลม</div>
-              <div style="font-size:12px;color:var(--gray-600)">ใหญ่ขึ้น = ใช้น้ำมากขึ้น</div>
-              <div style="margin-top:10px;font-size:10.5px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">วงประ</div>
-              <div style="font-size:12px;color:var(--gray-600)">แสดงขอบเขตหมู่บ้าน</div>
+              <div style="font-size:10.5px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">ความสูงของพื้นที่</div>
+              <div style="font-size:12px;color:var(--gray-600)">สูงขึ้น = ครัวเรือนและการใช้น้ำมากขึ้น</div>
+              <div style="margin-top:10px;font-size:10.5px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">วิธีดูรายละเอียด</div>
+              <div style="font-size:12px;color:var(--gray-600)">คลิกจังหวัด → อำเภอ → จุดมิเตอร์</div>
             </div>
           </div>
 
